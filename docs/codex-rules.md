@@ -196,11 +196,100 @@ status!: StatusEnum;
 
 ## Mongoose Lean 查询的类型约束（强制）
 
-- Codex 在生成或修改后端查询逻辑时，如使用 Mongoose `.lean()` 查询，并在后续逻辑中访问 `_id`、`createdAt`、`updatedAt` 等字段，必须遵循对应架构文档中的相关类型安全规范。
+- Codex 在生成或修改后端查询逻辑时，如使用 Mongoose `.lean()` 查询，并在后续逻辑中访问 `_id`、`createdAt`、`updatedAt` 等字段，必须遵循类型安全规范。
 - 具体要求包括但不限于：
   - 为 `.lean()` 查询显式指定返回泛型；
   - 在局部变量、集合值类型、函数参数类型中补充 `WithId`、`WithTimestamps` 等类型约束。
 - 不得使用 `as any`、隐式断言或“假设字段存在”的方式绕过类型约束。
+
+适用触发条件：
+
+- 查询结果后续访问 `_id`
+- 查询结果后续访问 `createdAt`、`updatedAt` 或其他由 `timestamps` 维护的字段
+- 查询结果传入 mapper、serializer、DTO builder、response builder
+- 查询结果进入数组 `map`、`filter`、`reduce`、分组聚合、统计计算或跨函数传递
+- 查询结果与手写对象合并、转换为响应 DTO，或生成外部可见返回值
+- 查询结果使用 `populate`、`select`、投影、聚合后再映射，导致字段存在性和类型更容易不清晰
+
+补充说明：
+
+- 只读取明确声明且不涉及 `_id`、timestamps、mapper、跨函数传递的简单字段时，可以保持轻量类型，但不得用 `as any` 偷懒
+- 如果无法确定字段是否存在，应显式建模，而不是假设存在
+
+推荐类型组织方式：
+
+- 可在当前 service 文件局部定义轻量类型别名
+- 可在模块内 `interfaces`、`types` 或等价位置定义可复用类型
+- 可使用通用类型组合，例如 `WithId<T>`、`WithTimestamps<T>`、`WithId<WithTimestamps<T>>`，或仓库已有等价工具类型
+- 如果仓库尚未定义 `WithTimestamps<T>`，Codex 不得擅自创建全局工具类型，除非当前任务明确要求
+- 局部只用一次的类型，优先在当前文件就近定义
+- 多处复用且稳定的类型，才考虑提取到模块级类型文件
+
+Mapper / DTO 输出层规则：
+
+- mapper、serializer、DTO builder 的入参类型必须显式表达其需要的字段
+- 如果 mapper 会读取 `_id`，入参类型必须包含 `WithId<T>` 或等价约束
+- 如果 mapper 会读取 `createdAt`、`updatedAt`，入参类型必须包含 `WithTimestamps<T>` 或等价约束
+- mapper 不得声明为 `any`、`unknown` 后再强转
+- mapper 不得依赖“运行时一定有字段”但类型层不表达
+- 输出 DTO 中的 `id`、`createdAt`、`updatedAt` 等字段，应在 mapper 中显式转换或格式化
+- 不得直接把 lean result 原样作为普通响应对象返回，除非已经明确过滤敏感字段和内部字段
+
+Service 局部逻辑规则：
+
+- 对 `.lean()` 查询结果进行局部计算时，应给中间变量、数组元素、`reduce` accumulator 或 helper 函数参数补充必要类型
+- 如果查询结果会被多次传递，优先给查询结果定义清晰的局部类型别名
+- 对 `findOne().lean()` 结果，应显式处理 `null`
+- 对 `find().lean()` 结果，应明确数组元素类型
+- 对 `select` 或投影结果，应避免声明为完整实体类型；应按实际返回字段建模
+- 对 `populate` 结果，应明确被填充字段的结构，不得假设其仍是原始 id 或完整 document
+- 对聚合或投影阶段后的结果，不得套用原 Schema 类型；应定义聚合结果类型
+
+禁止写法：
+
+- 禁止 `.lean().exec()` 后直接把结果当作完整 Mongoose document 使用
+- 禁止通过 `as any` 访问 `_id`、timestamps 或 populate 字段
+- 禁止通过双重断言绕过类型，例如 `as unknown as SomeType`，除非当前任务明确说明该类型转换已被验证且无替代方案
+- 禁止 mapper 入参写成 `any`
+- 禁止为了消除 TypeScript 报错而删除字段访问、删除返回字段或改变业务语义
+- 禁止为了绕过 lean 类型问题而去掉 `.lean()`，除非当前任务明确要求改变查询策略，并说明性能与行为影响
+
+示例：
+
+```ts
+type EntityLean = WithId<
+  WithTimestamps<{
+    name: string;
+    status: string;
+  }>
+>;
+
+function toEntityResponse(entity: EntityLean) {
+  return {
+    id: entity._id.toString(),
+    name: entity.name,
+    status: entity.status,
+    createdAt: entity.createdAt,
+    updatedAt: entity.updatedAt,
+  };
+}
+
+const entities = await this.entityModel.find().lean<EntityLean[]>().exec();
+
+return entities.map(toEntityResponse);
+```
+
+```ts
+type EntityNameOnly = WithId<{
+  name: string;
+}>;
+
+const entity = await this.entityModel
+  .findById(id)
+  .select({ name: 1 })
+  .lean<EntityNameOnly>()
+  .exec();
+```
 
 违规处理：
 
@@ -273,4 +362,3 @@ status!: StatusEnum;
 
 - 如 Codex 行为违反以上明确标注为“强制”的约束，视为无效修改，应回滚并重新执行。
 - 仅涉及展示形式且不影响语义、工具链稳定性或类型安全的问题，不作为回滚依据。
-
