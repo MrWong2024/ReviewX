@@ -8,8 +8,9 @@
 ## 2. 当前状态
 
 - `backend` 已初始化为公共 NestJS 骨架
-- 当前仅引入最小启动配置与预留数据库连接配置
-- 配置值当前来自环境变量；本次未新增 `.env.example`
+- 当前已接入 `MongooseModule` 与 MongoDB 连接配置基线
+- 配置值当前来自环境变量，并提供 `.env.example` / `.env.development.example` / `.env.test.example` / `.env.production.example`
+- 当前仅建立数据库连接能力，尚未注册业务 Schema
 
 ## 3. 当前配置项
 
@@ -19,7 +20,8 @@
 | `PORT` | app | number | 否 | `5001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `5001` | 环境变量 | 否 | HTTP 监听端口；本地默认与其他同机服务错开 |
 | `FRONTEND_URL` | app | string | 否 | `http://localhost:3001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3001` | 环境变量 | 否 | 前端地址，作为 CORS 备用来源 |
 | `CORS_ORIGIN` | app | string | 否 | `http://localhost:3001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3001` | 环境变量 | 否 | CORS 来源配置，支持单值、逗号分隔多值或 `*` |
-| `MONGO_URI` | mongo | string | 是 | 例如 `mongodb://localhost:27017/reviewx_dev` | 环境变量 | 环境变量 | 环境变量 | 空字符串 | 环境变量 | 否 | 仅预留，不代表当前已建立数据库连接 |
+| `MONGO_URI` | mongo | string | 是 | `mongodb://localhost:27017/reviewx_dev` 或环境变量覆盖 | `mongodb://localhost:27017/reviewx_test` 或环境变量覆盖 | 环境变量 | 显式提供，数据库名应为 `reviewx` | development 默认 `reviewx_dev`；test 默认 `reviewx_test`；production 无代码默认值 | 环境变量 | production 是；development/test 否 | MongoDB 连接串；不得在仓库中写入真实连接串、账号或密码 |
+| `MONGO_AUTO_INDEX` | mongo | boolean | 否 | `true` 或环境变量覆盖 | `true` 或环境变量覆盖 | 环境变量 | `false` | development/test 默认 `true`；production 默认 `false` | 环境变量 | 否 | 统一控制 Mongoose `autoIndex`；production 必须关闭 |
 
 ## 4. 配置分类建议
 
@@ -40,4 +42,5 @@
 - 新增敏感配置必须标注敏感
 - 不得在本文档写入真实密钥、密码、连接串或 Token
 - 配置实际值以环境变量、部署平台或 `.env.example` 为准
-- 当前骨架尚未创建 `.env.example`，后续如需要再补充通用示例
+- production 数据库名口径为 `reviewx`，development 为 `reviewx_dev`，test 为 `reviewx_test`
+- 当前无 Email 配置，也未引入短信、AI、对象存储或会议平台相关配置

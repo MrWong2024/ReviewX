@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -13,6 +14,13 @@ import { envValidationSchema } from './config/env.validation';
       envFilePath: [`.env.${process.env.NODE_ENV ?? 'development'}`, '.env'],
       load: [configuration],
       validationSchema: envValidationSchema,
+    }),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>('mongo.uri'),
+        autoIndex: configService.getOrThrow<boolean>('mongo.autoIndex'),
+      }),
     }),
   ],
   controllers: [AppController],

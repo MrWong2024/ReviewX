@@ -110,6 +110,30 @@
 - 后续动作：后续如初始化前端或补充环境示例文件，继续沿用该本地端口口径。
 - 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
 
+### 决策 008
+
+- 编号：BD-008
+- 日期：2026-06-07
+- 状态：accepted
+- 背景：ReviewX 后端需要先建立数据库连接与环境隔离基线，为后续 users、sessions 和 auth 开发做准备，同时避免误用其他项目命名或把测试连接到非 test 数据库。
+- 决策：ReviewX MongoDB 数据库按环境物理隔离，production 使用 `reviewx`，development 使用 `reviewx_dev`，test 使用 `reviewx_test`；后端通过 `MongooseModule` 和配置层统一接入 `MONGO_URI`、`MONGO_AUTO_INDEX`，其中 production 关闭 `autoIndex`。
+- 理由：先明确数据库命名和连接边界，可以降低后续认证、用户与持久化模块接入时的误连风险，并与数据库治理文档保持一致。
+- 影响范围：后端配置体系、E2E 环境隔离、MongoDB 运维口径和后续 Schema 接入方式。
+- 后续动作：后续新增业务 Schema 时继续沿用该环境隔离口径，并通过受控流程处理 production 索引同步。
+- 相关文档：`docs/database-conventions.md`、`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
+
+### 决策 009
+
+- 编号：BD-009
+- 日期：2026-06-07
+- 状态：accepted
+- 背景：ReviewX 后续会实现用户、登录和会话能力，但当前阶段仅建立数据库与配置基线。
+- 决策：ReviewX 不引入 Email 功能，未来用户以手机号作为主要登录标识；当前阶段不实现 auth/users/sessions，也不引入短信验证码或密码哈希相关依赖与配置。
+- 理由：先稳定数据库和配置底座，避免在未完成认证方案细化前过早固化无关依赖、配置和用户模型。
+- 影响范围：后续认证方案、用户模型、环境配置和依赖引入节奏。
+- 后续动作：后续进入 auth/users/sessions 任务时，再按手机号登录方向补充用户 Schema、会话集合和密码或验证码策略。
+- 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改
