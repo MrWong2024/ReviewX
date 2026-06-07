@@ -15,5 +15,8 @@ implemented yet.
 ## Notes
 
 - The current scope is infrastructure only.
+- The local default backend port is `5001`.
+- If a frontend is added later, the recommended local origin is
+  `http://localhost:3001`.
 - Business modules and database integration are intentionally not initialized in
   this task.

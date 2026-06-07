@@ -98,6 +98,18 @@
 - 后续动作：后续新增业务模块时，继续按后端架构文档分层补齐模块、Schema、认证和数据库能力。
 - 相关文档：`docs/backend-architecture.md`、`docs/codex-rules.md`、`docs/handoff/handoff-backend-snapshot.md`
 
+### 决策 007
+
+- 编号：BD-007
+- 日期：2026-06-07
+- 状态：accepted
+- 背景：ReviewX 与其他系统可能在同一台开发机或同一台 ECS 上并行运行，需要避免本地默认端口冲突。
+- 决策：ReviewX 本地默认端口与其他同机服务错开，后端默认使用 `5001`，未来前端本地来源示例使用 `http://localhost:3001`。
+- 理由：便于同机并行开发、联调和部署排错，减少默认端口碰撞。
+- 影响范围：后端配置默认值、README、本地开发说明和后续前后端联调口径。
+- 后续动作：后续如初始化前端或补充环境示例文件，继续沿用该本地端口口径。
+- 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

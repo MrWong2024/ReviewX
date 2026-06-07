@@ -1,5 +1,5 @@
-const DEFAULT_PORT = 5000;
-const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
+const DEFAULT_PORT = 5001;
+const DEFAULT_FRONTEND_URL = 'http://localhost:3001';
 
 function parseNumber(value: string | undefined, fallback: number): number {
   if (!value) {

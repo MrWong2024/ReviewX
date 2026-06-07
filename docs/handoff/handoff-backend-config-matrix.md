@@ -16,10 +16,10 @@
 | 配置项 | 所属模块 | 类型 | 是否敏感 | development | test | staging | production | 默认值 | 来源 | 是否必填 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `NODE_ENV` | app | string | 否 | `development` | `test` | 环境变量 | 环境变量 | `development` | 环境变量 | 否 | 运行环境标识，校验范围为 `development / test / production` |
-| `PORT` | app | number | 否 | 环境变量或默认值 | 环境变量或默认值 | 环境变量 | 环境变量 | `5000` | 环境变量 | 否 | HTTP 监听端口 |
-| `FRONTEND_URL` | app | string | 否 | 环境变量或默认值 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3000` | 环境变量 | 否 | 前端地址，作为 CORS 备用来源 |
-| `CORS_ORIGIN` | app | string | 否 | 环境变量或默认值 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3000` | 环境变量 | 否 | CORS 来源配置，支持单值、逗号分隔多值或 `*` |
-| `MONGO_URI` | mongo | string | 是 | 环境变量 | 环境变量 | 环境变量 | 环境变量 | 空字符串 | 环境变量 | 否 | 仅预留，不代表当前已建立数据库连接 |
+| `PORT` | app | number | 否 | `5001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `5001` | 环境变量 | 否 | HTTP 监听端口；本地默认与其他同机服务错开 |
+| `FRONTEND_URL` | app | string | 否 | `http://localhost:3001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3001` | 环境变量 | 否 | 前端地址，作为 CORS 备用来源 |
+| `CORS_ORIGIN` | app | string | 否 | `http://localhost:3001` 或环境变量覆盖 | 环境变量或默认值 | 环境变量 | 环境变量 | `http://localhost:3001` | 环境变量 | 否 | CORS 来源配置，支持单值、逗号分隔多值或 `*` |
+| `MONGO_URI` | mongo | string | 是 | 例如 `mongodb://localhost:27017/reviewx_dev` | 环境变量 | 环境变量 | 环境变量 | 空字符串 | 环境变量 | 否 | 仅预留，不代表当前已建立数据库连接 |
 
 ## 4. 配置分类建议
 
