@@ -134,6 +134,18 @@
 - 后续动作：后续进入 auth/users/sessions 任务时，再按手机号登录方向补充用户 Schema、会话集合和密码或验证码策略。
 - 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`
 
+### 决策 010
+
+- 编号：BD-010
+- 日期：2026-06-08
+- 状态：accepted
+- 背景：ReviewX 需要为后续模型能力预留环境配置，但当前阶段不实现具体 LLM 调用服务，也不能沿用其他项目中的专用命名。
+- 决策：ReviewX 预留通用 `LLM_PROVIDER`、`LLM_REAL_ENABLED` 和 `BAILIAN_*` 配置；命名不沿用旧的专用模型反馈变量体系，当前只建立配置基线，不引入百炼 SDK，不实现模型调用服务。
+- 理由：先把提供方、开关和超时重试等基础配置统一到后端配置层，便于后续接入 LLM 服务时复用，同时避免把特定业务语义写死在环境变量命名中。
+- 影响范围：环境示例文件、配置模块、配置校验和后续 LLM 服务接入方式。
+- 后续动作：后续如正式实现模型服务，再基于当前通用命名补充 provider adapter、调用链路和运行时审计策略。
+- 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

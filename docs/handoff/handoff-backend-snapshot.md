@@ -13,6 +13,8 @@
 - 当前已确认最小健康检查 API：`GET /health`
 - 当前已具备单元测试与最小 E2E 测试骨架
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
+- 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
+- 当前已预留通用 LLM / Bailian 配置基线
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
 - 当前本地前端来源示例为 `http://localhost:3001`
@@ -76,10 +78,11 @@ backend/
 ### 4.4 数据库连接与集合
 
 - 当前已通过 `MongooseModule` 接入 MongoDB 连接基线
-- 当前配置项包括 `MONGO_URI` 和 `MONGO_AUTO_INDEX`
+- 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - development 默认数据库名为 `reviewx_dev`
 - test 默认数据库名为 `reviewx_test`
 - production 数据库名口径为 `reviewx`
+- `MONGO_ADMIN_URI` 仅在 env example 中作为运维预留，不参与应用运行连接
 - 当前未创建任何集合或 Schema
 - 后续以真实模块实现为准
 
@@ -89,7 +92,9 @@ backend/
 
 ### 4.6 外部服务集成
 
-- 当前未实现
+- 当前已预留通用 `LLM_PROVIDER` / `LLM_REAL_ENABLED` 与 `BAILIAN_*` 配置
+- 当前尚未实现任何 LLM 调用服务
+- 当前未实现其他外部服务集成
 
 ### 4.7 后台任务 / 定时任务
 
@@ -105,6 +110,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前虽已接入数据库连接，但仍无业务模块、无业务 Schema、无 auth/users/sessions
+- 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 
 ## 5. 维护规则

@@ -20,6 +20,9 @@ import { envValidationSchema } from './config/env.validation';
       useFactory: (configService: ConfigService) => ({
         uri: configService.getOrThrow<string>('mongo.uri'),
         autoIndex: configService.getOrThrow<boolean>('mongo.autoIndex'),
+        serverSelectionTimeoutMS: configService.getOrThrow<number>(
+          'mongo.serverSelectionTimeoutMs',
+        ),
       }),
     }),
   ],
