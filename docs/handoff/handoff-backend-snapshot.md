@@ -7,12 +7,12 @@
 
 ## 2. 当前状态
 
-- `backend` 尚未初始化或尚未形成完整实现
-- 当前无已确认后端模块
-- 当前无已确认 API
-- 当前无已确认 Schema
-- 当前无已确认测试脚本
-- 后续以真实代码为准
+- `backend` 已初始化为可运行的 NestJS 公共骨架
+- 当前仅包含 `AppModule`、`AppController`、`AppService`、配置层和通用异常过滤器
+- 当前无业务模块、无 `src/modules/` 目录、无业务 Schema
+- 当前已确认最小健康检查 API：`GET /health`
+- 当前已具备单元测试与最小 E2E 测试骨架
+- 当前未接入数据库连接与外部集成
 
 ## 3. 技术基线
 
@@ -24,39 +24,82 @@
 
 ### 4.1 后端目录结构
 
-待定；后续由实际代码补充。
+当前目录结构如下：
+
+```text
+backend/
+├─ src/
+│  ├─ app.controller.spec.ts
+│  ├─ app.controller.ts
+│  ├─ app.module.ts
+│  ├─ app.service.ts
+│  ├─ app.setup.ts
+│  ├─ main.ts
+│  ├─ common/
+│  │  └─ filters/
+│  │     └─ all-exceptions.filter.ts
+│  └─ config/
+│     ├─ configuration.ts
+│     └─ env.validation.ts
+├─ test/
+│  ├─ app.e2e-spec.ts
+│  └─ jest-e2e.json
+├─ .gitignore
+├─ .prettierrc
+├─ eslint.config.mjs
+├─ nest-cli.json
+├─ package.json
+├─ README.md
+├─ tsconfig.build.json
+├─ tsconfig.eslint.json
+└─ tsconfig.json
+```
 
 ### 4.2 模块清单
 
-待定；后续由实际代码补充。
+- 当前仅有根应用骨架：
+  - `AppModule`
+  - `AppController`
+  - `AppService`
+- 当前无业务模块
+- 当前无 `src/modules/` 目录
 
 ### 4.3 认证与会话
 
-待定；后续以 `docs/auth-baseline.md` 和真实实现为准。
+- 当前未实现认证、用户或会话能力
+- 仅启用了 `cookie-parser` 作为通用基础设施准备
+- 后续以 `docs/auth-baseline.md` 和真实实现为准
 
 ### 4.4 数据库连接与集合
 
-待定；后续以真实配置和 Schema 为准。
+- 当前仅预留 `MONGO_URI` 配置项
+- 当前未引入数据库模块，未创建任何集合或 Schema
+- 后续以真实模块实现为准
 
 ### 4.5 文件上传 / 对象存储
 
-待定。
+- 当前未实现
 
 ### 4.6 外部服务集成
 
-待定。
+- 当前未实现
 
 ### 4.7 后台任务 / 定时任务
 
-待定。
+- 当前未实现
 
 ### 4.8 测试与验证
 
-待定。
+- 已包含 `src/app.controller.spec.ts` 单元测试
+- 已包含 `test/app.e2e-spec.ts` 最小 E2E，用于验证 `GET /health`
+- 当前测试不依赖数据库
+- 若本地缺少 `node_modules`，需由开发者安装依赖后再执行构建和测试
 
 ### 4.9 已知问题
 
-当前尚无已确认问题；后续补充。
+- 当前未生成 `package-lock.json`，原因是本任务未执行依赖安装，避免产生与 `package.json` 不一致的锁文件
+- 当前未接入数据库模块，后续如进入 Schema 或持久化开发，再补齐数据库装配与隔离测试
+- 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 
 ## 5. 维护规则
 

@@ -7,15 +7,15 @@
 
 ## 2. 当前状态
 
-- `backend` 尚未初始化
-- 当前无已确认 API
-- 本文档仅建立后续记录模板
+- `backend` 已初始化
+- 当前已确认最小健康检查 API
+- 当前无业务 API
 
-## 3. API 记录模板
+## 3. 当前 API
 
 | 模块 | 方法 | 路径 | Controller | Service | 权限 / Guard | 请求 DTO | 响应 DTO / 返回结构 | 状态 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 待定 | 待定 | 待定 | 待定 | 待定 | 待定 | 待定 | 待定 | planned | 后续由真实实现补充 |
+| app | `GET` | `/health` | `AppController` | `AppService` | 公共接口 | 无 | `{ status: 'ok', service: 'reviewx-backend' }` | implemented | 用于确认后端骨架已启动且可响应 |
 
 ## 4. 状态建议
 
