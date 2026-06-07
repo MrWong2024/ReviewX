@@ -1,3 +1,4 @@
+import type { Server } from 'node:http';
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -8,6 +9,7 @@ jest.setTimeout(30000);
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  let httpServer: Server;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -17,6 +19,7 @@ describe('AppController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     configureApp(app);
     await app.init();
+    httpServer = app.getHttpServer() as Server;
   });
 
   afterAll(async () => {
@@ -24,7 +27,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('/health (GET)', () => {
-    return request(app.getHttpServer()).get('/health').expect(200).expect({
+    return request(httpServer).get('/health').expect(200).expect({
       status: 'ok',
       service: 'reviewx-backend',
     });
