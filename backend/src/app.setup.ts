@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
-const DEFAULT_CORS_ORIGIN = 'http://localhost:3000';
+const DEFAULT_CORS_ORIGIN = 'http://localhost:3001';
 
 function resolveCorsOrigin(corsOriginValue: string): boolean | string[] {
   if (corsOriginValue.trim() === '*') {
