@@ -5,7 +5,6 @@ const DEFAULT_MONGO_SERVER_SELECTION_TIMEOUT_MS = 5000;
 const DEFAULT_LLM_PROVIDER = 'stub';
 const DEFAULT_BAILIAN_BASE_URL =
   'https://dashscope.aliyuncs.com/compatible-mode/v1';
-const DEFAULT_BAILIAN_MODEL = 'qwen3.6-plus';
 const DEFAULT_BAILIAN_TIMEOUT_MS = 90000;
 const DEFAULT_BAILIAN_MAX_RETRIES = 1;
 
@@ -50,18 +49,30 @@ function resolveAppEnvironment(): AppEnvironment {
 
 function getDefaultMongoUri(env: AppEnvironment): string {
   if (env === 'test') {
-    return 'mongodb://localhost:27017/reviewx_test';
+    return 'mongodb://reviewx_test_app:{REVIEWX_TEST_APP_PASSWORD}@127.0.0.1:27017/reviewx_test?authSource=reviewx_test';
   }
 
   if (env === 'production') {
     return DEFAULT_PRODUCTION_MONGO_URI;
   }
 
-  return 'mongodb://localhost:27017/reviewx_dev';
+  return 'mongodb://reviewx_dev_app:{REVIEWX_DEV_APP_PASSWORD}@127.0.0.1:27017/reviewx_dev?authSource=reviewx_dev';
 }
 
 function getDefaultMongoAutoIndex(env: AppEnvironment): boolean {
   return env !== 'production';
+}
+
+function getDefaultMongoAdminUri(env: AppEnvironment): string {
+  if (env === 'test') {
+    return 'mongodb://reviewx_test_db_admin:{REVIEWX_TEST_DB_ADMIN_PASSWORD}@127.0.0.1:27017/reviewx_test?authSource=reviewx_test';
+  }
+
+  if (env === 'production') {
+    return DEFAULT_PRODUCTION_MONGO_URI;
+  }
+
+  return 'mongodb://reviewx_dev_db_admin:{REVIEWX_DEV_DB_ADMIN_PASSWORD}@127.0.0.1:27017/reviewx_dev?authSource=reviewx_dev';
 }
 
 function resolveMongoUri(
@@ -74,6 +85,18 @@ function resolveMongoUri(
 
   const trimmedValue = value.trim();
   return trimmedValue.length > 0 ? trimmedValue : getDefaultMongoUri(env);
+}
+
+function resolveMongoAdminUri(
+  value: string | undefined,
+  env: AppEnvironment,
+): string {
+  if (!value) {
+    return getDefaultMongoAdminUri(env);
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 0 ? trimmedValue : getDefaultMongoAdminUri(env);
 }
 
 export default () => {
@@ -91,6 +114,7 @@ export default () => {
     },
     mongo: {
       uri: resolveMongoUri(process.env.MONGO_URI, env),
+      adminUri: resolveMongoAdminUri(process.env.MONGO_ADMIN_URI, env),
       autoIndex: parseBoolean(
         process.env.MONGO_AUTO_INDEX,
         getDefaultMongoAutoIndex(env),
@@ -102,11 +126,10 @@ export default () => {
     },
     llm: {
       provider: process.env.LLM_PROVIDER ?? DEFAULT_LLM_PROVIDER,
-      realEnabled: parseBoolean(process.env.LLM_REAL_ENABLED, false),
       bailian: {
         apiKey: process.env.BAILIAN_API_KEY ?? '',
         baseUrl: process.env.BAILIAN_BASE_URL ?? DEFAULT_BAILIAN_BASE_URL,
-        model: process.env.BAILIAN_MODEL ?? DEFAULT_BAILIAN_MODEL,
+        model: process.env.BAILIAN_MODEL ?? '',
         timeoutMs: parseNumber(
           process.env.BAILIAN_TIMEOUT_MS,
           DEFAULT_BAILIAN_TIMEOUT_MS,

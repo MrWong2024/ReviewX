@@ -104,7 +104,7 @@
 - 日期：2026-06-07
 - 状态：accepted
 - 背景：ReviewX 与其他系统可能在同一台开发机或同一台 ECS 上并行运行，需要避免本地默认端口冲突。
-- 决策：ReviewX 本地默认端口与其他同机服务错开，后端默认使用 `5001`，未来前端本地来源示例使用 `http://localhost:3001`。
+- 决策：ReviewX 本地默认端口与其他同机服务错开，后端默认使用 `PORT=5001`；同时保留 `CORS_ORIGIN` 作为独立配置项，未来前端本地来源示例使用 `http://localhost:3001`。
 - 理由：便于同机并行开发、联调和部署排错，减少默认端口碰撞。
 - 影响范围：后端配置默认值、README、本地开发说明和后续前后端联调口径。
 - 后续动作：后续如初始化前端或补充环境示例文件，继续沿用该本地端口口径。
@@ -116,10 +116,10 @@
 - 日期：2026-06-07
 - 状态：accepted
 - 背景：ReviewX 后端需要先建立数据库连接与环境隔离基线，为后续 users、sessions 和 auth 开发做准备，同时避免误用其他项目命名或把测试连接到非 test 数据库。
-- 决策：ReviewX MongoDB 数据库按环境物理隔离，production 使用 `reviewx`，development 使用 `reviewx_dev`，test 使用 `reviewx_test`；后端通过 `MongooseModule` 和配置层统一接入 `MONGO_URI`、`MONGO_AUTO_INDEX`，其中 production 关闭 `autoIndex`。
+- 决策：ReviewX MongoDB 数据库按环境物理隔离，production 使用 `reviewx`，development 使用 `reviewx_dev`，test 使用 `reviewx_test`；本地 development/test 使用独立应用账号与运维账号；后端通过 `MongooseModule` 和配置层统一接入 `MONGO_URI`、`MONGO_ADMIN_URI`、`MONGO_AUTO_INDEX`，其中 `MONGO_URI` 用于应用运行，`MONGO_ADMIN_URI` 保留给未来脚本，production 关闭 `autoIndex`。
 - 理由：先明确数据库命名和连接边界，可以降低后续认证、用户与持久化模块接入时的误连风险，并与数据库治理文档保持一致。
 - 影响范围：后端配置体系、E2E 环境隔离、MongoDB 运维口径和后续 Schema 接入方式。
-- 后续动作：后续新增业务 Schema 时继续沿用该环境隔离口径，并通过受控流程处理 production 索引同步。
+- 后续动作：后续新增业务 Schema 时继续沿用该环境隔离口径，并通过受控流程处理 production 索引同步；应用运行继续只使用 `MONGO_URI`，运维脚本再使用 `MONGO_ADMIN_URI`。
 - 相关文档：`docs/database-conventions.md`、`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
 
 ### 决策 009
@@ -140,7 +140,7 @@
 - 日期：2026-06-08
 - 状态：accepted
 - 背景：ReviewX 需要为后续模型能力预留环境配置，但当前阶段不实现具体 LLM 调用服务，也不能沿用其他项目中的专用命名。
-- 决策：ReviewX 预留通用 `LLM_PROVIDER`、`LLM_REAL_ENABLED` 和 `BAILIAN_*` 配置；命名不沿用旧的专用模型反馈变量体系，当前只建立配置基线，不引入百炼 SDK，不实现模型调用服务。
+- 决策：ReviewX 预留通用 `LLM_PROVIDER` 和 `BAILIAN_*` 配置；通过 `LLM_PROVIDER` 在 `stub` / `bailian` 间切换，不保留额外的启用开关；`BAILIAN_MODEL` 由 env 指定，代码中不固化默认模型，当前只建立配置基线，不引入百炼 SDK，不实现模型调用服务。
 - 理由：先把提供方、开关和超时重试等基础配置统一到后端配置层，便于后续接入 LLM 服务时复用，同时避免把特定业务语义写死在环境变量命名中。
 - 影响范围：环境示例文件、配置模块、配置校验和后续 LLM 服务接入方式。
 - 后续动作：后续如正式实现模型服务，再基于当前通用命名补充 provider adapter、调用链路和运行时审计策略。

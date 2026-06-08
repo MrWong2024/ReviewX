@@ -78,11 +78,13 @@ backend/
 ### 4.4 数据库连接与集合
 
 - 当前已通过 `MongooseModule` 接入 MongoDB 连接基线
+- 当前 `MONGO_URI` 用于应用运行连接，`MONGO_ADMIN_URI` 预留给未来索引同步、迁移和运维脚本
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - development 默认数据库名为 `reviewx_dev`
 - test 默认数据库名为 `reviewx_test`
 - production 数据库名口径为 `reviewx`
-- `MONGO_ADMIN_URI` 仅在 env example 中作为运维预留，不参与应用运行连接
+- development/test env example 当前使用本地独立应用账号和运维账号连接串
+- `MONGO_ADMIN_URI` 当前不参与应用运行连接
 - 当前未创建任何集合或 Schema
 - 后续以真实模块实现为准
 
@@ -92,7 +94,8 @@ backend/
 
 ### 4.6 外部服务集成
 
-- 当前已预留通用 `LLM_PROVIDER` / `LLM_REAL_ENABLED` 与 `BAILIAN_*` 配置
+- 当前已预留通用 `LLM_PROVIDER` 与 `BAILIAN_*` 配置
+- 当前 `BAILIAN_MODEL` 由 env 提供，代码中不固化默认模型
 - 当前尚未实现任何 LLM 调用服务
 - 当前未实现其他外部服务集成
 
