@@ -18,6 +18,7 @@
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
 - 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
 - 当前已预留通用 LLM / Bailian 配置基线
+- 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
 - 当前本地前端来源示例为 `http://localhost:3001`
@@ -90,6 +91,8 @@ backend/
 │  ├─ auth.e2e-spec.ts
 │  ├─ app.e2e-spec.ts
 │  └─ jest-e2e.json
+├─ scripts/
+│  └─ create-local-user.ts
 ├─ .gitignore
 ├─ .prettierrc
 ├─ eslint.config.mjs
@@ -133,6 +136,9 @@ backend/
 - auth 当前支持手机号 + 密码登录、服务端 session、HttpOnly Cookie、logout 和 me
 - Cookie 名称默认 `reviewx_session`，Cookie 内容只保存 session token
 - `SessionAuthGuard` 当前用于保护 `GET /auth/me`
+- 本地可通过 `scripts/create-local-user.ts` 创建或重置手机号用户，用于手动验证 `/auth/login`、`/auth/me`、`/auth/logout`
+- `scripts/create-local-user.ts` 不是注册接口、不是用户导入脚本、不用于 production
+- `scripts/create-local-user.ts` 只允许 development/test 数据库，使用 `MONGO_URI` 应用账号连接，不使用 `MONGO_ADMIN_URI`
 - 当前不实现注册、找回密码、修改密码、phone one-time code、角色权限矩阵或业务权限
 - 仅启用了 `cookie-parser` 作为通用基础设施准备
 - 后续以 `docs/auth-baseline.md` 和真实实现为准
@@ -179,6 +185,7 @@ backend/
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
+- 当前 `npm run create-local-user` 仅作为本地 development/test 辅助脚本，不属于自动测试前置条件
 
 ### 4.9 已知问题
 

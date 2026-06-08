@@ -182,6 +182,18 @@
 - 后续动作：后续 auth 阶段再补充注册或账号初始化策略、密码修改、phone one-time code、RolesGuard、业务权限矩阵和前端登录页。
 - 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-config-matrix.md`
 
+### 决策 014
+
+- 编号：BD-014
+- 日期：2026-06-09
+- 状态：accepted
+- 背景：ReviewX 已实现 auth 第一阶段登录闭环，但当前不提供注册接口，也不应为了本地手动验证而引入正式用户管理能力。
+- 决策：本地调试通过 `backend/scripts/create-local-user.ts` 创建或重置手机号用户；该脚本仅允许连接 `reviewx_dev` 或 `reviewx_test`，只使用 `MONGO_URI` 应用账号，不使用运维连接；生产用户初始化、正式用户管理和批量导入后续另行设计；不复用 EduForge `import-users` 脚本语义。
+- 理由：保持认证基线和正式用户管理边界清晰，同时为手动验证 `/auth/login`、`/auth/me`、`/auth/logout` 提供可控入口。
+- 影响范围：本地开发脚本、`backend/package.json` scripts、lint 覆盖范围和后续手动验证流程。
+- 后续动作：后续如需要正式用户初始化、管理后台或批量导入，应单独设计权限、审计、幂等和 production 运维流程。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改
