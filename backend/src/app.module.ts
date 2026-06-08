@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { envValidationSchema } from './config/env.validation';
         ),
       }),
     }),
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

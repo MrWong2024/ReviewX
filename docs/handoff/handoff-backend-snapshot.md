@@ -8,8 +8,8 @@
 ## 2. 当前状态
 
 - `backend` 已初始化为可运行的 NestJS 公共骨架
-- 当前仅包含 `AppModule`、`AppController`、`AppService`、配置层和通用异常过滤器
-- 当前无业务模块、无 `src/modules/` 目录、无业务 Schema
+- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器和 users 模块基础模型
+- 当前已有 users 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
 - 当前已确认最小健康检查 API：`GET /health`
 - 当前已具备单元测试与最小 E2E 测试骨架
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
@@ -43,9 +43,22 @@ backend/
 │  ├─ common/
 │  │  └─ filters/
 │  │     └─ all-exceptions.filter.ts
-│  └─ config/
-│     ├─ configuration.ts
-│     └─ env.validation.ts
+│  ├─ config/
+│  │  ├─ configuration.ts
+│  │  └─ env.validation.ts
+│  └─ modules/
+│     └─ users/
+│        ├─ dto/
+│        │  └─ create-user.input.ts
+│        ├─ schemas/
+│        │  └─ user.schema.ts
+│        ├─ types/
+│        │  ├─ public-user.type.ts
+│        │  ├─ user-role.type.ts
+│        │  └─ user-status.type.ts
+│        ├─ users.module.ts
+│        ├─ users.service.spec.ts
+│        └─ users.service.ts
 ├─ test/
 │  ├─ app.e2e-spec.ts
 │  └─ jest-e2e.json
@@ -66,12 +79,18 @@ backend/
   - `AppModule`
   - `AppController`
   - `AppService`
-- 当前无业务模块
-- 当前无 `src/modules/` 目录
+- 当前已有 users 基础模块：
+  - `UsersModule`
+  - `UsersService`
+  - `User` schema
+- 当前 users 模块不包含 Controller，也未暴露 HTTP API
 
 ### 4.3 认证与会话
 
-- 当前未实现认证、用户或会话能力
+- 当前仅完成 users 数据底座，尚未实现 auth 或 sessions
+- users 使用 `phone` 作为主要登录标识
+- `passwordHash` 只保存哈希值，schema 中默认 `select: false`
+- 当前不以邮箱作为登录标识，也无 Email 功能
 - 仅启用了 `cookie-parser` 作为通用基础设施准备
 - 后续以 `docs/auth-baseline.md` 和真实实现为准
 
@@ -85,8 +104,10 @@ backend/
 - production 数据库名口径为 `reviewx`
 - development/test env example 当前使用本地独立应用账号和运维账号连接串
 - `MONGO_ADMIN_URI` 当前不参与应用运行连接
-- 当前未创建任何集合或 Schema
-- 后续以真实模块实现为准
+- 当前已创建 `users` 集合对应 schema
+- 当前 `users.phone` 具备唯一约束
+- 当前没有 sessions 集合
+- 后续集合以真实模块实现为准
 
 ### 4.5 文件上传 / 对象存储
 
@@ -112,7 +133,7 @@ backend/
 
 ### 4.9 已知问题
 
-- 当前虽已接入数据库连接，但仍无业务模块、无业务 Schema、无 auth/users/sessions
+- 当前虽已接入 users 数据底座，但仍无 auth/sessions
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 

@@ -128,10 +128,10 @@
 - 日期：2026-06-07
 - 状态：accepted
 - 背景：ReviewX 后续会实现用户、登录和会话能力，但当前阶段仅建立数据库与配置基线。
-- 决策：ReviewX 不引入 Email 功能，未来用户以手机号作为主要登录标识；当前阶段不实现 auth/users/sessions，也不引入短信验证码或密码哈希相关依赖与配置。
+- 决策：ReviewX 不引入 Email 功能，未来用户以手机号作为主要登录标识；当前阶段不实现 auth/users/sessions，也不引入 phone one-time code 或密码哈希相关依赖与配置。
 - 理由：先稳定数据库和配置底座，避免在未完成认证方案细化前过早固化无关依赖、配置和用户模型。
 - 影响范围：后续认证方案、用户模型、环境配置和依赖引入节奏。
-- 后续动作：后续进入 auth/users/sessions 任务时，再按手机号登录方向补充用户 Schema、会话集合和密码或验证码策略。
+- 后续动作：后续进入 auth/users/sessions 任务时，再按手机号登录方向补充用户 Schema、会话集合和密码或 phone code 策略。
 - 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`
 
 ### 决策 010
@@ -145,6 +145,18 @@
 - 影响范围：环境示例文件、配置模块、配置校验和后续 LLM 服务接入方式。
 - 后续动作：后续如正式实现模型服务，再基于当前通用命名补充 provider adapter、调用链路和运行时审计策略。
 - 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
+
+### 决策 011
+
+- 编号：BD-011
+- 日期：2026-06-08
+- 状态：accepted
+- 背景：ReviewX 后续需要 auth 与 sessions 能力，但当前阶段只建立 users 数据底座。
+- 决策：users 模块以 `phone` 作为主要登录标识，不以邮箱作为登录标识；`passwordHash` 只保存哈希值，不保存明文密码，并在 schema 中默认 `select: false`；`roles` 暂不绑定最终业务角色集合，后续权限矩阵明确后再收敛。
+- 理由：先稳定认证依赖的数据模型，可以降低后续 auth 和 sessions 接入成本，同时避免过早固化业务权限。
+- 影响范围：`User` schema、`UsersService`、后续 auth/sessions 依赖方式。
+- 后续动作：后续 auth 任务再实现密码校验、session 创建、Cookie 下发和认证探针。
+- 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-service-map.md`
 
 ## 5. 明确不记录
 
