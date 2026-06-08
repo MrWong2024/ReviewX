@@ -14,9 +14,9 @@
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --fix",
     "lint:file": "eslint",
     "lint:file:fix": "eslint --fix",
-    "test": "node -e \"process.env.NODE_ENV='test'; require('jest').run()\"",
-    "test:watch": "node -e \"process.env.NODE_ENV='test'; require('jest').run(['--watch'])\"",
-    "test:cov": "node -e \"process.env.NODE_ENV='test'; require('jest').run(['--coverage'])\"",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node -e \"process.env.NODE_ENV='test'; require('jest').run(['--config', './test/jest-e2e.json'])\""
   },
