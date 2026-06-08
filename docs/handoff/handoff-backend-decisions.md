@@ -206,6 +206,18 @@
 - 后续动作：更完整的安全响应头、CSRF、rate limit 和审计策略后续另行设计。
 - 相关文档：`docs/handoff/handoff-backend-api-map.md`
 
+### 决策 016
+
+- 编号：BD-016
+- 日期：2026-06-09
+- 状态：accepted
+- 背景：ReviewX production 环境关闭 `autoIndex`，应用启动不应隐式创建或变更生产索引。
+- 决策：索引同步通过 `backend/scripts/sync-indexes.ts` 手动受控执行；脚本只使用 `MONGO_ADMIN_URI`，当前同步 `User` / `Session` 模型索引；production 或目标库为 `reviewx` 时必须传入 `--confirm-production`。
+- 理由：索引变更属于运维动作，需要与应用运行连接和启动流程隔离，避免 production 启动时不可控地创建或删除索引。
+- 影响范围：`backend/scripts/sync-indexes.ts`、`backend/package.json`、MongoDB 运维流程和后续 Schema 索引变更流程。
+- 后续动作：后续新增 Schema 或索引时，必须同步更新 `scripts/sync-indexes.ts` 的模型注册清单；生产执行前确认 Schema 索引定义、备份或维护窗口安排。
+- 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

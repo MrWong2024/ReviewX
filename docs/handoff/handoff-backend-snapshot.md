@@ -19,6 +19,7 @@
 - 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
 - 当前已预留通用 LLM / Bailian 配置基线
 - 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
+- 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions 索引
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
 - 当前本地前端来源示例为 `http://localhost:3001`
@@ -92,7 +93,8 @@ backend/
 │  ├─ app.e2e-spec.ts
 │  └─ jest-e2e.json
 ├─ scripts/
-│  └─ create-local-user.ts
+│  ├─ create-local-user.ts
+│  └─ sync-indexes.ts
 ├─ .gitignore
 ├─ .prettierrc
 ├─ eslint.config.mjs
@@ -147,6 +149,9 @@ backend/
 
 - 当前已通过 `MongooseModule` 接入 MongoDB 连接基线
 - 当前 `MONGO_URI` 用于应用运行连接，`MONGO_ADMIN_URI` 预留给未来索引同步、迁移和运维脚本
+- 当前 `scripts/sync-indexes.ts` 使用 `MONGO_ADMIN_URI` 运维账号连接，不启动 Nest 应用，不使用 `MONGO_URI`
+- 当前 `scripts/sync-indexes.ts` 显式注册 `User` / `Session` schema，并同步 `users` / `sessions` 索引
+- 当前 `scripts/sync-indexes.ts` 在 production 或目标库为 `reviewx` 时要求 `--confirm-production`
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - 当前新增 session Cookie 配置项：`SESSION_COOKIE_NAME`、`SESSION_TTL_MS`、`MAX_ACTIVE_SESSIONS_PER_USER`、`SESSION_COOKIE_SECURE`、`SESSION_COOKIE_SAME_SITE`
 - development 默认数据库名为 `reviewx_dev`
@@ -186,6 +191,7 @@ backend/
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
 - 当前 `npm run create-local-user` 仅作为本地 development/test 辅助脚本，不属于自动测试前置条件
+- 当前 `npm run sync-indexes` 是手动受控索引同步入口，不属于应用启动流程
 
 ### 4.9 已知问题
 
