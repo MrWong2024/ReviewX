@@ -158,6 +158,18 @@
 - 后续动作：后续 auth 任务再实现密码校验、session 创建、Cookie 下发和认证探针。
 - 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-service-map.md`
 
+### 决策 012
+
+- 编号：BD-012
+- 日期：2026-06-08
+- 状态：accepted
+- 背景：ReviewX 后续需要 login/logout/me 和 SessionAuthGuard，但当前阶段不应提前暴露认证 HTTP 契约。
+- 决策：ReviewX 主登录态采用服务端 session；`sessions` 集合保存服务端随机 `token`、`userId`、`expiresAt`、`revokedAt`、`lastSeenAt` 和基础客户端元信息；`expiresAt` 使用 TTL index，TTL 删除不作为实时强一致机制；Cookie、Guard、登录接口和退出接口后续 auth 阶段实现。
+- 理由：先稳定 auth 底层会话模型，可以降低后续认证模块接入成本，同时避免把 Cookie、安全策略和 HTTP API 契约提前固化。
+- 影响范围：`Session` schema、`SessionsService`、后续 AuthModule、SessionAuthGuard 和 Cookie 策略。
+- 后续动作：后续 auth 任务基于 `UsersService` 与 `SessionsService` 实现密码校验、session 创建、Cookie 下发、退出和认证探针。
+- 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-service-map.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

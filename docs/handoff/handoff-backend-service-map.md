@@ -10,6 +10,7 @@
 - `backend` 已初始化
 - 当前已确认最小根服务
 - 当前已新增 users 基础 Service
+- 当前已新增 sessions 基础 Service
 
 ## 3. 当前 Service
 
@@ -17,6 +18,7 @@
 | -------------- | -------- | -------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `AppService`   | app      | 提供最小健康检查响应                                           | 无                              | `getHealth()`                                                                                 | 无                                    | 不承载业务规则、认证、数据库访问或外部集成                                  | `GET /health`                 | `src/app.controller.spec.ts`、`test/app.e2e-spec.ts` | 仅用于证明后端骨架可运行                                                              |
 | `UsersService` | users    | 提供用户基础创建、公开查询、认证内部身份查询和登录时间更新能力 | `UserModel`                     | `create()`、`findById()`、`findByPhone()`、`findAuthIdentityByPhone()`、`updateLastLoginAt()` | 写入 `users` 集合；更新 `lastLoginAt` | 不负责登录、密码哈希、phone one-time code、Session、HTTP 契约或角色权限矩阵 | 无，本次未创建 Controller/API | `src/modules/users/users.service.spec.ts`            | `findAuthIdentityByPhone()` 是后续 auth 内部预留能力，唯一允许显式读取 `passwordHash` |
+| `SessionsService` | sessions | 提供服务端 session 创建、有效 token 查询、撤销、最近访问时间更新和旧 session 回收能力 | `SessionModel` | `createSession()`、`findValidByToken()`、`revokeByToken()`、`revokeAllForUser()`、`touchSession()`、`pruneOldSessionsForUser()` | 写入 `sessions` 集合；更新 `revokedAt`、`lastSeenAt` | 不负责 Cookie、登录、密码校验、phone one-time code、Guard、HTTP 契约或角色权限矩阵 | 无，本次未创建 Controller/API | `src/modules/sessions/sessions.service.spec.ts` | `createSession()` 是唯一返回 token 的方法；其他公开返回类型不包含 token |
 
 ## 4. 维护规则
 

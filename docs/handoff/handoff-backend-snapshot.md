@@ -8,8 +8,9 @@
 ## 2. 当前状态
 
 - `backend` 已初始化为可运行的 NestJS 公共骨架
-- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器和 users 模块基础模型
+- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器、users 模块基础模型和 sessions 模块基础模型
 - 当前已有 users 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
+- 当前已有 sessions 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
 - 当前已确认最小健康检查 API：`GET /health`
 - 当前已具备单元测试与最小 E2E 测试骨架
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
@@ -47,6 +48,16 @@ backend/
 │  │  ├─ configuration.ts
 │  │  └─ env.validation.ts
 │  └─ modules/
+│     ├─ sessions/
+│     │  ├─ schemas/
+│     │  │  └─ session.schema.ts
+│     │  ├─ types/
+│     │  │  ├─ create-session.input.ts
+│     │  │  ├─ public-session.type.ts
+│     │  │  └─ session-record.type.ts
+│     │  ├─ sessions.module.ts
+│     │  ├─ sessions.service.spec.ts
+│     │  └─ sessions.service.ts
 │     └─ users/
 │        ├─ dto/
 │        │  └─ create-user.input.ts
@@ -83,14 +94,21 @@ backend/
   - `UsersModule`
   - `UsersService`
   - `User` schema
+- 当前已有 sessions 基础模块：
+  - `SessionsModule`
+  - `SessionsService`
+  - `Session` schema
 - 当前 users 模块不包含 Controller，也未暴露 HTTP API
+- 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
 ### 4.3 认证与会话
 
-- 当前仅完成 users 数据底座，尚未实现 auth 或 sessions
+- 当前已完成 users 和 sessions 数据底座，尚未实现 auth
 - users 使用 `phone` 作为主要登录标识
 - `passwordHash` 只保存哈希值，schema 中默认 `select: false`
 - 当前不以邮箱作为登录标识，也无 Email 功能
+- sessions 使用服务端随机 `token`、`expiresAt` TTL、`revokedAt` 和 `lastSeenAt` 建模
+- Cookie 下发、清除和 Guard 校验后续 auth 阶段实现
 - 仅启用了 `cookie-parser` 作为通用基础设施准备
 - 后续以 `docs/auth-baseline.md` 和真实实现为准
 
@@ -106,7 +124,9 @@ backend/
 - `MONGO_ADMIN_URI` 当前不参与应用运行连接
 - 当前已创建 `users` 集合对应 schema
 - 当前 `users.phone` 具备唯一约束
-- 当前没有 sessions 集合
+- 当前已创建 `sessions` 集合对应 schema
+- 当前 `sessions.token` 具备唯一约束
+- 当前 `sessions.expiresAt` 定义 TTL index，TTL 删除不保证精确到秒
 - 后续集合以真实模块实现为准
 
 ### 4.5 文件上传 / 对象存储
@@ -133,7 +153,7 @@ backend/
 
 ### 4.9 已知问题
 
-- 当前虽已接入 users 数据底座，但仍无 auth/sessions
+- 当前虽已接入 users 和 sessions 数据底座，但仍无 auth/login/logout/me/Guard
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 
