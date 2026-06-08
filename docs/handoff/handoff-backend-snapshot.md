@@ -8,10 +8,12 @@
 ## 2. 当前状态
 
 - `backend` 已初始化为可运行的 NestJS 公共骨架
-- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器、users 模块基础模型和 sessions 模块基础模型
+- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器、users 模块基础模型、sessions 模块基础模型和 auth 模块第一阶段登录基线
 - 当前已有 users 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
 - 当前已有 sessions 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
+- 当前已有 auth 模块；该模块包含 AuthController、AuthService 和 SessionAuthGuard
 - 当前已确认最小健康检查 API：`GET /health`
+- 当前已确认认证 API：`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`
 - 当前已具备单元测试与最小 E2E 测试骨架
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
 - 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
@@ -48,6 +50,20 @@ backend/
 │  │  ├─ configuration.ts
 │  │  └─ env.validation.ts
 │  └─ modules/
+│     ├─ auth/
+│     │  ├─ decorators/
+│     │  │  └─ current-user.decorator.ts
+│     │  ├─ dto/
+│     │  │  └─ login.dto.ts
+│     │  ├─ guards/
+│     │  │  └─ session-auth.guard.ts
+│     │  ├─ types/
+│     │  │  ├─ authenticated-user.type.ts
+│     │  │  └─ login-result.type.ts
+│     │  ├─ auth.controller.ts
+│     │  ├─ auth.module.ts
+│     │  ├─ auth.service.spec.ts
+│     │  └─ auth.service.ts
 │     ├─ sessions/
 │     │  ├─ schemas/
 │     │  │  └─ session.schema.ts
@@ -71,6 +87,7 @@ backend/
 │        ├─ users.service.spec.ts
 │        └─ users.service.ts
 ├─ test/
+│  ├─ auth.e2e-spec.ts
 │  ├─ app.e2e-spec.ts
 │  └─ jest-e2e.json
 ├─ .gitignore
@@ -98,17 +115,25 @@ backend/
   - `SessionsModule`
   - `SessionsService`
   - `Session` schema
+- 当前已有 auth 第一阶段模块：
+  - `AuthModule`
+  - `AuthController`
+  - `AuthService`
+  - `SessionAuthGuard`
 - 当前 users 模块不包含 Controller，也未暴露 HTTP API
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
 ### 4.3 认证与会话
 
-- 当前已完成 users 和 sessions 数据底座，尚未实现 auth
+- 当前已完成 users、sessions 数据底座和 auth 第一阶段登录基线
 - users 使用 `phone` 作为主要登录标识
 - `passwordHash` 只保存哈希值，schema 中默认 `select: false`
 - 当前不以邮箱作为登录标识，也无 Email 功能
 - sessions 使用服务端随机 `token`、`expiresAt` TTL、`revokedAt` 和 `lastSeenAt` 建模
-- Cookie 下发、清除和 Guard 校验后续 auth 阶段实现
+- auth 当前支持手机号 + 密码登录、服务端 session、HttpOnly Cookie、logout 和 me
+- Cookie 名称默认 `reviewx_session`，Cookie 内容只保存 session token
+- `SessionAuthGuard` 当前用于保护 `GET /auth/me`
+- 当前不实现注册、找回密码、修改密码、phone one-time code、角色权限矩阵或业务权限
 - 仅启用了 `cookie-parser` 作为通用基础设施准备
 - 后续以 `docs/auth-baseline.md` 和真实实现为准
 
@@ -117,6 +142,7 @@ backend/
 - 当前已通过 `MongooseModule` 接入 MongoDB 连接基线
 - 当前 `MONGO_URI` 用于应用运行连接，`MONGO_ADMIN_URI` 预留给未来索引同步、迁移和运维脚本
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
+- 当前新增 session Cookie 配置项：`SESSION_COOKIE_NAME`、`SESSION_TTL_MS`、`MAX_ACTIVE_SESSIONS_PER_USER`、`SESSION_COOKIE_SECURE`、`SESSION_COOKIE_SAME_SITE`
 - development 默认数据库名为 `reviewx_dev`
 - test 默认数据库名为 `reviewx_test`
 - production 数据库名口径为 `reviewx`
@@ -147,13 +173,16 @@ backend/
 ### 4.8 测试与验证
 
 - 已包含 `src/app.controller.spec.ts` 单元测试
+- 已包含 `src/modules/auth/auth.service.spec.ts` 单元测试
 - 已包含 `test/app.e2e-spec.ts` 最小 E2E，用于验证 `GET /health`
+- 已包含 `test/auth.e2e-spec.ts`，用于验证 login / me / logout Cookie 闭环
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
+- 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
 
 ### 4.9 已知问题
 
-- 当前虽已接入 users 和 sessions 数据底座，但仍无 auth/login/logout/me/Guard
+- 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、RolesGuard 或业务权限矩阵
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 

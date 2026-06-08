@@ -170,6 +170,18 @@
 - 后续动作：后续 auth 任务基于 `UsersService` 与 `SessionsService` 实现密码校验、session 创建、Cookie 下发、退出和认证探针。
 - 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-service-map.md`
 
+### 决策 013
+
+- 编号：BD-013
+- 日期：2026-06-08
+- 状态：accepted
+- 背景：ReviewX 已具备 users 与 sessions 数据底座，需要建立第一阶段可用的登录态闭环，但暂不实现业务权限矩阵和前端页面。
+- 决策：ReviewX 第一阶段认证采用手机号 + 密码登录，主登录态为服务端 session + HttpOnly Cookie；Cookie 名称默认 `reviewx_session`；session token 只进入 HttpOnly Cookie，不进入响应 body；Email 登录不采用；phone one-time code、角色权限矩阵、注册、找回密码和修改密码后续另行设计。
+- 理由：该方案与身份与会话基线一致，可支持服务端可控失效、登出、会话上限和认证探针，同时避免提前固化业务权限模型。
+- 影响范围：`AuthModule`、`AuthController`、`AuthService`、`SessionAuthGuard`、session 配置、认证 API 和 E2E 测试。
+- 后续动作：后续 auth 阶段再补充注册或账号初始化策略、密码修改、phone one-time code、RolesGuard、业务权限矩阵和前端登录页。
+- 相关文档：`docs/auth-baseline.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-config-matrix.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

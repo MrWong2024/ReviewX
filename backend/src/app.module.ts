@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
+import { AuthModule } from './modules/auth/auth.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -29,6 +30,7 @@ import { UsersModule } from './modules/users/users.module';
     }),
     UsersModule,
     SessionsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

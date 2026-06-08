@@ -15,6 +15,32 @@ const mongoAutoIndexSchema = Joi.boolean()
   .falsy('0');
 
 const llmProviderSchema = Joi.string().valid('stub', 'bailian').default('stub');
+const booleanSchema = Joi.boolean()
+  .truthy('true')
+  .truthy('1')
+  .falsy('false')
+  .falsy('0');
+
+type SessionEnvCandidate = {
+  SESSION_COOKIE_SAME_SITE?: unknown;
+  SESSION_COOKIE_SECURE?: unknown;
+};
+
+function validateSessionCookieCombination(
+  value: unknown,
+  helpers: Joi.CustomHelpers,
+): unknown {
+  const candidate = value as SessionEnvCandidate;
+
+  if (
+    candidate.SESSION_COOKIE_SAME_SITE === 'none' &&
+    candidate.SESSION_COOKIE_SECURE !== true
+  ) {
+    return helpers.error('any.invalid');
+  }
+
+  return value;
+}
 
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -58,6 +84,17 @@ export const envValidationSchema = Joi.object({
     .integer()
     .min(1)
     .default(5000),
+  SESSION_COOKIE_NAME: Joi.string().trim().min(1).default('reviewx_session'),
+  SESSION_TTL_MS: Joi.number().integer().min(1).default(86400000),
+  MAX_ACTIVE_SESSIONS_PER_USER: Joi.number().integer().min(1).default(5),
+  SESSION_COOKIE_SECURE: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: booleanSchema.valid(true).default(true),
+    otherwise: booleanSchema.default(false),
+  }),
+  SESSION_COOKIE_SAME_SITE: Joi.string()
+    .valid('lax', 'strict', 'none')
+    .default('lax'),
   LLM_PROVIDER: llmProviderSchema,
   BAILIAN_API_KEY: Joi.when('LLM_PROVIDER', {
     is: 'bailian',
@@ -76,5 +113,6 @@ export const envValidationSchema = Joi.object({
   BAILIAN_TIMEOUT_MS: Joi.number().integer().min(1).default(90000),
   BAILIAN_MAX_RETRIES: Joi.number().integer().min(0).default(1),
 })
+  .custom(validateSessionCookieCombination)
   .unknown(true)
   .options({ abortEarly: false });

@@ -2,6 +2,10 @@ const DEFAULT_PORT = 5001;
 const DEFAULT_FRONTEND_URL = 'http://localhost:3001';
 const DEFAULT_PRODUCTION_MONGO_URI = '';
 const DEFAULT_MONGO_SERVER_SELECTION_TIMEOUT_MS = 5000;
+const DEFAULT_SESSION_COOKIE_NAME = 'reviewx_session';
+const DEFAULT_SESSION_TTL_MS = 86_400_000;
+const DEFAULT_MAX_ACTIVE_SESSIONS_PER_USER = 5;
+const DEFAULT_SESSION_COOKIE_SAME_SITE = 'lax';
 const DEFAULT_LLM_PROVIDER = 'stub';
 const DEFAULT_BAILIAN_BASE_URL =
   'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -9,6 +13,9 @@ const DEFAULT_BAILIAN_TIMEOUT_MS = 90000;
 const DEFAULT_BAILIAN_MAX_RETRIES = 1;
 
 type AppEnvironment = 'development' | 'test' | 'production';
+export type SessionCookieSameSite = 'lax' | 'strict' | 'none';
+
+const SESSION_COOKIE_SAME_SITE_VALUES = ['lax', 'strict', 'none'] as const;
 
 function parseNumber(value: string | undefined, fallback: number): number {
   if (!value) {
@@ -33,6 +40,16 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   }
 
   return fallback;
+}
+
+function parseCookieSameSite(value: string | undefined): SessionCookieSameSite {
+  if (
+    SESSION_COOKIE_SAME_SITE_VALUES.includes(value as SessionCookieSameSite)
+  ) {
+    return value as SessionCookieSameSite;
+  }
+
+  return DEFAULT_SESSION_COOKIE_SAME_SITE;
 }
 
 function resolveAppEnvironment(): AppEnvironment {
@@ -123,6 +140,20 @@ export default () => {
         process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS,
         DEFAULT_MONGO_SERVER_SELECTION_TIMEOUT_MS,
       ),
+    },
+    session: {
+      cookieName:
+        process.env.SESSION_COOKIE_NAME ?? DEFAULT_SESSION_COOKIE_NAME,
+      ttlMs: parseNumber(process.env.SESSION_TTL_MS, DEFAULT_SESSION_TTL_MS),
+      maxActiveSessionsPerUser: parseNumber(
+        process.env.MAX_ACTIVE_SESSIONS_PER_USER,
+        DEFAULT_MAX_ACTIVE_SESSIONS_PER_USER,
+      ),
+      cookieSecure: parseBoolean(
+        process.env.SESSION_COOKIE_SECURE,
+        env === 'production',
+      ),
+      cookieSameSite: parseCookieSameSite(process.env.SESSION_COOKIE_SAME_SITE),
     },
     llm: {
       provider: process.env.LLM_PROVIDER ?? DEFAULT_LLM_PROVIDER,
