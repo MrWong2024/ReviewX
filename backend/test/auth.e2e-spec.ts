@@ -64,7 +64,7 @@ describe('AuthController (e2e)', () => {
         phone: ' +8613800000000 ',
         password: 'correct-password',
       })
-      .expect(201);
+      .expect(200);
 
     const loginBody = getJsonBody(loginResponse);
     expect(loginBody).toMatchObject({
@@ -108,7 +108,7 @@ describe('AuthController (e2e)', () => {
     const logoutResponse = await request(httpServer)
       .post('/auth/logout')
       .set('Cookie', toRequestCookie(sessionCookie))
-      .expect(201);
+      .expect(200);
     expect(getJsonBody(logoutResponse)).toEqual({ success: true });
     expect(getSessionCookie(logoutResponse)).toContain('reviewx_session=');
 
@@ -126,6 +126,12 @@ describe('AuthController (e2e)', () => {
 
   it('rejects unauthenticated me requests', async () => {
     await request(httpServer).get('/auth/me').expect(401);
+  });
+
+  it('does not expose X-Powered-By on stable responses', async () => {
+    const response = await request(httpServer).get('/health').expect(200);
+
+    expect(getHeaderValue(response, 'x-powered-by')).toBeUndefined();
   });
 
   it('rejects login for missing users without leaking account existence', async () => {
@@ -200,6 +206,23 @@ function toRequestCookie(setCookie: string): string {
 function getJsonBody(response: Response): Record<string, unknown> {
   const body: unknown = response.body;
   return isRecord(body) ? body : {};
+}
+
+function getHeaderValue(
+  response: Response,
+  headerName: string,
+): string | string[] | undefined {
+  const value: unknown = response.headers[headerName];
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string');
+  }
+
+  return undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

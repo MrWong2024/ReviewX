@@ -194,6 +194,18 @@
 - 后续动作：后续如需要正式用户初始化、管理后台或批量导入，应单独设计权限、审计、幂等和 production 运维流程。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`
 
+### 决策 015
+
+- 编号：BD-015
+- 日期：2026-06-09
+- 状态：accepted
+- 背景：ReviewX auth 第一阶段登录闭环已实现，需要收口认证 API 成功语义并减少基础框架信息暴露。
+- 决策：`POST /auth/login` 和 `POST /auth/logout` 成功统一返回 `200 OK`；应用初始化时关闭 Express 默认 `X-Powered-By` 响应头。
+- 理由：登录和登出是动作型认证接口，不需要使用 `201 Created`；关闭 `X-Powered-By` 可避免暴露底层框架信息。
+- 影响范围：`AuthController`、应用初始化、auth E2E 和 API map。
+- 后续动作：更完整的安全响应头、CSRF、rate limit 和审计策略后续另行设计。
+- 相关文档：`docs/handoff/handoff-backend-api-map.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改
