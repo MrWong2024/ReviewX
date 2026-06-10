@@ -1,12 +1,12 @@
 import { Transform } from 'class-transformer';
 import { IsMongoId, IsOptional, IsString, ValidateIf } from 'class-validator';
-import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
+import { ListFilterQueryDto } from '../../../common/dto/pagination-query.dto';
 
 function trim(value: unknown): unknown {
   return typeof value === 'string' ? value.trim() : value;
 }
 
-export class QueryTreeDictionariesDto extends PaginationQueryDto {
+export class QueryTreeDictionariesDto extends ListFilterQueryDto {
   @IsOptional()
   @Transform(({ value }) => trim(value))
   @IsString()

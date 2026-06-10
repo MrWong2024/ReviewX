@@ -1,3 +1,3 @@
-import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
+import { ListFilterQueryDto } from '../../../common/dto/pagination-query.dto';
 
-export class QueryReviewSchemesDto extends PaginationQueryDto {}
+export class QueryReviewSchemesDto extends ListFilterQueryDto {}

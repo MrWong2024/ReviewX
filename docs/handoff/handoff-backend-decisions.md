@@ -230,6 +230,18 @@
 - 后续动作：后续业务阶段如启用项目方案快照、导入、材料、专家分配或评分，应基于当前模型显式扩展，不得把未实现流程写成已实现。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
 
+### 决策 018
+
+- 编号：BD-018
+- 日期：2026-06-11
+- 状态：accepted
+- 背景：ReviewX 第一阶段管理端数据量较小，普通字典、树形字典和评审方案分页会增加前后端契约复杂度；项目和单位仍可能需要批次级或区域级分页查询。
+- 决策：`GET /admin/dictionaries`、`GET /admin/tree-dictionaries`、`GET /admin/review-schemes` 列表不分页，直接返回数组；`GET /admin/projects`、`GET /admin/organizations` 保留分页；通用分页默认 `page=1`、`pageSize=100`、最大 `1000`，超过最大值按 DTO 校验返回 `400`；当前不新增 `/admin/tree-dictionaries/tree` 接口，不新增用户管理列表。
+- 理由：小型主数据直接全量返回更适合当前业务规模；项目、单位和未来用户列表仍保留分页以承载批次级数据和后续扩展。
+- 影响范围：`PaginationQueryDto`、dictionaries/tree-dictionaries/review-schemes 查询 DTO 与列表 Service、`test/admin-foundation.e2e-spec.ts`、backend handoff。
+- 后续动作：如后续新增用户列表，应使用分页对象并沿用 `pageSize <= 1000`；如新增树形 children 接口，必须单独补 API、测试和 handoff。
+- 相关文档：`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

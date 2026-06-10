@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { PaginatedResponse } from '../../../common/dto/pagination-query.dto';
 import {
   escapeRegExp,
   TimestampFields,
@@ -68,7 +67,7 @@ export class TreeDictionariesService {
 
   async list(
     query: QueryTreeDictionariesDto,
-  ): Promise<PaginatedResponse<TreeDictionaryResponse>> {
+  ): Promise<TreeDictionaryResponse[]> {
     const filter: Record<string, unknown> = {};
 
     if (query.treeType) {
@@ -92,23 +91,13 @@ export class TreeDictionariesService {
       ];
     }
 
-    const [items, total] = await Promise.all([
-      this.treeDictionaryModel
-        .find(filter)
-        .sort({ treeType: 1, level: 1, sortOrder: 1, createdAt: -1 })
-        .skip((query.page - 1) * query.pageSize)
-        .limit(query.pageSize)
-        .lean<TreeDictionaryLean[]>()
-        .exec(),
-      this.treeDictionaryModel.countDocuments(filter).exec(),
-    ]);
+    const items = await this.treeDictionaryModel
+      .find(filter)
+      .sort({ treeType: 1, level: 1, sortOrder: 1, name: 1, createdAt: 1 })
+      .lean<TreeDictionaryLean[]>()
+      .exec();
 
-    return {
-      items: items.map((item) => this.toResponse(item)),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+    return items.map((item) => this.toResponse(item));
   }
 
   async findById(id: string): Promise<TreeDictionaryResponse> {

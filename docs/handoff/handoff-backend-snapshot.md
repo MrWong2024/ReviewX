@@ -22,6 +22,9 @@
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions 以及第一阶段业务集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
+- 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
+- 当前分页列表口径：批次、单位、项目列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
+- 当前无管理员用户列表接口；未来如新增用户列表，应保留分页并沿用 `pageSize <= 1000`
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
 - 当前本地前端来源示例为 `http://localhost:3001`
@@ -211,6 +214,7 @@ backend/
 - 已包含 `test/app.e2e-spec.ts` 最小 E2E，用于验证 `GET /health`
 - 已包含 `test/auth.e2e-spec.ts`，用于验证 login / me / logout Cookie 闭环
 - 已包含 `test/admin-foundation.e2e-spec.ts`，用于验证 `/admin/*` 401/403、主数据 CRUD、唯一约束、树子节点约束和项目关联校验
+- `test/admin-foundation.e2e-spec.ts` 当前也覆盖普通字典、树形字典、评审方案列表返回数组，以及项目/单位 `pageSize=1000` 和超过上限返回 `400`
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
@@ -221,6 +225,7 @@ backend/
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
 - 当前第一阶段业务底座不包含 Excel 导入、OSS 上传、专家分配、项目负责人材料填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议集成
+- 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
 

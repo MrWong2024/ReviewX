@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { PaginatedResponse } from '../../../common/dto/pagination-query.dto';
 import {
   escapeRegExp,
   TimestampFields,
@@ -51,9 +50,7 @@ export class DictionariesService {
     return this.toResponse(dictionary.toObject<DictionaryLean>());
   }
 
-  async list(
-    query: QueryDictionariesDto,
-  ): Promise<PaginatedResponse<DictionaryResponse>> {
+  async list(query: QueryDictionariesDto): Promise<DictionaryResponse[]> {
     const filter: Record<string, unknown> = {};
 
     if (query.dictType) {
@@ -69,23 +66,13 @@ export class DictionariesService {
       filter.$or = [{ code: keyword }, { name: keyword }];
     }
 
-    const [items, total] = await Promise.all([
-      this.dictionaryModel
-        .find(filter)
-        .sort({ dictType: 1, sortOrder: 1, createdAt: -1 })
-        .skip((query.page - 1) * query.pageSize)
-        .limit(query.pageSize)
-        .lean<DictionaryLean[]>()
-        .exec(),
-      this.dictionaryModel.countDocuments(filter).exec(),
-    ]);
+    const items = await this.dictionaryModel
+      .find(filter)
+      .sort({ dictType: 1, sortOrder: 1, name: 1, createdAt: 1 })
+      .lean<DictionaryLean[]>()
+      .exec();
 
-    return {
-      items: items.map((item) => this.toResponse(item)),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+    return items.map((item) => this.toResponse(item));
   }
 
   async findById(id: string): Promise<DictionaryResponse> {

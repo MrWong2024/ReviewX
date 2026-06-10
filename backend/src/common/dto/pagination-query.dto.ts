@@ -35,7 +35,19 @@ function toOptionalBoolean(value: unknown): unknown {
   return value;
 }
 
-export class PaginationQueryDto {
+export class ListFilterQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => trimOptional(value))
+  @IsString()
+  keyword?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => toOptionalBoolean(value))
+  @IsBoolean()
+  isActive?: boolean;
+}
+
+export class PaginationQueryDto extends ListFilterQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -46,16 +58,6 @@ export class PaginationQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(100)
-  pageSize = 20;
-
-  @IsOptional()
-  @Transform(({ value }) => trimOptional(value))
-  @IsString()
-  keyword?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => toOptionalBoolean(value))
-  @IsBoolean()
-  isActive?: boolean;
+  @Max(1000)
+  pageSize = 100;
 }

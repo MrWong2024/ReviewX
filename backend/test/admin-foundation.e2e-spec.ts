@@ -95,7 +95,7 @@ describe('Admin foundation APIs (e2e)', () => {
     expect(getJsonBody(response)).toMatchObject({
       items: [],
       page: 1,
-      pageSize: 20,
+      pageSize: 100,
       total: 0,
     });
   });
@@ -124,6 +124,20 @@ describe('Admin foundation APIs (e2e)', () => {
       name: '实施中',
     });
     const statusId = getString(status, 'id');
+    const dictionariesResponse = await request(httpServer)
+      .get('/admin/dictionaries')
+      .query({ dictType: 'project_status' })
+      .set('Cookie', adminCookie)
+      .expect(200);
+    const dictionariesBody = getJsonArray(dictionariesResponse);
+    expect(dictionariesBody).toHaveLength(1);
+    expect(dictionariesBody[0]).toMatchObject({
+      id: statusId,
+      dictType: 'project_status',
+      code: 'in_progress',
+    });
+    expect(hasPaginationWrapper(dictionariesBody)).toBe(false);
+
     await request(httpServer)
       .post('/admin/dictionaries')
       .set('Cookie', adminCookie)
@@ -171,6 +185,19 @@ describe('Admin foundation APIs (e2e)', () => {
       name: '高新处',
     });
     const departmentId = getString(department, 'id');
+    const treeDictionariesResponse = await request(httpServer)
+      .get('/admin/tree-dictionaries')
+      .query({ treeType: 'discipline' })
+      .set('Cookie', adminCookie)
+      .expect(200);
+    const treeDictionariesBody = getJsonArray(treeDictionariesResponse);
+    expect(treeDictionariesBody).toHaveLength(1);
+    expect(treeDictionariesBody[0]).toMatchObject({
+      id: disciplineId,
+      treeType: 'discipline',
+      level: 1,
+    });
+    expect(hasPaginationWrapper(treeDictionariesBody)).toBe(false);
 
     const organization = await post(adminCookie, '/admin/organizations', {
       name: '重庆测试单位',
@@ -217,6 +244,18 @@ describe('Admin foundation APIs (e2e)', () => {
     expect(reviewSchemeItems[1]).toMatchObject({
       suggestionRequiredThresholdRatio: 0.7,
     });
+    const reviewSchemesResponse = await request(httpServer)
+      .get('/admin/review-schemes')
+      .query({ keyword: '验收' })
+      .set('Cookie', adminCookie)
+      .expect(200);
+    const reviewSchemesBody = getJsonArray(reviewSchemesResponse);
+    expect(reviewSchemesBody).toHaveLength(1);
+    expect(reviewSchemesBody[0]).toMatchObject({
+      id: reviewSchemeId,
+      totalScore: 100,
+    });
+    expect(hasPaginationWrapper(reviewSchemesBody)).toBe(false);
 
     const owner = await createUser({
       phone: '+8613800000011',
@@ -263,6 +302,46 @@ describe('Admin foundation APIs (e2e)', () => {
     expect(getStringArray(project, 'cooperationOrganizationIds')).toEqual([
       cooperationOrganizationId,
     ]);
+
+    const projectsResponse = await request(httpServer)
+      .get('/admin/projects')
+      .query({ batchId, page: 1, pageSize: 1000 })
+      .set('Cookie', adminCookie)
+      .expect(200);
+    expect(getJsonBody(projectsResponse)).toMatchObject({
+      page: 1,
+      pageSize: 1000,
+      total: 1,
+    });
+    expect(getRecordArray(getJsonBody(projectsResponse), 'items')).toHaveLength(
+      1,
+    );
+
+    await request(httpServer)
+      .get('/admin/projects')
+      .query({ pageSize: 1001 })
+      .set('Cookie', adminCookie)
+      .expect(400);
+
+    const organizationsResponse = await request(httpServer)
+      .get('/admin/organizations')
+      .query({ page: 1, pageSize: 1000 })
+      .set('Cookie', adminCookie)
+      .expect(200);
+    expect(getJsonBody(organizationsResponse)).toMatchObject({
+      page: 1,
+      pageSize: 1000,
+      total: 2,
+    });
+    expect(
+      getRecordArray(getJsonBody(organizationsResponse), 'items'),
+    ).toHaveLength(2);
+
+    await request(httpServer)
+      .get('/admin/organizations')
+      .query({ pageSize: 1001 })
+      .set('Cookie', adminCookie)
+      .expect(400);
 
     await request(httpServer)
       .post('/admin/projects')
@@ -361,6 +440,16 @@ function getJsonBody(response: Response): Record<string, unknown> {
   return isRecord(body) ? body : {};
 }
 
+function getJsonArray(response: Response): Record<string, unknown>[] {
+  const body: unknown = response.body;
+
+  if (!Array.isArray(body)) {
+    throw new Error('response body must be an array');
+  }
+
+  return body.filter(isRecord);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -399,4 +488,17 @@ function getRecordArray(
   }
 
   return value.filter(isRecord);
+}
+
+function hasPaginationWrapper(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    'items' in value &&
+    'page' in value &&
+    'pageSize' in value &&
+    'total' in value
+  );
 }

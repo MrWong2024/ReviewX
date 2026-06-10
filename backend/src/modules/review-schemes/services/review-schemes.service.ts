@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { PaginatedResponse } from '../../../common/dto/pagination-query.dto';
 import {
   escapeRegExp,
   TimestampFields,
@@ -64,9 +63,7 @@ export class ReviewSchemesService {
     return this.toResponse(scheme.toObject<ReviewSchemeLean>());
   }
 
-  async list(
-    query: QueryReviewSchemesDto,
-  ): Promise<PaginatedResponse<ReviewSchemeResponse>> {
+  async list(query: QueryReviewSchemesDto): Promise<ReviewSchemeResponse[]> {
     const filter: Record<string, unknown> = {};
 
     if (query.isActive !== undefined) {
@@ -78,23 +75,13 @@ export class ReviewSchemesService {
       filter.$or = [{ name: keyword }, { description: keyword }];
     }
 
-    const [items, total] = await Promise.all([
-      this.reviewSchemeModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip((query.page - 1) * query.pageSize)
-        .limit(query.pageSize)
-        .lean<ReviewSchemeLean[]>()
-        .exec(),
-      this.reviewSchemeModel.countDocuments(filter).exec(),
-    ]);
+    const items = await this.reviewSchemeModel
+      .find(filter)
+      .sort({ createdAt: -1, name: 1 })
+      .lean<ReviewSchemeLean[]>()
+      .exec();
 
-    return {
-      items: items.map((item) => this.toResponse(item)),
-      page: query.page,
-      pageSize: query.pageSize,
-      total,
-    };
+    return items.map((item) => this.toResponse(item));
   }
 
   async findById(id: string): Promise<ReviewSchemeResponse> {
