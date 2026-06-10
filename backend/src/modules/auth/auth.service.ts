@@ -19,7 +19,11 @@ export class AuthService {
       input.phone,
     );
 
-    if (!identity || identity.status !== 'active') {
+    if (
+      !identity ||
+      identity.status !== 'active' ||
+      identity.isActive === false
+    ) {
       throw new UnauthorizedException();
     }
 
@@ -48,7 +52,7 @@ export class AuthService {
       (await this.usersService.updateLastLoginAt(identity.id)) ??
       (await this.usersService.findById(identity.id));
 
-    if (!user || user.status !== 'active') {
+    if (!user || user.status !== 'active' || user.isActive === false) {
       await this.sessionsService.revokeByToken(session.token);
       throw new UnauthorizedException();
     }
@@ -69,7 +73,7 @@ export class AuthService {
 
     const user = await this.usersService.findById(session.userId);
 
-    if (!user || user.status !== 'active') {
+    if (!user || user.status !== 'active' || user.isActive === false) {
       throw new UnauthorizedException();
     }
 

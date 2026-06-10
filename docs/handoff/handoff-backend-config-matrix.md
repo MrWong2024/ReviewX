@@ -10,10 +10,11 @@
 - `backend` 已初始化为公共 NestJS 骨架
 - 当前已接入 `MongooseModule` 与 MongoDB 连接配置基线
 - 配置值当前来自环境变量，并提供 `.env.development.example` / `.env.test.example` / `.env.production.example`
-- 当前仅建立数据库连接能力，尚未注册业务 Schema
+- 当前已注册 users、sessions 和第一阶段业务 Schema
 - 当前已预留通用 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前 MongoDB 配置已区分应用运行连接 `MONGO_URI` 与运维脚本连接 `MONGO_ADMIN_URI`
 - 当前 `scripts/sync-indexes.ts` 已使用 `MONGO_ADMIN_URI` 执行受控索引同步
+- 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`
 - 当前已新增 session / Cookie 配置基线，用于 auth 第一阶段登录态
 
 ## 3. 当前配置项
@@ -65,3 +66,5 @@
 - 当前无 Email、SMS 或 bcrypt 配置
 - 当前有 session / Cookie 配置，但不包含用户信息、角色或业务权限配置
 - 当前已预留 LLM / Bailian 配置，但尚未实现模型调用服务
+- 本阶段未新增环境变量或第三方依赖
+- 本阶段新增集合关键索引已纳入 `scripts/sync-indexes.ts`；production 仍必须使用 `--confirm-production`

@@ -2,9 +2,33 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import mongoose, { Model } from 'mongoose';
 import {
+  Batch,
+  BatchSchema,
+} from '../src/modules/batches/schemas/batch.schema';
+import {
+  Dictionary,
+  DictionarySchema,
+} from '../src/modules/dictionaries/schemas/dictionary.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../src/modules/organizations/schemas/organization.schema';
+import {
+  Project,
+  ProjectSchema,
+} from '../src/modules/projects/schemas/project.schema';
+import {
+  ReviewScheme,
+  ReviewSchemeSchema,
+} from '../src/modules/review-schemes/schemas/review-scheme.schema';
+import {
   Session,
   SessionSchema,
 } from '../src/modules/sessions/schemas/session.schema';
+import {
+  TreeDictionary,
+  TreeDictionarySchema,
+} from '../src/modules/tree-dictionaries/schemas/tree-dictionary.schema';
 import { User, UserSchema } from '../src/modules/users/schemas/user.schema';
 
 /*
@@ -241,10 +265,34 @@ function registerModels(): RegisteredModel[] {
   const sessionModel = mongoose.models[Session.name]
     ? mongoose.model<unknown>(Session.name)
     : mongoose.model(Session.name, SessionSchema);
+  const batchModel = mongoose.models[Batch.name]
+    ? mongoose.model<unknown>(Batch.name)
+    : mongoose.model(Batch.name, BatchSchema);
+  const dictionaryModel = mongoose.models[Dictionary.name]
+    ? mongoose.model<unknown>(Dictionary.name)
+    : mongoose.model(Dictionary.name, DictionarySchema);
+  const treeDictionaryModel = mongoose.models[TreeDictionary.name]
+    ? mongoose.model<unknown>(TreeDictionary.name)
+    : mongoose.model(TreeDictionary.name, TreeDictionarySchema);
+  const organizationModel = mongoose.models[Organization.name]
+    ? mongoose.model<unknown>(Organization.name)
+    : mongoose.model(Organization.name, OrganizationSchema);
+  const reviewSchemeModel = mongoose.models[ReviewScheme.name]
+    ? mongoose.model<unknown>(ReviewScheme.name)
+    : mongoose.model(ReviewScheme.name, ReviewSchemeSchema);
+  const projectModel = mongoose.models[Project.name]
+    ? mongoose.model<unknown>(Project.name)
+    : mongoose.model(Project.name, ProjectSchema);
 
   return [
     { name: User.name, model: userModel },
     { name: Session.name, model: sessionModel },
+    { name: Batch.name, model: batchModel },
+    { name: Dictionary.name, model: dictionaryModel },
+    { name: TreeDictionary.name, model: treeDictionaryModel },
+    { name: Organization.name, model: organizationModel },
+    { name: ReviewScheme.name, model: reviewSchemeModel },
+    { name: Project.name, model: projectModel },
   ];
 }
 

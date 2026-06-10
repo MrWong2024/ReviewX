@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
+import { USER_ROLES } from '../../../common/constants/user-roles';
 import type { UserRole } from '../types/user-role.type';
 import { DEFAULT_USER_STATUS, USER_STATUSES } from '../types/user-status.type';
 import type { UserStatus } from '../types/user-status.type';
@@ -34,9 +35,36 @@ export class User {
 
   @Prop({
     type: [String],
+    enum: USER_ROLES,
     default: [],
   })
   roles!: UserRole[];
+
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'Organization' }],
+    default: [],
+  })
+  organizationIds!: Types.ObjectId[];
+
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'TreeDictionary' }],
+    default: [],
+  })
+  disciplineIds!: Types.ObjectId[];
+
+  @Prop({
+    type: Boolean,
+    default: false,
+    required: true,
+  })
+  mustChangePassword!: boolean;
+
+  @Prop({
+    type: Boolean,
+    default: true,
+    required: true,
+  })
+  isActive!: boolean;
 
   @Prop({
     type: String,

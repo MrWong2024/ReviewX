@@ -12,9 +12,9 @@ ReviewX 科评星：科技项目评审协同与监管平台
 
 ## 3. 当前状态
 
-- `backend` 目录尚未初始化或尚未形成完整后端实现
-- 当前仅建立 handoff 骨架
-- 后续以实际代码、基础架构文档和后续 handoff 更新为准
+- `backend` 已初始化为 NestJS + Mongoose 后端，并已具备 Session Auth、users、sessions、auth 与第一阶段管理端业务底座
+- 当前已实现用户多角色、管理员角色守卫、批次、普通字典、树形字典、单位、评审方案、项目基础模型与 `/admin/*` 管理 CRUD
+- 当前 handoff 以真实代码、基础架构文档和后续 handoff 更新为准
 
 ## 4. 必读基础文档
 

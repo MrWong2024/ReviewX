@@ -6,6 +6,10 @@ export interface PublicUser {
   phone: string;
   name: string;
   roles: UserRole[];
+  organizationIds: string[];
+  disciplineIds: string[];
+  mustChangePassword: boolean;
+  isActive: boolean;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -17,5 +21,6 @@ export interface AuthIdentity {
   phone: string;
   passwordHash: string;
   roles: UserRole[];
+  isActive: boolean;
   status: UserStatus;
 }

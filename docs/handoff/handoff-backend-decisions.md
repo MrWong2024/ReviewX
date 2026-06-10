@@ -218,6 +218,18 @@
 - 后续动作：后续新增 Schema 或索引时，必须同步更新 `scripts/sync-indexes.ts` 的模型注册清单；生产执行前确认 Schema 索引定义、备份或维护窗口安排。
 - 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`
 
+### 决策 017
+
+- 编号：BD-017
+- 日期：2026-06-10
+- 状态：accepted
+- 背景：ReviewX 需要为科评星第一阶段建立后续导入、评审、材料、AI、申诉和看板可依赖的后端业务底座，但本阶段不能提前实现完整流程。
+- 决策：第一阶段只实现用户多角色、`/admin/*` 登录 + admin 角色权限、批次、普通字典、树形字典、单位、评审方案和项目基础 CRUD；删除接口采用停用语义；项目关联采用硬校验，项目负责人必须具备 `project_owner`，评审负责人必须具备 `review_manager`，不自动补用户角色；评审方案 `totalScore` 由后端计算；项目预留 `reviewSchemeSnapshot` 字段但不实现快照生成。
+- 理由：先稳定数据契约和关联约束，避免后续 Excel 导入、专家评分、AI 合议、申诉和看板在不稳定模型上继续叠加。
+- 影响范围：`backend/src/common`、`backend/src/modules/*`、`backend/scripts/sync-indexes.ts`、`test/admin-foundation.e2e-spec.ts`。
+- 后续动作：后续业务阶段如启用项目方案快照、导入、材料、专家分配或评分，应基于当前模型显式扩展，不得把未实现流程写成已实现。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

@@ -11,6 +11,10 @@ type TimestampedUserFields = {
   phone: string;
   name: string;
   roles: UserRole[];
+  organizationIds?: Types.ObjectId[];
+  disciplineIds?: Types.ObjectId[];
+  mustChangePassword?: boolean;
+  isActive?: boolean;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -26,6 +30,7 @@ type AuthIdentityLean = {
   phone: string;
   passwordHash: string;
   roles: UserRole[];
+  isActive?: boolean;
   status: UserStatus;
 };
 
@@ -40,6 +45,7 @@ export class UsersService {
     const user = await this.userModel.create({
       ...input,
       phone: input.phone.trim(),
+      name: input.name.trim(),
     });
 
     return this.toPublicUser(user.toObject<PublicUserLean>());
@@ -80,6 +86,7 @@ export class UsersService {
           phone: user.phone,
           passwordHash: user.passwordHash,
           roles: user.roles,
+          isActive: user.isActive ?? true,
           status: user.status,
         }
       : null;
@@ -111,6 +118,10 @@ export class UsersService {
       phone: user.phone,
       name: user.name,
       roles: user.roles,
+      organizationIds: (user.organizationIds ?? []).map((id) => id.toString()),
+      disciplineIds: (user.disciplineIds ?? []).map((id) => id.toString()),
+      mustChangePassword: user.mustChangePassword ?? false,
+      isActive: user.isActive ?? true,
       status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,

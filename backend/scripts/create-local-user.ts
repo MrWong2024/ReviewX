@@ -2,6 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { hash } from 'bcryptjs';
 import mongoose, { Model } from 'mongoose';
+import {
+  DEFAULT_LOCAL_USER_ROLES,
+  USER_ROLES,
+  UserRole,
+} from '../src/common/constants/user-roles';
 import { User, UserSchema } from '../src/modules/users/schemas/user.schema';
 
 type UserStatus = 'active' | 'disabled';
@@ -20,7 +25,7 @@ type CreateLocalUserInput = {
   phone: string;
   password: string;
   name: string;
-  roles: string[];
+  roles: UserRole[];
   status: UserStatus;
   envFile: string;
   resetPassword: boolean;
@@ -181,15 +186,25 @@ function assignArg(args: ParsedArgs, key: string, value: string): void {
   throw new CliError(`${SCRIPT_USAGE}\n\nUnknown argument: --${key}`);
 }
 
-function parseRoles(value: string | undefined): string[] {
+function parseRoles(value: string | undefined): UserRole[] {
   if (!value) {
-    return [];
+    return DEFAULT_LOCAL_USER_ROLES;
   }
 
-  return value
+  const roles = value
     .split(',')
     .map((role) => role.trim())
     .filter(Boolean);
+
+  for (const role of roles) {
+    if (!USER_ROLES.includes(role as UserRole)) {
+      throw new CliError(
+        `Invalid role: ${role}. Allowed values: ${USER_ROLES.join(', ')}.`,
+      );
+    }
+  }
+
+  return [...new Set(roles)] as UserRole[];
 }
 
 function parseStatus(value: string | undefined): UserStatus {

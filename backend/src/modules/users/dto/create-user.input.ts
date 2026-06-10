@@ -6,5 +6,9 @@ export interface CreateUserInput {
   passwordHash: string;
   name: string;
   roles?: UserRole[];
+  organizationIds?: string[];
+  disciplineIds?: string[];
+  mustChangePassword?: boolean;
+  isActive?: boolean;
   status?: UserStatus;
 }
