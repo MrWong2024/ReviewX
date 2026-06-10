@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectImportsModule } from './modules/project-imports/project-imports.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ReviewSchemesModule } from './modules/review-schemes/review-schemes.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
@@ -43,6 +44,7 @@ import { UsersModule } from './modules/users/users.module';
     OrganizationsModule,
     ReviewSchemesModule,
     ProjectsModule,
+    ProjectImportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

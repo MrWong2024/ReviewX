@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { hash } from 'bcryptjs';
 import { Model, Types } from 'mongoose';
 import { CreateUserInput } from './dto/create-user.input';
 import { User } from './schemas/user.schema';
@@ -49,6 +50,28 @@ export class UsersService {
     });
 
     return this.toPublicUser(user.toObject<PublicUserLean>());
+  }
+
+  async createWithPlainPassword(input: {
+    phone: string;
+    password: string;
+    name: string;
+    roles?: UserRole[];
+    organizationIds?: string[];
+    disciplineIds?: string[];
+    mustChangePassword?: boolean;
+    isActive?: boolean;
+  }): Promise<PublicUser> {
+    return this.create({
+      phone: input.phone,
+      passwordHash: await hash(input.password, 12),
+      name: input.name,
+      roles: input.roles,
+      organizationIds: input.organizationIds,
+      disciplineIds: input.disciplineIds,
+      mustChangePassword: input.mustChangePassword,
+      isActive: input.isActive,
+    });
   }
 
   async findById(id: string): Promise<PublicUser | null> {

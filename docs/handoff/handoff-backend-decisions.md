@@ -242,6 +242,18 @@
 - 后续动作：如后续新增用户列表，应使用分页对象并沿用 `pageSize <= 1000`；如新增树形 children 接口，必须单独补 API、测试和 handoff。
 - 相关文档：`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
 
+### 决策 019
+
+- 编号：BD-019
+- 日期：2026-06-11
+- 状态：accepted
+- 背景：ReviewX 每年项目约 400 项，管理员提供 Excel 作为项目基础数据来源；导入过程中会出现负责人、单位、学科、处室等主数据无法匹配或多匹配的情况，不能只做一次性脚本。
+- 决策：新增 `project-imports` 后端模块，使用已安装的 `xlsx` 同步解析第一个工作表；字段映射表作为后端常量维护；上传后持久化 `ProjectImportJob` 与 `ProjectImportRow`，自动精确匹配可确认行，无法确定的数据进入 `pending_confirmation`；管理员可人工修正行、创建缺失单位和项目负责人用户，然后单行或批量确认入库。
+- 理由：导入需要留痕、可追溯、可人工校正，同时匹配规则必须保守，避免把 Excel 脏数据自动写入项目和主数据。
+- 影响范围：`ProjectImportsModule`、`project_import_jobs`、`project_import_rows`、`ProjectsService.upsertImportedProject()`、`UsersService.createWithPlainPassword()`、`scripts/sync-indexes.ts`、`test/project-imports.e2e-spec.ts`。
+- 后续动作：如后续需要导入模板下载、字段映射后台配置、导入结果导出、异步队列或事务增强，应单独设计；当前不保存原 Excel 文件，不接 OSS。
+- 相关文档：`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`、`docs/handoff/handoff-backend-service-map.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

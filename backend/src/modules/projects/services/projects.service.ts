@@ -105,6 +105,22 @@ type NormalizedProjectInput = {
   isActive?: boolean;
 };
 
+export type ImportedProjectInput = {
+  batchId: string;
+  projectNo: string;
+  name: string;
+  projectTypeId?: string | null;
+  statusId?: string | null;
+  ownerUserId?: string | null;
+  leadOrganizationId?: string | null;
+  cooperationOrganizationIds?: string[];
+  totalFunding?: number | null;
+  allocatedFunding?: number | null;
+  disciplineIds?: string[];
+  departmentId?: string | null;
+  importedFromJobId: string;
+};
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -185,6 +201,65 @@ export class ProjectsService {
 
   async remove(id: string): Promise<ProjectResponse> {
     return this.update(id, { isActive: false });
+  }
+
+  async upsertImportedProject(
+    input: ImportedProjectInput,
+  ): Promise<ProjectResponse> {
+    const batchId = toObjectId(input.batchId, 'batchId');
+    const projectNo = input.projectNo.trim();
+    const existing = await this.projectModel
+      .findOne({ batchId, projectNo })
+      .lean<ProjectLean | null>()
+      .exec();
+    const update = {
+      batchId,
+      projectNo,
+      name: input.name.trim(),
+      projectTypeId: this.optionalObjectId(
+        input.projectTypeId,
+        'projectTypeId',
+      ),
+      statusId: this.optionalObjectId(input.statusId, 'statusId'),
+      ownerUserId: this.optionalObjectId(input.ownerUserId, 'ownerUserId'),
+      leadOrganizationId: this.optionalObjectId(
+        input.leadOrganizationId,
+        'leadOrganizationId',
+      ),
+      cooperationOrganizationIds: this.toObjectIdArray(
+        input.cooperationOrganizationIds ?? [],
+        'cooperationOrganizationIds',
+      ),
+      totalFunding: input.totalFunding ?? null,
+      allocatedFunding: input.allocatedFunding ?? null,
+      disciplineIds: this.toObjectIdArray(
+        input.disciplineIds ?? [],
+        'disciplineIds',
+      ),
+      departmentId: this.optionalObjectId(input.departmentId, 'departmentId'),
+      importedFromJobId: input.importedFromJobId,
+      isActive: true,
+    };
+
+    if (existing) {
+      const project = await this.projectModel
+        .findByIdAndUpdate(
+          existing._id,
+          { $set: update },
+          { returnDocument: 'after' },
+        )
+        .lean<ProjectLean | null>()
+        .exec();
+
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+
+      return this.toResponse(project);
+    }
+
+    const project = await this.projectModel.create(update);
+    return this.toResponse(project.toObject<ProjectLean>());
   }
 
   private async normalizeCreateInput(

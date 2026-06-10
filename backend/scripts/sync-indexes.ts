@@ -18,6 +18,14 @@ import {
   ProjectSchema,
 } from '../src/modules/projects/schemas/project.schema';
 import {
+  ProjectImportJob,
+  ProjectImportJobSchema,
+} from '../src/modules/project-imports/schemas/project-import-job.schema';
+import {
+  ProjectImportRow,
+  ProjectImportRowSchema,
+} from '../src/modules/project-imports/schemas/project-import-row.schema';
+import {
   ReviewScheme,
   ReviewSchemeSchema,
 } from '../src/modules/review-schemes/schemas/review-scheme.schema';
@@ -283,6 +291,12 @@ function registerModels(): RegisteredModel[] {
   const projectModel = mongoose.models[Project.name]
     ? mongoose.model<unknown>(Project.name)
     : mongoose.model(Project.name, ProjectSchema);
+  const projectImportJobModel = mongoose.models[ProjectImportJob.name]
+    ? mongoose.model<unknown>(ProjectImportJob.name)
+    : mongoose.model(ProjectImportJob.name, ProjectImportJobSchema);
+  const projectImportRowModel = mongoose.models[ProjectImportRow.name]
+    ? mongoose.model<unknown>(ProjectImportRow.name)
+    : mongoose.model(ProjectImportRow.name, ProjectImportRowSchema);
 
   return [
     { name: User.name, model: userModel },
@@ -293,6 +307,8 @@ function registerModels(): RegisteredModel[] {
     { name: Organization.name, model: organizationModel },
     { name: ReviewScheme.name, model: reviewSchemeModel },
     { name: Project.name, model: projectModel },
+    { name: ProjectImportJob.name, model: projectImportJobModel },
+    { name: ProjectImportRow.name, model: projectImportRowModel },
   ];
 }
 

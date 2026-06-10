@@ -25,6 +25,10 @@
 | `CreateOrganizationDto` / `UpdateOrganizationDto` / `QueryOrganizationsDto` | organizations | 单位管理 | `name`、`contactName`、`contactPhone`、`regionId`、`isActive`；查询含 `page/pageSize/keyword/isActive/regionId` | create `name` 必填 | string / ObjectId / boolean | trim、`regionId` ObjectId 且必须为 `treeType=region`；分页最大 `1000` | `page=1`、`pageSize=100` | `{ name: "测试单位", regionId }` | `/admin/organizations` | 列表保留分页；`name` 唯一 |
 | `CreateReviewSchemeDto` / `UpdateReviewSchemeDto` / `ReviewSchemeItemDto` / `QueryReviewSchemesDto` | review-schemes | 评审方案管理 | 写入含 `name`、`description`、`items[]`、`isActive`；查询含 `keyword`、`isActive`；item 含 `name/maxScore/scoringGuide/sortOrder/suggestionRequiredThresholdRatio` | create `name/items` 必填；items 至少 1 项 | string / number / boolean / array | `maxScore > 0`、阈值 `0..1`、嵌套 DTO 校验 | item 阈值默认 `0.8` | `{ name, items: [{ name, maxScore }] }` | `/admin/review-schemes` | 列表不分页，返回数组；`totalScore` 后端计算 |
 | `CreateProjectDto` / `UpdateProjectDto` / `QueryProjectsDto` | projects | 项目基础管理 | 写入字段同 Project；查询含 `page/pageSize/keyword/isActive/batchId` | create `batchId/projectNo/name` 必填 | string / ObjectId / number / Date / boolean / array | ObjectId 校验、数组去重、资金 `>=0`、跨集合关联校验；分页最大 `1000` | `page=1`、`pageSize=100`；arrays 默认空数组 | `{ batchId, projectNo, name }` | `/admin/projects` | 列表保留分页；`batchId+projectNo` 唯一；负责人角色硬校验 |
+| `UploadProjectImportDto` | project-imports | Excel 项目导入上传 | `batchId`；multipart `file` | `batchId/file` 必填 | `batchId: ObjectId`；file buffer | `batchId` ObjectId；文件扩展名 `.xlsx/.xls`；文件大小 10MB 上限 | 无 | multipart form-data | `POST /admin/project-imports/upload` | 使用 `xlsx` 解析第一个工作表；关键表头缺失或无有效数据行返回 `400` |
+| `QueryProjectImportJobsDto` | project-imports | 导入任务列表查询 | `page/pageSize/status/batchId/keyword` | 全可选 | number / string / ObjectId | status 枚举、`batchId` ObjectId、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, batchId, pageSize: 1000 }` | `GET /admin/project-imports` | 返回分页对象 |
+| `QueryProjectImportRowsDto` | project-imports | 导入行列表查询 | `page/pageSize/status/keyword` | 全可选 | number / string | status 枚举、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, keyword, pageSize: 1000 }` | `GET /admin/project-imports/:id/rows` | 返回分页对象 |
+| `UpdateProjectImportRowDto` | project-imports | 导入行人工修正 | `normalized`、`resolved`、`createOrganization`、`createOwnerUser` | 全可选；按修正场景传入 | nested object | ObjectId 校验、数组去重、资金 `>=0`、创建单位/用户字段 trim | 无 | `{ resolved: { leadOrganizationId }, createOwnerUser: { name, phone } }` | `PATCH /admin/project-imports/:id/rows/:rowId` | 可选择既有主数据；可创建单位和项目负责人用户；不可创建字典/树形字典 |
 
 ## 4. 类型 / 状态
 
@@ -39,6 +43,9 @@
 | `AuthSessionRecord` | 当前等同 `PublicSession` | auth 内部 session 记录类型 | 否 | 否 | 预留给后续 Guard / auth 流程使用 |
 | `LoginResult` | `user`、`sessionToken`、`expiresAt` | AuthService 登录结果 | 否 | 否 | `sessionToken` 只交给 Controller 设置 HttpOnly Cookie，不进入响应 body |
 | `AuthenticatedUser` | `user`、`session` | Guard 挂载到 request 的认证上下文 | 否 | 否 | `GET /auth/me` 只返回其中的 `user` |
+| `ProjectImportJobStatus` | `parsing`、`pending_confirmation`、`completed`、`failed`、`canceled` | 导入任务状态 | 是 | 是 | 当前同步解析；正常上传后通常进入 `pending_confirmation`，全部处理后进入 `completed` |
+| `ProjectImportRowStatus` | `importable`、`pending_confirmation`、`confirmed`、`skipped`、`failed` | 导入行状态 | 是 | 是 | 只有 `importable` 可确认入库；`confirmed` 不可重复确认或跳过 |
+| `ProjectImportIssueCode` | `required_field_missing`、`invalid_number`、`funding_inconsistent`、`project_type_not_found`、`project_type_ambiguous`、`status_not_found`、`status_ambiguous`、`owner_not_found`、`owner_ambiguous`、`lead_organization_not_found`、`lead_organization_ambiguous`、`cooperation_organization_not_found`、`cooperation_organization_ambiguous`、`discipline_not_found`、`discipline_ambiguous`、`department_not_found`、`department_ambiguous`、`duplicate_project_no_in_file`、`existing_project_matched`、`lead_organization_duplicated_in_cooperation`、`unknown_error` | 导入行结构化问题编码 | 是 | 是 | `existing_project_matched` 和 `lead_organization_duplicated_in_cooperation` 当前为非阻断提示；其他 issue 阻断确认 |
 
 ## 5. 当前 HTTP 响应结构
 
@@ -51,9 +58,19 @@
 | `/admin/tree-dictionaries` 列表 | `TreeDictionaryResponse[]` | 不返回用户密码哈希或 session token | 不分页；平铺数组；支持 `treeType/parentId/keyword/isActive` |
 | `/admin/review-schemes` 列表 | `ReviewSchemeResponse[]` | 不返回用户密码哈希或 session token | 不分页；支持 `keyword/isActive` |
 | `/admin/batches`、`/admin/organizations`、`/admin/projects` 列表 | `{ items: [], page: 1, pageSize: 100, total: 0 }` | 不返回用户密码哈希或 session token | 分页；`pageSize` 最大 `1000`；超过最大值由 DTO 校验返回 `400` |
+| `/admin/project-imports`、`/admin/project-imports/:id/rows` 列表 | `{ items: [], page: 1, pageSize: 100, total: 0 }` | 不返回用户密码哈希或 session token | 分页；`pageSize` 最大 `1000` |
+| `/admin/project-imports/upload` | `ProjectImportJobResponse` | 不返回用户密码哈希或原 Excel 文件 | `fieldMapping` 保存本次表头识别快照 |
+| `/admin/project-imports/:id/rows/:rowId` | `ProjectImportRowResponse` | `resolved` 仅返回 ID，不内联用户密码哈希 | 包含 `raw/normalized/resolved/issues/status/projectId/confirmedByUserId/confirmedAt` |
 | 管理员用户列表 | 未实现 | 无 | 未来若实现，应保留分页，`pageSize` 最大 `1000` |
 
-## 6. 维护规则
+## 6. Excel 导入字段映射
+
+- 标准字段：`projectNo`、`name`、`projectTypeName`、`ownerName`、`ownerPhone`、`leadOrganizationName`、`totalFunding`、`allocatedFunding`、`disciplineName`、`departmentName`、`cooperationOrganizationNames`、`statusName`、`organizationContactName`、`organizationContactPhone`
+- 关键表头：`projectNo`、`name`、`leadOrganizationName`；缺失时上传接口直接返回 `400`
+- 常见别名按后端常量维护，支持项目编号/编号/项目代码/项目合同编号、项目名称/名称/课题名称、项目类型/类型/项目类别/类别、项目负责人/负责人/项目负责人姓名/负责人姓名、负责人手机/负责人电话/联系电话、项目承担单位/承担单位/牵头单位/依托单位/单位名称等
+- 表头匹配只做 trim 与全角/半角空格归一化后的精确匹配，不做复杂模糊匹配
+
+## 7. 维护规则
 
 - 新增或修改 DTO 必须同步本文档
 - 修改请求体、响应结构或枚举值必须同步本文档

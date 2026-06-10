@@ -34,13 +34,21 @@
 | review-schemes | `POST/GET:id/PATCH:id/DELETE:id` | `/admin/review-schemes` | `ReviewSchemesController` | `ReviewSchemesService` | `SessionAuthGuard` + `RolesGuard(admin)` | `CreateReviewSchemeDto`、`UpdateReviewSchemeDto`、path `id` | `ReviewSchemeResponse` | implemented | items 至少 1 项；`totalScore` 后端计算；delete 为停用 |
 | projects | `GET` | `/admin/projects` | `ProjectsController` | `ProjectsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryProjectsDto` | `{ items, page, pageSize, total }` | implemented | 保留分页；`page=1`、`pageSize=100`、最大 `1000`；支持 `batchId/keyword/isActive` |
 | projects | `POST/GET:id/PATCH:id/DELETE:id` | `/admin/projects` | `ProjectsController` | `ProjectsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `CreateProjectDto`、`UpdateProjectDto`、path `id` | `ProjectResponse` | implemented | 校验批次、字典/树类型、用户角色、单位和启用评审方案；`batchId+projectNo` 唯一；delete 为停用 |
+| project-imports | `POST` | `/admin/project-imports/upload` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | multipart `file` + `UploadProjectImportDto` | `ProjectImportJobResponse` | implemented | 仅允许 `.xlsx/.xls`，10MB 上限；使用 `xlsx` 解析第一个工作表；缺关键表头或无有效数据行返回 `400`；不保存原 Excel 文件 |
+| project-imports | `GET` | `/admin/project-imports` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryProjectImportJobsDto` | `{ items, page, pageSize, total }` | implemented | 任务列表分页，`pageSize` 最大 `1000`；支持 `status/batchId/keyword` |
+| project-imports | `GET` | `/admin/project-imports/:id` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ProjectImportJobResponse` | implemented | 返回任务基本信息、字段映射快照和统计计数，不内联全部 rows |
+| project-imports | `GET` | `/admin/project-imports/:id/rows` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryProjectImportRowsDto` | `{ items, page, pageSize, total }` | implemented | 导入行分页，`pageSize` 最大 `1000`；支持 `status/keyword` |
+| project-imports | `PATCH` | `/admin/project-imports/:id/rows/:rowId` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateProjectImportRowDto` | `ProjectImportRowResponse` | implemented | 人工修正 normalized/resolved；可创建单位和项目负责人用户；不可创建项目类型、学科、受理处室、项目状态 |
+| project-imports | `POST` | `/admin/project-imports/:id/rows/:rowId/confirm` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `ProjectImportRowResponse` | implemented | 仅 `importable` 可确认；创建或更新 Project，记录 `projectId/confirmedByUserId/confirmedAt` |
+| project-imports | `POST` | `/admin/project-imports/:id/confirm` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `{ successCount, failedCount, skippedCount }` | implemented | 批量处理所有 `importable` 行；`pending_confirmation/skipped/confirmed` 行跳过 |
+| project-imports | `POST` | `/admin/project-imports/:id/rows/:rowId/skip` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `ProjectImportRowResponse` | implemented | `importable/pending_confirmation/failed` 可跳过；`confirmed` 返回 `409` |
 
 ## 4. 列表返回结构口径
 
 - 非分页数组：`GET /admin/dictionaries`、`GET /admin/tree-dictionaries`、`GET /admin/review-schemes`
-- 分页对象：`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`
+- 分页对象：`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`、`GET /admin/project-imports`、`GET /admin/project-imports/:id/rows`
 - 当前尚未实现管理员用户列表；未来用户列表应保留分页，`pageSize` 最大 `1000`
-- 后续导入待确认行、申诉、材料、审计类记录仍建议分页，但当前未实现
+- 后续申诉、材料、审计类记录仍建议分页，但当前未实现
 
 ## 5. 管理端权限口径
 
