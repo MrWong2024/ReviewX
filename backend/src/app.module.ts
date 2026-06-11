@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectExpertAssignmentsModule } from './modules/project-expert-assignments/project-expert-assignments.module';
 import { ProjectImportsModule } from './modules/project-imports/project-imports.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ReviewSchemesModule } from './modules/review-schemes/review-schemes.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './modules/users/users.module';
     ReviewSchemesModule,
     ProjectsModule,
     ProjectImportsModule,
+    ProjectExpertAssignmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

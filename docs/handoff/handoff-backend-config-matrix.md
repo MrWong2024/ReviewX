@@ -14,7 +14,7 @@
 - 当前已预留通用 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前 MongoDB 配置已区分应用运行连接 `MONGO_URI` 与运维脚本连接 `MONGO_ADMIN_URI`
 - 当前 `scripts/sync-indexes.ts` 已使用 `MONGO_ADMIN_URI` 执行受控索引同步
-- 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportJob`、`ProjectImportRow`
+- 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectExpertAssignment`、`ProjectImportJob`、`ProjectImportRow`
 - 当前已新增 session / Cookie 配置基线，用于 auth 第一阶段登录态
 
 ## 3. 当前配置项
@@ -67,4 +67,5 @@
 - 当前有 session / Cookie 配置，但不包含用户信息、角色或业务权限配置
 - 当前已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 本阶段未新增环境变量或第三方依赖；项目导入文件大小上限为代码常量 `10MB`
-- 本阶段新增 `project_import_jobs`、`project_import_rows` 关键索引已纳入 `scripts/sync-indexes.ts`；production 仍必须使用 `--confirm-production`
+- 第二阶段新增 `project_import_jobs`、`project_import_rows` 关键索引已纳入 `scripts/sync-indexes.ts`；第三阶段新增 `project_expert_assignments` 关键索引也已纳入 `scripts/sync-indexes.ts`；production 仍必须使用 `--confirm-production`
+- 第三阶段未新增环境变量、第三方依赖或腾讯会议相关配置；`meetingUrl` 仅作为 Project 字符串字段保存

@@ -14,6 +14,10 @@ import {
   OrganizationSchema,
 } from '../src/modules/organizations/schemas/organization.schema';
 import {
+  ProjectExpertAssignment,
+  ProjectExpertAssignmentSchema,
+} from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
+import {
   Project,
   ProjectSchema,
 } from '../src/modules/projects/schemas/project.schema';
@@ -291,6 +295,14 @@ function registerModels(): RegisteredModel[] {
   const projectModel = mongoose.models[Project.name]
     ? mongoose.model<unknown>(Project.name)
     : mongoose.model(Project.name, ProjectSchema);
+  const projectExpertAssignmentModel = mongoose.models[
+    ProjectExpertAssignment.name
+  ]
+    ? mongoose.model<unknown>(ProjectExpertAssignment.name)
+    : mongoose.model(
+        ProjectExpertAssignment.name,
+        ProjectExpertAssignmentSchema,
+      );
   const projectImportJobModel = mongoose.models[ProjectImportJob.name]
     ? mongoose.model<unknown>(ProjectImportJob.name)
     : mongoose.model(ProjectImportJob.name, ProjectImportJobSchema);
@@ -307,6 +319,7 @@ function registerModels(): RegisteredModel[] {
     { name: Organization.name, model: organizationModel },
     { name: ReviewScheme.name, model: reviewSchemeModel },
     { name: Project.name, model: projectModel },
+    { name: ProjectExpertAssignment.name, model: projectExpertAssignmentModel },
     { name: ProjectImportJob.name, model: projectImportJobModel },
     { name: ProjectImportRow.name, model: projectImportRowModel },
   ];

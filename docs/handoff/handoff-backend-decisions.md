@@ -254,6 +254,18 @@
 - 后续动作：如后续需要导入模板下载、字段映射后台配置、导入结果导出、异步队列或事务增强，应单独设计；当前不保存原 Excel 文件，不接 OSS。
 - 相关文档：`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`、`docs/handoff/handoff-backend-service-map.md`
 
+### 决策 020
+
+- 编号：BD-020
+- 日期：2026-06-11
+- 状态：accepted
+- 背景：ReviewX 项目已可导入并确认入库，需要进入可组织评审状态，但不能提前实现专家评分、材料填报、AI 合议、申诉、看板或腾讯会议集成。
+- 决策：第三阶段新增项目评审负责人/评审方案设置、评审安排和专家分配后端能力；项目与专家关系使用独立 `project_expert_assignments` 集合，不把巨大专家数组作为 Project 唯一来源；设置 `reviewSchemeId` 时写入 `reviewSchemeSnapshot`；专家候选和分配统一由后端强校验 `expert` 角色、启用状态、学科匹配、承担单位回避和合作单位回避。
+- 理由：独立关系集合便于后续专家评分、权限校验和移除留痕；评审方案快照避免方案后续修改影响已分配项目；后端硬校验避免前端筛选绕过业务规则。
+- 影响范围：`ProjectsService`、`ProjectExpertAssignmentsModule`、`project_expert_assignments` 集合、`scripts/sync-indexes.ts`、评审负责人和管理员 API、后续专家评分权限基础。
+- 后续动作：后续如实现专家评分、项目负责人材料填报、会议集成、通知、监管看板或审计总线，应基于当前分配关系和方案快照继续扩展，不得把本阶段未实现能力写成已完成。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

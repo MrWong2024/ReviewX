@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,12 +18,20 @@ import {
 import { BatchesService } from '../../batches/services/batches.service';
 import { DictionariesService } from '../../dictionaries/services/dictionaries.service';
 import { OrganizationsService } from '../../organizations/services/organizations.service';
-import { ReviewSchemesService } from '../../review-schemes/services/review-schemes.service';
+import {
+  ReviewSchemeResponse,
+  ReviewSchemesService,
+} from '../../review-schemes/services/review-schemes.service';
 import { TreeDictionariesService } from '../../tree-dictionaries/services/tree-dictionaries.service';
 import { UsersService } from '../../users/users.service';
+import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
+import { BatchUpdateReviewAssignmentDto } from '../dto/batch-update-review-assignment.dto';
 import { CreateProjectDto } from '../dto/create-project.dto';
 import { QueryProjectsDto } from '../dto/query-projects.dto';
+import { QueryReviewManagerProjectsDto } from '../dto/query-review-manager-projects.dto';
 import { UpdateProjectDto } from '../dto/update-project.dto';
+import { UpdateProjectScheduleDto } from '../dto/update-project-schedule.dto';
+import { UpdateReviewAssignmentDto } from '../dto/update-review-assignment.dto';
 import { Project } from '../schemas/project.schema';
 
 export type ProjectResponse = {
@@ -78,6 +88,25 @@ type ProjectLean = TimestampFields & {
   importedFromJobId?: string;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   isActive: boolean;
+};
+
+export type ProjectForReviewAssignment = ProjectLean;
+
+export type ReviewSchemeSnapshot = {
+  id: string;
+  name: string;
+  totalScore: number;
+  items: ReviewSchemeResponse['items'];
+};
+
+export type BatchReviewAssignmentResult = {
+  successCount: number;
+  failedCount: number;
+  failures: {
+    projectId: string;
+    statusCode: number;
+    message: string;
+  }[];
 };
 
 type NormalizedProjectInput = {
@@ -143,20 +172,37 @@ export class ProjectsService {
   async list(
     query: QueryProjectsDto,
   ): Promise<PaginatedResponse<ProjectResponse>> {
-    const filter: Record<string, unknown> = {};
+    const filter = this.buildProjectFilter(query);
 
-    if (query.batchId) {
-      filter.batchId = toObjectId(query.batchId, 'batchId');
-    }
+    const [items, total] = await Promise.all([
+      this.projectModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip((query.page - 1) * query.pageSize)
+        .limit(query.pageSize)
+        .lean<ProjectLean[]>()
+        .exec(),
+      this.projectModel.countDocuments(filter).exec(),
+    ]);
 
-    if (query.isActive !== undefined) {
-      filter.isActive = query.isActive;
-    }
+    return {
+      items: items.map((item) => this.toResponse(item)),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
 
-    if (query.keyword) {
-      const keyword = new RegExp(escapeRegExp(query.keyword), 'i');
-      filter.$or = [{ projectNo: keyword }, { name: keyword }];
-    }
+  async listForReviewManager(
+    query: QueryReviewManagerProjectsDto,
+    currentUser: AuthenticatedUser,
+  ): Promise<PaginatedResponse<ProjectResponse>> {
+    const isAdmin = currentUser.user.roles.includes('admin');
+    const filter = this.buildProjectFilter({
+      ...query,
+      isActive: true,
+      ...(isAdmin ? {} : { reviewManagerId: currentUser.user.id }),
+    });
 
     const [items, total] = await Promise.all([
       this.projectModel
@@ -181,6 +227,36 @@ export class ProjectsService {
     return this.toResponse(await this.findLeanById(id));
   }
 
+  async findActiveForReviewAssignment(
+    id: string,
+  ): Promise<ProjectForReviewAssignment> {
+    return this.findActiveLeanById(id);
+  }
+
+  async findForReviewAssignment(
+    id: string,
+  ): Promise<ProjectForReviewAssignment> {
+    return this.findLeanById(id);
+  }
+
+  assertCanManageProject(
+    project: ProjectForReviewAssignment,
+    currentUser: AuthenticatedUser,
+  ): void {
+    if (currentUser.user.roles.includes('admin')) {
+      return;
+    }
+
+    if (
+      currentUser.user.roles.includes('review_manager') &&
+      project.reviewManagerId?.toString() === currentUser.user.id
+    ) {
+      return;
+    }
+
+    throw new ForbiddenException();
+  }
+
   async update(id: string, dto: UpdateProjectDto): Promise<ProjectResponse> {
     const current = await this.findLeanById(id);
     const input = await this.normalizeUpdateInput(current, dto);
@@ -201,6 +277,96 @@ export class ProjectsService {
 
   async remove(id: string): Promise<ProjectResponse> {
     return this.update(id, { isActive: false });
+  }
+
+  async updateReviewAssignment(
+    id: string,
+    dto: UpdateReviewAssignmentDto,
+  ): Promise<ProjectResponse> {
+    this.assertReviewAssignmentBody(dto);
+    await this.findActiveLeanById(id);
+
+    const update = await this.buildReviewAssignmentUpdate(dto);
+    const project = await this.projectModel
+      .findByIdAndUpdate(
+        toObjectId(id),
+        { $set: update },
+        { returnDocument: 'after' },
+      )
+      .lean<ProjectLean | null>()
+      .exec();
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return this.toResponse(project);
+  }
+
+  async batchUpdateReviewAssignment(
+    dto: BatchUpdateReviewAssignmentDto,
+  ): Promise<BatchReviewAssignmentResult> {
+    this.assertReviewAssignmentBody(dto);
+
+    const failures: BatchReviewAssignmentResult['failures'] = [];
+    let successCount = 0;
+
+    for (const projectId of dto.projectIds) {
+      try {
+        await this.updateReviewAssignment(projectId, dto);
+        successCount += 1;
+      } catch (error) {
+        failures.push({
+          projectId,
+          statusCode: this.getErrorStatus(error),
+          message: this.getErrorMessage(error),
+        });
+      }
+    }
+
+    return {
+      successCount,
+      failedCount: failures.length,
+      failures,
+    };
+  }
+
+  async updateSchedule(
+    id: string,
+    dto: UpdateProjectScheduleDto,
+    currentUser: AuthenticatedUser,
+  ): Promise<ProjectResponse> {
+    const project = await this.findActiveLeanById(id);
+    this.assertCanManageProject(project, currentUser);
+
+    const update: Record<string, unknown> = {};
+
+    if (dto.reviewTime !== undefined) {
+      update.reviewTime = dto.reviewTime;
+    }
+
+    if (dto.reviewLocation !== undefined) {
+      update.reviewLocation = dto.reviewLocation;
+    }
+
+    if (dto.meetingUrl !== undefined) {
+      update.meetingUrl = dto.meetingUrl;
+    }
+
+    const updatedProject = await this.projectModel
+      .findByIdAndUpdate(
+        project._id,
+        { $set: update },
+        { returnDocument: 'after' },
+      )
+      .lean<ProjectLean | null>()
+      .exec();
+
+    if (!updatedProject) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return this.toResponse(updatedProject);
   }
 
   async upsertImportedProject(
@@ -260,6 +426,185 @@ export class ProjectsService {
 
     const project = await this.projectModel.create(update);
     return this.toResponse(project.toObject<ProjectLean>());
+  }
+
+  private buildProjectFilter(query: {
+    batchId?: string;
+    reviewManagerId?: string;
+    reviewSchemeId?: string;
+    projectTypeId?: string;
+    statusId?: string;
+    departmentId?: string;
+    disciplineId?: string;
+    hasReviewManager?: boolean;
+    hasReviewScheme?: boolean;
+    keyword?: string;
+    isActive?: boolean;
+  }): Record<string, unknown> {
+    const filter: Record<string, unknown> = {};
+
+    if (query.batchId) {
+      filter.batchId = toObjectId(query.batchId, 'batchId');
+    }
+
+    if (query.reviewManagerId) {
+      filter.reviewManagerId = toObjectId(
+        query.reviewManagerId,
+        'reviewManagerId',
+      );
+    }
+
+    if (query.reviewSchemeId) {
+      filter.reviewSchemeId = toObjectId(
+        query.reviewSchemeId,
+        'reviewSchemeId',
+      );
+    }
+
+    if (query.projectTypeId) {
+      filter.projectTypeId = toObjectId(query.projectTypeId, 'projectTypeId');
+    }
+
+    if (query.statusId) {
+      filter.statusId = toObjectId(query.statusId, 'statusId');
+    }
+
+    if (query.departmentId) {
+      filter.departmentId = toObjectId(query.departmentId, 'departmentId');
+    }
+
+    if (query.disciplineId) {
+      filter.disciplineIds = toObjectId(query.disciplineId, 'disciplineId');
+    }
+
+    if (
+      query.hasReviewManager !== undefined &&
+      query.reviewManagerId === undefined
+    ) {
+      filter.reviewManagerId = query.hasReviewManager
+        ? { $ne: null }
+        : { $in: [null, undefined] };
+    }
+
+    if (
+      query.hasReviewScheme !== undefined &&
+      query.reviewSchemeId === undefined
+    ) {
+      filter.reviewSchemeId = query.hasReviewScheme
+        ? { $ne: null }
+        : { $in: [null, undefined] };
+    }
+
+    if (query.isActive !== undefined) {
+      filter.isActive = query.isActive;
+    }
+
+    if (query.keyword) {
+      const keyword = new RegExp(escapeRegExp(query.keyword), 'i');
+      filter.$or = [{ projectNo: keyword }, { name: keyword }];
+    }
+
+    return filter;
+  }
+
+  private assertReviewAssignmentBody(dto: UpdateReviewAssignmentDto): void {
+    if (dto.reviewManagerId === undefined && dto.reviewSchemeId === undefined) {
+      throw new BadRequestException(
+        'reviewManagerId or reviewSchemeId is required',
+      );
+    }
+  }
+
+  private async buildReviewAssignmentUpdate(
+    dto: UpdateReviewAssignmentDto,
+  ): Promise<Record<string, unknown>> {
+    const update: Record<string, unknown> = {};
+
+    if (dto.reviewManagerId !== undefined) {
+      await this.assertActiveUserRole(
+        dto.reviewManagerId,
+        'review_manager',
+        'reviewManagerId',
+      );
+      update.reviewManagerId = toObjectId(
+        dto.reviewManagerId,
+        'reviewManagerId',
+      );
+    }
+
+    if (dto.reviewSchemeId !== undefined) {
+      const scheme = await this.findActiveReviewScheme(dto.reviewSchemeId);
+      update.reviewSchemeId = toObjectId(dto.reviewSchemeId, 'reviewSchemeId');
+      update.reviewSchemeSnapshot = this.toReviewSchemeSnapshot(scheme);
+    }
+
+    return update;
+  }
+
+  private async findActiveReviewScheme(
+    reviewSchemeId: string,
+  ): Promise<ReviewSchemeResponse> {
+    try {
+      return await this.reviewSchemesService.findActiveById(reviewSchemeId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException('Active review scheme not found');
+      }
+
+      throw error;
+    }
+  }
+
+  private toReviewSchemeSnapshot(
+    scheme: ReviewSchemeResponse,
+  ): ReviewSchemeSnapshot {
+    return {
+      id: scheme.id,
+      name: scheme.name,
+      totalScore: scheme.totalScore,
+      items: scheme.items.map((item) => ({ ...item })),
+    };
+  }
+
+  private async assertActiveUserRole(
+    userId: string,
+    role: UserRole,
+    fieldName: string,
+  ): Promise<void> {
+    const user = await this.usersService.findById(userId);
+
+    if (!user || user.isActive === false || user.status !== 'active') {
+      throw new BadRequestException(`${fieldName} must be an active user`);
+    }
+
+    if (!user.roles.includes(role)) {
+      throw new BadRequestException(`${fieldName} must have ${role} role`);
+    }
+  }
+
+  private getErrorStatus(error: unknown): number {
+    return error instanceof HttpException ? error.getStatus() : 500;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof HttpException) {
+      const response = error.getResponse();
+
+      if (typeof response === 'string') {
+        return response;
+      }
+
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'message' in response
+      ) {
+        const message = response.message;
+        return Array.isArray(message) ? message.join('; ') : String(message);
+      }
+    }
+
+    return error instanceof Error ? error.message : 'Unknown error';
   }
 
   private async normalizeCreateInput(
@@ -498,6 +843,19 @@ export class ProjectsService {
   private async findLeanById(id: string): Promise<ProjectLean> {
     const project = await this.projectModel
       .findById(toObjectId(id))
+      .lean<ProjectLean | null>()
+      .exec();
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return project;
+  }
+
+  private async findActiveLeanById(id: string): Promise<ProjectLean> {
+    const project = await this.projectModel
+      .findOne({ _id: toObjectId(id), isActive: true })
       .lean<ProjectLean | null>()
       .exec();
 

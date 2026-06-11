@@ -7,7 +7,10 @@ import { OrganizationsModule } from '../organizations/organizations.module';
 import { ReviewSchemesModule } from '../review-schemes/review-schemes.module';
 import { TreeDictionariesModule } from '../tree-dictionaries/tree-dictionaries.module';
 import { UsersModule } from '../users/users.module';
-import { ProjectsController } from './controllers/projects.controller';
+import {
+  ProjectsController,
+  ReviewManagerProjectsController,
+} from './controllers/projects.controller';
 import { Project, ProjectSchema } from './schemas/project.schema';
 import { ProjectsService } from './services/projects.service';
 
@@ -22,7 +25,7 @@ import { ProjectsService } from './services/projects.service';
     UsersModule,
     MongooseModule.forFeature([{ name: Project.name, schema: ProjectSchema }]),
   ],
-  controllers: [ProjectsController],
+  controllers: [ProjectsController, ReviewManagerProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],
 })

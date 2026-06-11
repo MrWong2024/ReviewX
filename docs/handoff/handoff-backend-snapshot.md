@@ -22,7 +22,9 @@
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
+- 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
+- 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 或 `admin` 角色；具体项目操作时非 admin 必须是该项目 `reviewManagerId`
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
 - 当前分页列表口径：批次、单位、项目、导入任务、导入行列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
 - 当前无管理员用户列表接口；未来如新增用户列表，应保留分页并沿用 `pageSize <= 1000`
@@ -144,6 +146,12 @@ backend/
   - `ProjectsModule`
 - 当前已有第二阶段导入模块：
   - `ProjectImportsModule`
+- 当前已有第三阶段评审专家分配模块：
+  - `ProjectExpertAssignmentsModule`
+  - `ProjectExpertAssignmentsController`
+  - `AdminProjectExpertCandidatesController`
+  - `ProjectExpertAssignmentsService`
+  - `ExpertEligibilityService`
 - 当前 users 模块不包含 Controller，也未暴露 HTTP API
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
@@ -174,6 +182,7 @@ backend/
 - 当前 `MONGO_URI` 用于应用运行连接，`MONGO_ADMIN_URI` 预留给未来索引同步、迁移和运维脚本
 - 当前 `scripts/sync-indexes.ts` 使用 `MONGO_ADMIN_URI` 运维账号连接，不启动 Nest 应用，不使用 `MONGO_URI`
 - 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
+- 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectExpertAssignment` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 在 production 或目标库为 `reviewx` 时要求 `--confirm-production`
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - 当前新增 session Cookie 配置项：`SESSION_COOKIE_NAME`、`SESSION_TTL_MS`、`MAX_ACTIVE_SESSIONS_PER_USER`、`SESSION_COOKIE_SECURE`、`SESSION_COOKIE_SAME_SITE`
@@ -193,6 +202,9 @@ backend/
 - 当前已创建 `organizations` 集合，`name` 唯一
 - 当前已创建 `review_schemes` 集合，`name` 唯一，`totalScore` 由后端按 items 计算
 - 当前已创建 `projects` 集合，`batchId + projectNo` 唯一，并关联批次、类型、状态、负责人、单位、学科、处室、评审负责人和评审方案
+- 当前项目设置 `reviewSchemeId` 的第三阶段专用接口会同步写入 `reviewSchemeSnapshot`，快照包含方案 ID、名称、总分和评分项数组；仅设置 `reviewManagerId` 不更新快照；本阶段不实现清空 `reviewSchemeId`
+- 当前已创建 `project_expert_assignments` 集合，用于保存项目与专家分配关系，字段包括 `projectId`、`expertUserId`、`assignedByUserId`、`source`、`status`、`removedAt`、`removedByUserId` 和 timestamps
+- 当前 `project_expert_assignments` 索引：`projectId + expertUserId` unique、`projectId + status`、`expertUserId + status`、`assignedByUserId + createdAt`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前已创建 `project_import_rows` 集合，用于记录每一行原始值、标准化值、自动/人工 resolved ID、issues、行状态和确认留痕
 - 后续集合以真实模块实现为准
@@ -201,7 +213,7 @@ backend/
 
 - 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；字段映射表是后端常量，不是数据库配置
 - 当前不长期保存原 Excel 文件，不接入 OSS；只保存导入任务与导入行解析结果
-- 当前未实现项目负责人材料上传、专家评分、AI 合议、申诉、甲方看板或腾讯会议集成
+- 当前未实现 frontend 页面、OSS、项目负责人材料上传/填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API 集成；评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`
 
 ### 4.6 外部服务集成
 
@@ -223,6 +235,7 @@ backend/
 - 已包含 `test/admin-foundation.e2e-spec.ts`，用于验证 `/admin/*` 401/403、主数据 CRUD、唯一约束、树子节点约束和项目关联校验
 - `test/admin-foundation.e2e-spec.ts` 当前也覆盖普通字典、树形字典、评审方案列表返回数组，以及项目/单位 `pageSize=1000` 和超过上限返回 `400`
 - 已包含 `test/project-imports.e2e-spec.ts`，用于验证导入权限、上传校验、字段别名、自动匹配、待确认、人工修正、确认入库、批量确认、跳过和既有列表口径不回退
+- 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
@@ -232,7 +245,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制，但不包含 OSS 上传、专家分配、项目负责人材料填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议集成
+- 当前已实现 Excel 项目导入与待确认机制，以及评审分配/安排/专家分配后端能力；仍不包含 frontend 页面、OSS 上传、项目负责人材料填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展
