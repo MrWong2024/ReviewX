@@ -18,6 +18,8 @@
 - 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
 - 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
 - 当前已预留通用 LLM / Bailian 配置基线
+- 当前 `dca16ae` 基线已安装 `ali-oss`
+- 当前已准备 Storage / OSS 环境变量 example：`STORAGE_DRIVER`、`OSS_REGION`、`OSS_BUCKET`、`OSS_INTERNAL_ENDPOINT`、`OSS_PUBLIC_ENDPOINT`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_OBJECT_PREFIX`
 - 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
@@ -212,14 +214,22 @@ backend/
 ### 4.5 文件上传 / 对象存储
 
 - 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；字段映射表是后端常量，不是数据库配置
-- 当前不长期保存原 Excel 文件，不接入 OSS；只保存导入任务与导入行解析结果
-- 当前未实现 frontend 页面、OSS、项目负责人材料上传/填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API 集成；评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`
+- 当前不长期保存原 Excel 文件；只保存导入任务与导入行解析结果
+- 当前 `dca16ae` 基线已安装 `ali-oss`，并已在 `.env.development.example`、`.env.test.example`、`.env.production.example` 准备 Storage / OSS 配置样例
+- `STORAGE_DRIVER` 口径支持 `fake / oss`：development/test example 默认 `fake`，production example 默认 `oss`
+- `OSS_INTERNAL_ENDPOINT` 用于后端部署在阿里云同地域 ECS 时访问 OSS，优先走内网；本地开发机器通常不能访问 internal endpoint
+- `OSS_PUBLIC_ENDPOINT` 用于生成浏览器可访问的签名下载/预览 URL；本地真实联调时应使用 public endpoint，或由后续 StorageService 区分上传 endpoint 与签名 URL endpoint
+- OSS Bucket 建议私有读写；后端后续生成短期签名 URL 供下载/预览
+- 不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续可替换为 RAM Role
+- E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`；后续第四阶段实现中，FakeStorageService 或 mock storage 应用于自动化测试
+- 当前未实现 StorageService、FakeStorageService、OSS 上传、项目材料模型、文件上传/下载/删除接口、下载/预览签名 URL、项目负责人材料上传/填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API 集成；评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`
 
 ### 4.6 外部服务集成
 
 - 当前已预留通用 `LLM_PROVIDER` 与 `BAILIAN_*` 配置
 - 当前 `BAILIAN_MODEL` 由 env 提供，代码中不固化默认模型
 - 当前尚未实现任何 LLM 调用服务
+- 当前虽已安装 `ali-oss` 并准备 Storage / OSS 配置样例，但尚未实现对象存储业务集成
 - 当前未实现其他外部服务集成
 
 ### 4.7 后台任务 / 定时任务
@@ -245,7 +255,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制，以及评审分配/安排/专家分配后端能力；仍不包含 frontend 页面、OSS 上传、项目负责人材料填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制，以及评审分配/安排/专家分配后端能力；已准备 Storage / OSS 配置样例，但仍不包含 frontend 页面、StorageService、OSS 上传、项目材料模型、文件上传/下载/删除接口、项目负责人材料填报、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前仅有最小健康检查接口，后续业务模块需按架构文档逐步扩展

@@ -266,6 +266,18 @@
 - 后续动作：后续如实现专家评分、项目负责人材料填报、会议集成、通知、监管看板或审计总线，应基于当前分配关系和方案快照继续扩展，不得把本阶段未实现能力写成已完成。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`
 
+### 决策 021
+
+- 编号：BD-021
+- 日期：2026-06-12
+- 状态：accepted
+- 背景：ReviewX 在正式实现“项目负责人填报与 OSS 材料管理机制”前，需要先统一对象存储配置命名和测试隔离口径，避免第四阶段实现时临时发明配置项。
+- 决策：后端 Storage / OSS 配置统一使用 `STORAGE_DRIVER` 和 `OSS_*` 环境变量；`STORAGE_DRIVER` 支持 `fake / oss`，development/test example 默认 `fake`，production example 默认 `oss`；`OSS_INTERNAL_ENDPOINT` 用于同地域 ECS 后端访问 OSS 内网 endpoint，`OSS_PUBLIC_ENDPOINT` 用于生成浏览器可访问的签名下载/预览 URL；E2E 与自动化测试不得依赖真实阿里云 OSS。
+- 理由：fake/oss 驱动口径可让自动化测试稳定隔离外部服务；internal/public endpoint 分工可同时满足 ECS 内网访问与浏览器下载/预览访问；先固化变量名能降低第四阶段 StorageService、材料模型和接口实现的配置漂移风险。
+- 影响范围：`backend/.env.development.example`、`backend/.env.test.example`、`backend/.env.production.example`、后端配置矩阵、后续第四阶段 StorageService 和材料管理实现。
+- 后续动作：第四阶段实现 StorageService 或材料管理时，应基于当前变量名接入配置校验和实际读取；测试环境使用 FakeStorageService 或 mock storage；Bucket 建议私有读写，后端生成短期签名 URL；不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续 RAM Role。
+- 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/e2e-testing.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改
