@@ -14,7 +14,8 @@ ReviewX 科评星：科技项目评审协同与监管平台
 
 - `backend` 已初始化为 NestJS + Mongoose 后端，并已具备 Session Auth、users、sessions、auth、第一阶段管理端业务底座、第二阶段项目导入底座与第三阶段项目评审分配/安排后端能力
 - 当前已实现用户多角色、管理员角色守卫、批次、普通字典、树形字典、单位、评审方案、项目基础模型、`/admin/*` 管理 CRUD、`/admin/project-imports` Excel 导入与待确认机制，以及 `/review-manager/*` 项目安排和专家分配接口
-- 当前已准备 Storage / OSS 环境变量 example 与 handoff 口径，但尚未实现 StorageService、OSS 上传、项目材料模型或文件上传/下载/删除接口
+- 当前已实现 Storage 抽象层、ProjectMaterial 模型、项目负责人填报与项目材料上传/列表/下载 URL/软删除接口，并已实现评审负责人、专家、管理员材料只读可见性
+- 当前仍未实现 frontend 页面、专家评分、AI 合议、申诉、甲方看板、腾讯会议集成、病毒扫描、在线预览转码、前端直传、分片上传或断点续传
 - 当前 handoff 以真实代码、基础架构文档和后续 handoff 更新为准
 
 ## 4. 必读基础文档

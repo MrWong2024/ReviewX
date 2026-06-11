@@ -30,6 +30,11 @@
 | `QueryReviewManagerProjectsDto` | projects | 评审负责人项目列表 | `page/pageSize/keyword/isActive/batchId/reviewSchemeId/statusId` | 全可选 | number / string / ObjectId / boolean | ObjectId 校验；分页最大 `1000` | `page=1`、`pageSize=100` | `{ batchId, keyword }` | `GET /review-manager/projects` | `review_manager` 只返回自己负责项目；admin 兜底访问不强制负责人范围 |
 | `QueryExpertCandidatesDto` | project-expert-assignments | 专家候选列表 | `page/pageSize/keyword/isActive` | 全可选 | number / string / boolean | 分页最大 `1000`；keyword 按姓名/手机号匹配 | `page=1`、`pageSize=100` | `{ keyword: "138" }` | `GET /review-manager/projects/:id/expert-candidates`、`GET /admin/projects/:id/expert-candidates` | 候选强校验 expert 角色、启用、学科匹配、承担单位/合作单位回避；项目无学科返回空分页 |
 | `AppendProjectExpertsDto` / `UpdateProjectExpertsDto` / `BatchProjectExpertsDto` | project-expert-assignments | 专家追加、替换和批量分配 | 追加/替换含 `expertUserIds`；批量含 `projectIds`、`expertUserIds`、`mode` | 追加 `expertUserIds` 非空；替换允许空数组；批量 `projectIds` 非空，`mode=append` 时专家非空 | ObjectId array / enum | ObjectId 校验、数组去重；`mode` 仅 `replace/append` | 无 | `{ expertUserIds: ["..."] }` | `/review-manager/projects/:id/experts`、`PUT /review-manager/projects/experts/batch` | `PUT replace` 任一专家不合规则整体 `409`；`POST append` 返回逐专家成功/失败明细 |
+| `QueryProjectOwnerProjectsDto` | project-materials | 项目负责人项目列表 | `page/pageSize/keyword/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` | 全可选 | number / string / ObjectId | ObjectId 校验；分页最大 `1000`；keyword 按项目编号/名称匹配 | `page=1`、`pageSize=100` | `{ pageSize: 1000, keyword }` | `GET /project-owner/projects` | 只返回当前 `project_owner` 用户负责的启用项目，响应含评审安排、`followUpNeeds`、`materialCount` |
+| `QueryExpertProjectsDto` | project-materials | 专家项目列表 | `page/pageSize/keyword/batchId/statusId` | 全可选 | number / string / ObjectId | ObjectId 校验；分页最大 `1000`；keyword 按项目编号/名称匹配 | `page=1`、`pageSize=100` | `{ batchId, keyword }` | `GET /expert/projects` | 只返回当前专家 `status=assigned` 的启用项目 |
+| `UpdateFollowUpNeedsDto` | project-materials | 项目负责人更新后续推进需求 | `followUpNeeds` | 必填，可为空字符串 | string | trim；最长 5000 | 无 | `{ followUpNeeds: "需协调..." }` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只更新 `Project.followUpNeeds`，不得更新项目其他字段 |
+| `QueryProjectMaterialsDto` | project-materials | 单项目材料列表过滤 | `materialTypeId` | 可选 | ObjectId | ObjectId 校验 | 无 | `{ materialTypeId }` | `/project-owner/projects/:id/materials`、`/review-manager/projects/:id/materials`、`/expert/projects/:id/materials`、`/admin/projects/:id/materials` | 单项目材料列表不分页，只返回 `active` 材料 |
+| `UploadProjectMaterialsDto` | project-materials | 项目负责人上传项目材料 | `materialTypeId`、`remark`；multipart `files` | `materialTypeId/files` 必填；`remark` 可选 | ObjectId / string / file array | `materialTypeId` ObjectId 且必须是启用 `dictType=material_type`；`remark` trim 且最长 1000；文件数量最大 20，单文件最大 500MB，禁止空文件和危险扩展名 | 无 | multipart form-data | `POST /project-owner/projects/:id/materials` | 文件字段名 `files`，支持多文件；数据库只保存文件引用和元数据，不保存文件内容 |
 | `UploadProjectImportDto` | project-imports | Excel 项目导入上传 | `batchId`；multipart `file` | `batchId/file` 必填 | `batchId: ObjectId`；file buffer | `batchId` ObjectId；文件扩展名 `.xlsx/.xls`；文件大小 10MB 上限 | 无 | multipart form-data | `POST /admin/project-imports/upload` | 使用 `xlsx` 解析第一个工作表；关键表头缺失或无有效数据行返回 `400` |
 | `QueryProjectImportJobsDto` | project-imports | 导入任务列表查询 | `page/pageSize/status/batchId/keyword` | 全可选 | number / string / ObjectId | status 枚举、`batchId` ObjectId、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, batchId, pageSize: 1000 }` | `GET /admin/project-imports` | 返回分页对象 |
 | `QueryProjectImportRowsDto` | project-imports | 导入行列表查询 | `page/pageSize/status/keyword` | 全可选 | number / string | status 枚举、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, keyword, pageSize: 1000 }` | `GET /admin/project-imports/:id/rows` | 返回分页对象 |
@@ -54,6 +59,8 @@
 | `ProjectExpertAssignmentSource` | `manual`、`batch` | 专家分配来源 | 是 | 是 | 单项目接口写 `manual`，批量接口写 `batch` |
 | `ProjectExpertAssignmentStatus` | `assigned`、`removed` | 专家分配关系状态 | 是 | 是 | 移除专家只标记 `removed`，不物理删除 |
 | `ExpertEligibilityReason` | `expert_not_found`、`expert_inactive`、`expert_role_missing`、`project_not_found`、`project_inactive`、`project_discipline_missing`、`expert_discipline_missing`、`discipline_mismatch`、`lead_organization_conflict`、`cooperation_organization_conflict`、`duplicate_expert`、`invalid_object_id` | 专家资格校验原因码 | 是 | 否 | 由 `ExpertEligibilityService` 输出；当前未使用 `duplicate_expert` 阻断重复添加，重复添加按幂等成功处理 |
+| `ProjectMaterialStatus` | `active`、`deleted` | 项目材料状态 | 是 | 是 | 删除材料只标记 `deleted`，不物理删除 OSS object |
+| `StorageDriver` | `fake`、`oss` | 项目材料存储驱动 | 是 | 是 | `ProjectMaterial.storageDriver` 保存上传时使用的驱动；接口不返回任何 AccessKey |
 
 ## 5. 当前 HTTP 响应结构
 
@@ -70,6 +77,11 @@
 | `/admin/project-imports/upload` | `ProjectImportJobResponse` | 不返回用户密码哈希或原 Excel 文件 | `fieldMapping` 保存本次表头识别快照 |
 | `/admin/project-imports/:id/rows/:rowId` | `ProjectImportRowResponse` | `resolved` 仅返回 ID，不内联用户密码哈希 | 包含 `raw/normalized/resolved/issues/status/projectId/confirmedByUserId/confirmedAt` |
 | 专家候选/专家列表 | `ExpertBasicResponse[]` 或分页对象 | 不返回 `passwordHash` | 字段含 `id/name/phone/organizationIds/disciplineIds`；候选额外含 `assigned` |
+| `GET /project-owner/projects`、`GET /expert/projects` | `{ items: ProjectPortalResponse[], page, pageSize, total }` | 不返回用户密码哈希、OSS AccessKey 或 session token | `ProjectPortalResponse` 含项目基础字段、评审安排、`followUpNeeds`、`materialCount` |
+| 单项目材料列表 | `ProjectMaterialResponse[]` | 不返回 OSS AccessKey、文件内容或持久化 URL | 字段含材料 ID、项目 ID、材料类型摘要、文件名、objectKey、bucket、storageDriver、mimeType、extension、sizeBytes、sha256、remark、status、createdAt、updatedAt |
+| 材料上传 | `{ materials, successCount, failedCount, failures }` | 不返回 OSS AccessKey 或文件内容 | 多文件上传允许部分成功；全部失败时按错误返回 |
+| 材料下载 URL | `{ url, expiresAt }` | 不返回 OSS AccessKey 或持久化 URL | 默认有效期 10 分钟；deleted 材料不可生成 URL |
+| 材料软删除 | `{ deleted, alreadyDeleted }` | 不返回 OSS AccessKey 或文件内容 | 重复删除幂等成功；不物理删除 OSS object |
 | 管理员用户列表 | 未实现 | 无 | 未来若实现，应保留分页，`pageSize` 最大 `1000` |
 
 ## 6. Excel 导入字段映射

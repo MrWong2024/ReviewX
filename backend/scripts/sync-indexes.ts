@@ -30,6 +30,10 @@ import {
   ProjectImportRowSchema,
 } from '../src/modules/project-imports/schemas/project-import-row.schema';
 import {
+  ProjectMaterial,
+  ProjectMaterialSchema,
+} from '../src/modules/project-materials/schemas/project-material.schema';
+import {
   ReviewScheme,
   ReviewSchemeSchema,
 } from '../src/modules/review-schemes/schemas/review-scheme.schema';
@@ -309,6 +313,9 @@ function registerModels(): RegisteredModel[] {
   const projectImportRowModel = mongoose.models[ProjectImportRow.name]
     ? mongoose.model<unknown>(ProjectImportRow.name)
     : mongoose.model(ProjectImportRow.name, ProjectImportRowSchema);
+  const projectMaterialModel = mongoose.models[ProjectMaterial.name]
+    ? mongoose.model<unknown>(ProjectMaterial.name)
+    : mongoose.model(ProjectMaterial.name, ProjectMaterialSchema);
 
   return [
     { name: User.name, model: userModel },
@@ -322,6 +329,7 @@ function registerModels(): RegisteredModel[] {
     { name: ProjectExpertAssignment.name, model: projectExpertAssignmentModel },
     { name: ProjectImportJob.name, model: projectImportJobModel },
     { name: ProjectImportRow.name, model: projectImportRowModel },
+    { name: ProjectMaterial.name, model: projectMaterialModel },
   ];
 }
 

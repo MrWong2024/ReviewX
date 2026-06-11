@@ -12,6 +12,7 @@ import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProjectExpertAssignmentsModule } from './modules/project-expert-assignments/project-expert-assignments.module';
 import { ProjectImportsModule } from './modules/project-imports/project-imports.module';
+import { ProjectMaterialsModule } from './modules/project-materials/project-materials.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { ReviewSchemesModule } from './modules/review-schemes/review-schemes.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
@@ -47,6 +48,7 @@ import { UsersModule } from './modules/users/users.module';
     ProjectsModule,
     ProjectImportsModule,
     ProjectExpertAssignmentsModule,
+    ProjectMaterialsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

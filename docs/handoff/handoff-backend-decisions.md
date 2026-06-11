@@ -278,6 +278,18 @@
 - 后续动作：第四阶段实现 StorageService 或材料管理时，应基于当前变量名接入配置校验和实际读取；测试环境使用 FakeStorageService 或 mock storage；Bucket 建议私有读写，后端生成短期签名 URL；不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续 RAM Role。
 - 相关文档：`docs/handoff/handoff-backend-config-matrix.md`、`docs/handoff/handoff-backend-snapshot.md`、`docs/e2e-testing.md`
 
+### 决策 022
+
+- 编号：BD-022
+- 日期：2026-06-12
+- 状态：accepted
+- 背景：ReviewX 已完成项目导入、评审安排和专家分配，需要在不实现前端、评分、AI 或会议能力的前提下，打通评审前项目负责人填报与材料可见性后端链路。
+- 决策：新增 Storage 抽象层和 `ProjectMaterial` 集合；项目材料文件本体只存储到 fake storage 或阿里云 OSS，MongoDB 只保存 objectKey、bucket、驱动、文件名、MIME、扩展名、大小、sha256、状态和关联元数据；项目负责人可以查看自己的项目、更新 `Project.followUpNeeds`、上传/查看/下载 URL/软删除材料；评审负责人、已分配专家和管理员只能按权限查看 active 材料并获取短期下载 URL。
+- 理由：Storage 抽象让自动化测试不依赖真实 OSS，同时为 production 使用私有 OSS Bucket 和短期签名 URL 留出稳定边界；独立材料集合便于审计、软删除、后续生命周期清理和跨角色只读可见性；`ProjectExpertAssignment.status=assigned` 继续作为专家可见性的唯一后端依据。
+- 影响范围：`StorageModule`、`ProjectMaterialsModule`、`project_materials` 集合、`scripts/sync-indexes.ts`、`/project-owner/*`、`/expert/*`、`/review-manager/projects/:id/materials*`、`/admin/projects/:id/materials*`、项目负责人 `followUpNeeds` 字段。
+- 后续动作：后续如实现专家评分、AI 合议、申诉、甲方看板、腾讯会议集成、病毒扫描、在线预览转码、前端直传、分片上传或断点续传，必须在当前材料权限、短期 URL 和软删除口径上显式扩展；不得把 OSS object 物理删除作为本阶段默认业务删除行为。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-config-matrix.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改
