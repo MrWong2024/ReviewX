@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint .",
+    "lint:file": "eslint", 
+    "lint:file:fix": "eslint --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
