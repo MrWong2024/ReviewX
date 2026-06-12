@@ -10,6 +10,14 @@ export type BuildObjectKeyInput = {
   date?: Date;
 };
 
+export type BuildAppealObjectKeyInput = {
+  objectPrefix: string;
+  projectId: string;
+  appealId: string;
+  safeFilename: string;
+  date?: Date;
+};
+
 const UNSAFE_FILENAME_CHARS = /[^a-zA-Z0-9._-]+/g;
 
 export function sanitizeFilename(originalFilename: string): string {
@@ -46,6 +54,22 @@ export function buildObjectKey(input: BuildObjectKeyInput): string {
     input.projectId,
     'materials',
     typeSegment,
+    year,
+    `${randomUUID()}-${input.safeFilename}`,
+  ].join('/');
+}
+
+export function buildAppealObjectKey(input: BuildAppealObjectKeyInput): string {
+  const date = input.date ?? new Date();
+  const year = String(date.getUTCFullYear());
+  const prefix = trimSlashes(input.objectPrefix || 'reviewx');
+
+  return [
+    prefix,
+    'projects',
+    input.projectId,
+    'appeals',
+    input.appealId,
     year,
     `${randomUUID()}-${input.safeFilename}`,
   ].join('/');

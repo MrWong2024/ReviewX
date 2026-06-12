@@ -31,7 +31,8 @@
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
 - 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
-- 当前仍不包含 frontend 页面、真实 AI 接入、申诉、甲方看板或腾讯会议集成
+- 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志
+- 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
 - 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 或 `admin` 角色；具体项目操作时非 admin 必须是该项目 `reviewManagerId`
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
@@ -187,6 +188,15 @@ backend/
   - `ReviewManagerConsensusController`
   - `AdminConsensusController`
   - `ConsensusReview` schema
+- 当前已有第六阶段项目申诉模块：
+  - `ProjectAppealsModule`
+  - `ProjectAppealsService`
+  - `ProjectOwnerAppealsController`
+  - `ReviewManagerAppealsController`
+  - `AdminAppealsController`
+  - `ProjectAppeal` schema
+  - `ProjectAppealAttachment` schema
+  - `ProjectLevelChangeLog` schema
 - 当前 users 模块不包含 Controller，也未暴露 HTTP API
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
@@ -219,7 +229,7 @@ backend/
 - 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectExpertAssignment` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectMaterial` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
-- 当前 `scripts/sync-indexes.ts` 也显式注册 `ExpertReview` 和 `ConsensusReview` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
+- 当前 `scripts/sync-indexes.ts` 也显式注册 `ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment` 和 `ProjectLevelChangeLog` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 在 production 或目标库为 `reviewx` 时要求 `--confirm-production`
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - 当前新增 session Cookie 配置项：`SESSION_COOKIE_NAME`、`SESSION_TTL_MS`、`MAX_ACTIVE_SESSIONS_PER_USER`、`SESSION_COOKIE_SECURE`、`SESSION_COOKIE_SAME_SITE`
@@ -256,6 +266,16 @@ backend/
 - 当前合议草稿只实现 `draftSource=rule_based` 规则聚合：平均 submitted 专家总分作为 `draftScore`，拼接专家评价描述、改进建议和重大问题提示作为 `draftOpinion`；不调用真实 AI 或外部大模型
 - 当前人工确认合议会写 `ConsensusReview.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt/status=confirmed`，并写 `Project.finalLevel`；`Project.originalLevel` 为空时同步写入；不修改 `Project.reviewSchemeSnapshot`
 - 当前 `finalLevel` 优先校验启用的普通字典 `dictType=review_level` 的 `code` 或 `name`；若该字典为空，允许字符串 `A/B/C/D` 兜底；本阶段不自动创建 `review_level` 字典
+- 当前已创建 `project_appeals` 集合，用于记录项目负责人每一次申诉，字段包括 `projectId`、`appealNo`、`submittedByUserId`、`reason`、`status`、`relatedConsensusReviewId`、`levelBeforeAppeal`、`levelAfterHandling`、`handledByUserId`、`handlingOpinion`、`handledAt`、`causedLevelChange` 和 timestamps
+- 当前 `project_appeals` 索引：`projectId + appealNo` unique、`projectId + status`、`submittedByUserId + createdAt`、`handledByUserId + handledAt`
+- 当前 `ProjectAppeal.status` 取值：`submitted/processing/accepted/rejected/canceled`；本阶段实际使用 `submitted/accepted/rejected`，`processing/canceled` 仅预留；同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交
+- 当前已创建 `project_appeal_attachments` 集合，用于保存申诉补充材料文件引用和元数据，字段包括 `appealId`、`projectId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`deletedAt`、`deletedByUserId` 和 timestamps
+- 当前 `project_appeal_attachments` 索引：`appealId + status`、`projectId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
+- 当前申诉附件删除为软删除，`status=deleted` 并记录 `deletedAt/deletedByUserId`，不物理删除 OSS object；申诉附件不使用 `material_type` 字典
+- 当前已创建 `project_level_change_logs` 集合，用于记录项目最终等级变更历史，字段包括 `projectId`、`appealId`、`consensusReviewId`、`fromLevel`、`toLevel`、`reason`、`changedByUserId`、`changedAt`、`source` 和 timestamps
+- 当前 `project_level_change_logs` 索引：`projectId + changedAt`、`appealId`、`changedByUserId + changedAt`、`source + changedAt`
+- 当前申诉处理导致等级变更时只更新 `Project.finalLevel` 并写 `ProjectLevelChangeLog(source=appeal_handling)`；不修改 `ConsensusReview.finalLevel`；`Project.originalLevel` 保留首次合议确认等级，若历史数据为空则申诉处理时写入调整前等级
+- 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前已创建 `project_import_rows` 集合，用于记录每一行原始值、标准化值、自动/人工 resolved ID、issues、行状态和确认留痕
 - 后续集合以真实模块实现为准
@@ -275,7 +295,8 @@ backend/
 - E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`，自动化测试使用 fake storage
 - 当前已实现项目材料上传、列表、短期下载 URL 和软删除；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
-- 当前仍未实现专家评分、AI 合议、申诉、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
+- 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage
+- 当前仍未实现真实 AI 合议、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
 
 ### 4.6 外部服务集成
 
@@ -303,6 +324,7 @@ backend/
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性和既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
+- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
@@ -312,7 +334,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、专家评分和规则化合议评审后端能力；仍不包含 frontend 页面、真实 AI 接入、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、专家评分、规则化合议评审、项目申诉和等级变更留痕后端能力；仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务；合议草稿为 `rule_based`，不调用外部大模型
 - 后续业务模块仍需按架构文档逐步扩展，不得绕过当前 auth、角色和数据隔离口径

@@ -44,6 +44,9 @@
 | `ReturnExpertReviewDto` | expert-reviews | 退回专家评分 | `returnReason` | 必填 | string | trim，1..1000 | 无 | `{ returnReason: "请补充说明" }` | `POST /review-manager/projects/:id/expert-reviews/:expertUserId/return` | 仅 submitted 可退回 |
 | `GenerateConsensusDraftDto` | consensus-reviews | 合议草稿生成查询参数 | `force` | 可选 | boolean | 支持 `true/false` 字符串转换 | `false` | `?force=true` | `POST /review-manager/projects/:id/consensus/draft` | 已有 draft 时需 `force=true` 才覆盖；confirmed 不可覆盖 |
 | `ConfirmConsensusReviewDto` | consensus-reviews | 人工确认合议 | `finalOpinion/finalScore/finalLevel/useDraftAsBase` | `finalOpinion/finalScore/finalLevel` 必填；`useDraftAsBase` 预留可选 | string / number / boolean | `finalOpinion` 1..10000；`finalScore` 业务层校验 `0..reviewSchemeSnapshot.totalScore`；`finalLevel` 校验 review_level 字典或 A/B/C/D 兜底 | 无 | `{ finalOpinion, finalScore: 82, finalLevel: "A" }` | `POST /review-manager/projects/:id/consensus/confirm`、`POST /admin/projects/:id/consensus/confirm` | 当前允许再次确认覆盖最新确认结果，不做完整等级变更历史 |
+| `CreateProjectAppealDto` | project-appeals | 项目负责人提交申诉 | `reason`；multipart 可选 `files` | `reason` 必填；`files` 可选 | string / file array | `reason` trim，1..10000；如带文件，文件字段名 `files`，单次最多 20 个、单文件最大 500MB、禁止空文件和危险扩展名 | 无 | `{ reason: "请复核最终等级" }` | `POST /project-owner/projects/:id/appeals` | 后端生成 `appealNo`；必须已有 confirmed 合议且 `Project.finalLevel` 非空；最多 3 次；未处理申诉互斥 |
+| `UploadProjectAppealAttachmentsDto` | project-appeals | 追加申诉补充材料 | `remark`；multipart `files` | `files` 必填；`remark` 可选 | string / file array | `remark` trim，最大 1000；文件字段名 `files`；单次最多 20 个、单文件最大 500MB、禁止空文件和危险扩展名 | 无 | multipart form-data | `POST /project-owner/projects/:id/appeals/:appealId/attachments` | 仅 `submitted` 申诉可追加；不使用 `material_type` 字典 |
+| `HandleProjectAppealDto` | project-appeals | 处理申诉 | `decision`、`handlingOpinion`、`newFinalLevel` | `decision/handlingOpinion` 必填；`newFinalLevel` 可选 | enum / string | `decision` 仅 `accepted/rejected`；`handlingOpinion` trim，1..10000；`newFinalLevel` 校验启用 `review_level` 字典 code/name，字典为空时允许 A/B/C/D | 无 | `{ decision: "accepted", handlingOpinion: "申诉有效", newFinalLevel: "B" }` | `POST /review-manager/projects/:id/appeals/:appealId/handle`、`POST /admin/projects/:id/appeals/:appealId/handle` | 已处理申诉不可重复处理；等级变更只写 `Project.finalLevel` 和 `ProjectLevelChangeLog` |
 
 ## 4. 类型 / 状态
 
@@ -70,6 +73,9 @@
 | `ExpertReviewViewStatus` | `not_started`、`draft`、`submitted`、`returned` | 专家评分接口视图状态 | 是 | 否 | 任务列表和负责人评分列表使用 |
 | `ConsensusReviewStatus` | `draft`、`confirmed`、`reopened` | 合议评审状态 | 是 | 是 | `reopened` 当前仅预留 |
 | `ConsensusDraftSource` | `rule_based`、`manual`、`ai` | 合议草稿来源 | 是 | 是 | 当前阶段只生成 `rule_based`；`ai` 仅预留，不代表已实现真实 AI |
+| `ProjectAppealStatus` | `submitted`、`processing`、`accepted`、`rejected`、`canceled` | 项目申诉状态 | 是 | 是 | 本阶段实际使用 `submitted/accepted/rejected`；`processing/canceled` 仅预留，不实现撤回 |
+| `ProjectAppealAttachmentStatus` | `active`、`deleted` | 申诉附件状态 | 是 | 是 | 删除只标记 `deleted`，不物理删除 OSS object |
+| `ProjectLevelChangeSource` | `consensus_confirm`、`appeal_handling`、`admin_correction` | 项目等级变更来源 | 是 | 是 | 本阶段只在申诉处理等级变更时写 `appeal_handling`；不回填第五阶段历史合议确认 |
 
 ## 5. 当前 HTTP 响应结构
 
@@ -91,6 +97,13 @@
 | 材料上传 | `{ materials, successCount, failedCount, failures }` | 不返回 OSS AccessKey 或文件内容 | 多文件上传允许部分成功；全部失败时按错误返回 |
 | 材料下载 URL | `{ url, expiresAt }` | 不返回 OSS AccessKey 或持久化 URL | 默认有效期 10 分钟；deleted 材料不可生成 URL |
 | 材料软删除 | `{ deleted, alreadyDeleted }` | 不返回 OSS AccessKey 或文件内容 | 重复删除幂等成功；不物理删除 OSS object |
+| 项目负责人 confirmed 合议结果 | `ProjectOwnerConsensusResponse` | 不返回未确认草稿、不返回用户密码或 session token | 只返回 `ConsensusReview.status=confirmed` 的 `finalOpinion/finalScore/finalLevel/confirmedAt/expertReviewStats` |
+| 申诉列表/详情 | `ProjectAppealResponse` / `ProjectAppealDetailResponse` | 不返回文件内容、OSS AccessKey 或 session token | 包含 `appealNo/status/reason/handlingOpinion/causedLevelChange/levelBeforeAppeal/levelAfterHandling/attachmentCount`；负责人/管理员详情额外含 confirmed 合议摘要 |
+| 申诉附件列表 | `ProjectAppealAttachmentResponse[]` | 不返回文件内容、OSS AccessKey 或持久化 URL | 只返回 active 附件；字段含 objectKey、bucket、storageDriver、文件名、MIME、扩展名、大小、sha256、remark、status |
+| 申诉附件上传 | `{ attachments, successCount, failedCount, failures }` | 不返回文件内容或 OSS AccessKey | 多文件允许部分成功；全部失败时按错误返回；数据库只保存文件引用和元数据 |
+| 申诉附件下载 URL | `{ url, expiresAt }` | 不返回 OSS AccessKey 或持久化 URL | 默认有效期 10 分钟；deleted 附件不可生成 URL |
+| 申诉附件软删除 | `{ deleted, alreadyDeleted }` | 不返回文件内容或 OSS AccessKey | 重复删除幂等成功；不物理删除 OSS object |
+| 等级变更历史 | `ProjectLevelChangeLogResponse[]` | 不返回用户密码或 session token | 包含 `fromLevel/toLevel/source/reason/changedByUserId/changedAt/appealId/consensusReviewId`；无日志返回空数组 |
 | 管理员用户列表 | 未实现 | 无 | 未来若实现，应保留分页，`pageSize` 最大 `1000` |
 
 ## 6. Excel 导入字段映射

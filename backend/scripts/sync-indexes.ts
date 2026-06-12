@@ -26,6 +26,18 @@ import {
   ProjectExpertAssignmentSchema,
 } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
 import {
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentSchema,
+} from '../src/modules/project-appeals/schemas/project-appeal-attachment.schema';
+import {
+  ProjectAppeal,
+  ProjectAppealSchema,
+} from '../src/modules/project-appeals/schemas/project-appeal.schema';
+import {
+  ProjectLevelChangeLog,
+  ProjectLevelChangeLogSchema,
+} from '../src/modules/project-appeals/schemas/project-level-change-log.schema';
+import {
   Project,
   ProjectSchema,
 } from '../src/modules/projects/schemas/project.schema';
@@ -330,6 +342,20 @@ function registerModels(): RegisteredModel[] {
   const consensusReviewModel = mongoose.models[ConsensusReview.name]
     ? mongoose.model<unknown>(ConsensusReview.name)
     : mongoose.model(ConsensusReview.name, ConsensusReviewSchema);
+  const projectAppealModel = mongoose.models[ProjectAppeal.name]
+    ? mongoose.model<unknown>(ProjectAppeal.name)
+    : mongoose.model(ProjectAppeal.name, ProjectAppealSchema);
+  const projectAppealAttachmentModel = mongoose.models[
+    ProjectAppealAttachment.name
+  ]
+    ? mongoose.model<unknown>(ProjectAppealAttachment.name)
+    : mongoose.model(
+        ProjectAppealAttachment.name,
+        ProjectAppealAttachmentSchema,
+      );
+  const projectLevelChangeLogModel = mongoose.models[ProjectLevelChangeLog.name]
+    ? mongoose.model<unknown>(ProjectLevelChangeLog.name)
+    : mongoose.model(ProjectLevelChangeLog.name, ProjectLevelChangeLogSchema);
 
   return [
     { name: User.name, model: userModel },
@@ -346,6 +372,12 @@ function registerModels(): RegisteredModel[] {
     { name: ProjectMaterial.name, model: projectMaterialModel },
     { name: ExpertReview.name, model: expertReviewModel },
     { name: ConsensusReview.name, model: consensusReviewModel },
+    { name: ProjectAppeal.name, model: projectAppealModel },
+    {
+      name: ProjectAppealAttachment.name,
+      model: projectAppealAttachmentModel,
+    },
+    { name: ProjectLevelChangeLog.name, model: projectLevelChangeLogModel },
   ];
 }
 

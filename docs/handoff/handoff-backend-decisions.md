@@ -302,6 +302,18 @@
 - 后续动作：如后续实现真实 AI、申诉、完整等级变更历史、报告导出或前端页面，应在当前评分/合议留痕口径上显式扩展，不得覆写现有快照和评分记录。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
 
+### 决策 024
+
+- 编号：BD-024
+- 日期：2026-06-12
+- 状态：accepted
+- 背景：ReviewX 已能人工确认合议并写入 `Project.finalLevel/originalLevel`，需要补齐评审后异议处理闭环，同时保留原始合议结果和等级调整留痕。
+- 决策：新增 `ProjectAppeal`、`ProjectAppealAttachment` 和 `ProjectLevelChangeLog` 三个集合；项目负责人只能对本人项目已 confirmed 合议结果提交申诉，单项目最多 3 次，且 `submitted/processing` 未处理申诉互斥；申诉附件继续使用 fake/oss Storage，只保存文件引用；评审负责人或 admin 可处理申诉，申诉有效且等级变化时只更新 `Project.finalLevel` 并写 `ProjectLevelChangeLog(source=appeal_handling)`。
+- 理由：申诉需要独立留痕和附件审计，不能覆盖第五阶段人工确认的合议记录；`Project.finalLevel` 表达当前最终等级，`ConsensusReview.finalLevel` 和 `Project.originalLevel` 保留原始合议等级，便于后续监管看板同时展示当前等级和原始合议结果。
+- 影响范围：`ProjectAppealsModule`、`project_appeals`、`project_appeal_attachments`、`project_level_change_logs`、项目负责人/评审负责人/admin 新增 API、`scripts/sync-indexes.ts`、`test/project-appeals.e2e-spec.ts`。
+- 后续动作：后续如实现前端页面、甲方看板、申诉撤回、多级复议、复杂等级变更审批、通知或报告导出，应在当前申诉状态机和等级留痕口径上显式扩展；不得把申诉等级调整写回 `ConsensusReview.finalLevel`。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

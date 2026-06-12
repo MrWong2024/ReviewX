@@ -12,6 +12,7 @@ import { ConsensusReviewsModule } from './modules/consensus-reviews/consensus-re
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { ExpertReviewsModule } from './modules/expert-reviews/expert-reviews.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { ProjectAppealsModule } from './modules/project-appeals/project-appeals.module';
 import { ProjectExpertAssignmentsModule } from './modules/project-expert-assignments/project-expert-assignments.module';
 import { ProjectImportsModule } from './modules/project-imports/project-imports.module';
 import { ProjectMaterialsModule } from './modules/project-materials/project-materials.module';
@@ -53,6 +54,7 @@ import { UsersModule } from './modules/users/users.module';
     ProjectMaterialsModule,
     ExpertReviewsModule,
     ConsensusReviewsModule,
+    ProjectAppealsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],
