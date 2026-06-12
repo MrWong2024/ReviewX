@@ -40,6 +40,12 @@ npm run build
 - `npm run typecheck`
 - `npm run build`
 
+本次表单控件与行内操作按钮一致性修正已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -75,16 +81,21 @@ npm run build
   - material_type 显示为“材料类型”
   - review_level 显示为“评审等级”
   - `code` 显示为“编码”并有说明
+  - 新增/编辑弹窗中“名称”和“编码”输入框顶部对齐、高度一致
+  - 自定义类型标识输入框高度与其他输入框一致
   - 选择“自定义类型”时可输入自定义类型标识并成功保存
 - `/admin/tree-dictionaries`：树形缩进列表、树类型中文过滤、parent 缩进选择、新增根节点、添加子节点、编辑、停用
   - project_type 显示为“项目类型”
   - discipline 显示为“学科”
   - department 显示为“受理处室”
   - administrative_division 显示为“行政区划”
+  - 新增/编辑弹窗中“名称 / 编码 / 父节点”控件对齐，高度一致
+  - 树节点“添加子节点 / 编辑 / 停用”按钮使用紧凑尺寸，不抢占节点主体视觉
 - `/admin/organizations`：分页、关键词搜索、行政区划缩进树选择、新增、编辑、停用
   - 行政区划只读取 `treeType=administrative_division`
   - 无行政区划数据时显示“暂无行政区划数据，请先在树形字典中维护行政区划。”
   - 不再需要或兼容 `treeType=region` 测试数据
+  - 行内编辑 / 停用按钮保持紧凑协调
 - `/admin/review-schemes`：列表、新增、编辑、停用、添加/删除评分项
   - 新增和编辑方案时评分项名称输入不失焦
   - 保存前 `clientId` 不提交给后端

@@ -10,10 +10,11 @@
 
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
-| `Button` | `frontend/src/components/ui/Button.tsx` | 基础按钮，支持 primary/secondary/danger/ghost |
-| `Input` | `frontend/src/components/ui/Input.tsx` | 带 label 的输入框 |
-| `Select` | `frontend/src/components/ui/Select.tsx` | 带 label 的下拉框 |
-| `Textarea` | `frontend/src/components/ui/Textarea.tsx` | 带 label 的多行输入 |
+| `Button` | `frontend/src/components/ui/Button.tsx` | 基础按钮，支持 primary/secondary/danger/ghost 与 `sm/md/lg` size |
+| `FormField` | `frontend/src/components/ui/FormField.tsx` | 轻量字段外壳，统一 label、description、error 和说明区预留 |
+| `Input` | `frontend/src/components/ui/Input.tsx` | 带 label 的输入框，默认固定 `h-10` |
+| `Select` | `frontend/src/components/ui/Select.tsx` | 带 label 的下拉框，默认固定 `h-10` |
+| `Textarea` | `frontend/src/components/ui/Textarea.tsx` | 带 label 的多行输入，复用统一字段布局 |
 | `Modal` | `frontend/src/components/ui/Modal.tsx` | 基础弹窗 |
 | `ConfirmDialog` | `frontend/src/components/ui/ConfirmDialog.tsx` | 确认弹窗 |
 | `DataTable` | `frontend/src/components/ui/DataTable.tsx` | 简单数据表格 |
@@ -60,7 +61,10 @@
 
 - 已启用 Tailwind CSS 4
 - 基础组件已统一为深靛蓝到青蓝渐变主按钮、浅底 secondary、轻量 ghost、低饱和 danger
+- Button size 体系为 `sm/md/lg`；表格行内操作、树节点行内操作和分页按钮使用 `sm`
+- Input / Select 基础高度统一为 `h-10`，Textarea 统一字号、圆角、边框和 focus ring
 - 表格、分页、空状态、错误提示、加载态、Modal、ConfirmDialog 已同步现代化样式
 - `AdminShell` 已升级为深海军蓝 / 墨蓝 / 靛蓝渐变侧栏、胶囊选中态、顶部用户与角色 Badge、浅灰蓝内容背景
 - 页面仍保留少量语义 class（如 `page-title`、`toolbar`、`panel`、`form-stack`），由全局 CSS 通过 Tailwind `@apply` 统一承载
+- `.grid-2` / `.grid-3` 使用 `items-start` 保持同行字段顶部对齐；字典和树形字典表单通过说明区预留避免“名称 / 编码”高度错位
 - 单位行政区划选择只使用 `treeType=administrative_division` 的缩进树选项；无数据时提示先在树形字典中维护行政区划

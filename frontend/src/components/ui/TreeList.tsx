@@ -27,7 +27,7 @@ export function TreeList<T extends TreeLike>({
     <div className="divide-y divide-slate-100">
       {rows.map(({ depth, hasChildren, item }) => (
         <div
-          className="grid gap-3 px-4 py-3 transition hover:bg-cyan-50/[0.45] md:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)_auto_auto]"
+          className="grid items-start gap-3 px-4 py-3 transition hover:bg-cyan-50/[0.45] md:grid-cols-[minmax(0,1.2fr)_minmax(220px,0.8fr)_auto_auto]"
           key={item.id}
         >
           <div
@@ -44,7 +44,7 @@ export function TreeList<T extends TreeLike>({
           </div>
           <div className="text-sm text-slate-500">{renderMeta?.(item)}</div>
           <div>{renderStatus?.(item)}</div>
-          <div className="flex flex-wrap justify-start gap-2 md:justify-end">
+          <div className="flex flex-wrap justify-start gap-1.5 md:justify-end">
             {renderActions?.(item)}
           </div>
         </div>

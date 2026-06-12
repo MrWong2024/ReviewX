@@ -23,7 +23,7 @@ export function Pagination({
       <Button
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        size="small"
+        size="sm"
         variant="secondary"
       >
         上一页
@@ -31,7 +31,7 @@ export function Pagination({
       <Button
         disabled={page >= pageCount}
         onClick={() => onPageChange(page + 1)}
-        size="small"
+        size="sm"
         variant="secondary"
       >
         下一页

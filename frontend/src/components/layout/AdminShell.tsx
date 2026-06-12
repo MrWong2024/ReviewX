@@ -143,7 +143,7 @@ export function AdminShell({ children }: AdminShellProps) {
               <div className="text-xs text-slate-500">{user.phone}</div>
             </div>
             <Badge tone="primary">{ROLE_LABELS.admin}</Badge>
-            <Button onClick={handleLogout} size="small" variant="secondary">
+            <Button onClick={handleLogout} size="sm" variant="secondary">
               退出登录
             </Button>
           </div>

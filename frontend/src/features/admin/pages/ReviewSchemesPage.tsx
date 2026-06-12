@@ -213,13 +213,13 @@ export function ReviewSchemesPage() {
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small" variant="ghost">
+          <Button onClick={() => openEdit(item)} size="sm" variant="ghost">
             编辑
           </Button>
           <Button
             disabled={!item.isActive}
             onClick={() => setConfirmTarget(item)}
-            size="small"
+            size="sm"
             variant="danger"
           >
             停用
@@ -325,7 +325,7 @@ export function ReviewSchemesPage() {
                     ],
                   }))
                 }
-                size="small"
+                size="sm"
                 variant="secondary"
               >
                 添加评分项
@@ -393,7 +393,7 @@ export function ReviewSchemesPage() {
                   <Button
                     disabled={form.items.length === 1}
                     onClick={() => removeItem(index)}
-                    size="small"
+                    size="sm"
                     variant="danger"
                   >
                     删除评分项

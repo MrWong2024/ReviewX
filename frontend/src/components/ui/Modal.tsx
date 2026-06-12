@@ -28,7 +28,7 @@ export function Modal({ children, footer, onClose, open, title }: ModalProps) {
       >
         <header className="flex items-center justify-between gap-4 border-b border-slate-200/80 px-5 py-4">
           <h2 className="m-0 text-lg font-bold text-slate-950">{title}</h2>
-          <Button onClick={onClose} size="small" variant="ghost">
+          <Button onClick={onClose} size="sm" variant="ghost">
             关闭
           </Button>
         </header>

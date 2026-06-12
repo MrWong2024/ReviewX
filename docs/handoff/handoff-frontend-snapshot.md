@@ -116,6 +116,8 @@ frontend/
 - 单位行政区划选择只读取 `treeType=administrative_division`；不再兼容历史 `treeType=region`；底层仍提交 `regionId` ObjectId
 - `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
 - 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别
+- Button 当前支持 `sm/md/lg` size 体系；表格行内操作、树节点行内操作和分页使用 `sm`
+- Input / Select 默认固定 `h-10`，Textarea 复用同一 label / description / error 布局；普通字典和树形字典表单已修正“名称 / 编码 / 父节点”等控件对齐
 - 管理员项目列表暂无用户列表接口，因此项目负责人、评审负责人先展示 ID
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
 - 本阶段未实现 Excel 导入、专家分配、材料、评分、合议、申诉、甲方看板、腾讯会议或真实 AI

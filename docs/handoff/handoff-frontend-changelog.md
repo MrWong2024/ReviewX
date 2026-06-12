@@ -2,6 +2,19 @@
 
 ## 2026-06-12
 
+### 表单控件与行内操作按钮一致性修正
+
+- Button size 体系统一为 `sm/md/lg`
+- 表格行内操作、树节点行内操作、分页和顶部退出使用 `sm` 紧凑尺寸
+- `Input` / `Select` 默认高度统一为 `h-10`
+- `Textarea` 复用统一 label、description、error 字段布局和控件视觉
+- 新增轻量 `FormField`，用于统一表单字段 label、说明、错误提示和说明区预留
+- `/admin/dictionaries` 新增/编辑表单中“名称 / 编码”输入框顶部和高度对齐，自定义类型标识高度不回退
+- `/admin/tree-dictionaries` 新增/编辑表单中“名称 / 编码 / 父节点”等控件对齐
+- `/admin/tree-dictionaries` 树节点“添加子节点 / 编辑 / 停用”改为紧凑按钮，避免抢占节点主体视觉
+- `/admin/organizations` 行内按钮保持紧凑协调，行政区划 `administrative_division` 口径不变
+- 本阶段未新增业务页面，未修改后端，未新增依赖或环境变量
+
 ### 行政区划 treeType 口径统一
 
 - 统一行政区划树形字典口径为 `treeType=administrative_division`

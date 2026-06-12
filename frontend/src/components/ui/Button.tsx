@@ -5,14 +5,14 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
-  size?: 'default' | 'small';
+  size?: 'lg' | 'md' | 'sm';
   variant?: ButtonVariant;
 };
 
 export function Button({
   children,
   className,
-  size = 'default',
+  size = 'md',
   variant = 'secondary',
   ...props
 }: ButtonProps) {
@@ -20,9 +20,9 @@ export function Button({
     <button
       className={cx(
         'inline-flex items-center justify-center gap-2 rounded-lg border font-semibold shadow-sm transition duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-55',
-        size === 'small'
-          ? 'min-h-8 px-3 py-1.5 text-xs'
-          : 'min-h-10 px-4 py-2 text-sm',
+        size === 'sm' && 'min-h-7 gap-1 rounded-md px-2.5 py-1 text-xs shadow-none',
+        size === 'md' && 'min-h-10 px-4 py-2 text-sm',
+        size === 'lg' && 'min-h-11 px-5 py-2.5 text-sm',
         variant === 'primary' &&
           'border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(20,43,107,0.27)]',
         variant === 'secondary' &&
