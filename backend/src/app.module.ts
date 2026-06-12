@@ -20,6 +20,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { ReviewSchemesModule } from './modules/review-schemes/review-schemes.module';
 import { SessionsModule } from './modules/sessions/sessions.module';
 import { TreeDictionariesModule } from './modules/tree-dictionaries/tree-dictionaries.module';
+import { AdminUsersModule } from './modules/users/admin-users.module';
 import { UsersModule } from './modules/users/users.module';
 
 @Module({
@@ -41,6 +42,7 @@ import { UsersModule } from './modules/users/users.module';
       }),
     }),
     UsersModule,
+    AdminUsersModule,
     SessionsModule,
     AuthModule,
     BatchesModule,

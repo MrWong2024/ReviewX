@@ -19,6 +19,12 @@
 | auth | `POST` | `/auth/login` | `AuthController` | `AuthService` | 公共接口 | `LoginDto` | `PublicUser` | implemented | 成功返回 `200 OK` 并设置 HttpOnly Cookie；响应 body 不包含 `passwordHash` 或 session token |
 | auth | `POST` | `/auth/logout` | `AuthController` | `AuthService` | 幂等接口；读取 Cookie 中 session token | 无 | `{ success: true }` | implemented | 成功返回 `200 OK`；撤销当前 session 并清除 Cookie；不泄露 session 是否存在 |
 | auth | `GET` | `/auth/me` | `AuthController` | `AuthService` | `SessionAuthGuard` | 无 | `PublicUser` | implemented | 通过 HttpOnly Cookie 校验当前 session；未登录返回 `401` |
+| users | `GET` | `/admin/users` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryAdminUsersDto` | `{ items, page, pageSize, total }` | implemented | 管理员分页查看用户；`page=1`、`pageSize=100`、最大 `1000`；支持 `keyword/role/isActive/organizationId/disciplineId`；不返回 `passwordHash` |
+| users | `POST` | `/admin/users` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | `CreateAdminUserDto` | `AdminUserResponse` | implemented | 创建用户；`phone` 唯一；`roles` 至少一个；未传 `password` 默认使用手机号；`mustChangePassword` 默认 `true`；单位和学科必须引用启用主数据 |
+| users | `GET` | `/admin/users/:id` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `AdminUserResponse` | implemented | ObjectId 非法返回 `400`；用户不存在返回 `404`；不返回 `passwordHash` |
+| users | `PATCH` | `/admin/users/:id` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateAdminUserDto` | `AdminUserResponse` | implemented | 更新 `name/roles/isActive/organizationIds/disciplineIds/mustChangePassword`；不允许改 `phone/password/passwordHash`；保护当前 admin 和最后启用 admin |
+| users | `PATCH` | `/admin/users/:id/status` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateAdminUserStatusDto` | `AdminUserResponse` | implemented | 单独启用/停用入口；不允许当前管理员停用自己；不允许破坏最后一个启用 admin |
+| users | `POST` | `/admin/users/:id/reset-password` | `AdminUsersController` | `UsersService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ResetAdminUserPasswordDto` | `AdminUserResponse` | implemented | 重置密码；未传 `password` 默认重置为手机号；`mustChangePassword` 默认 `true`；不返回 `passwordHash` |
 | batches | `GET` | `/admin/batches` | `BatchesController` | `BatchesService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryBatchesDto` | `{ items, page, pageSize, total }` | implemented | 当前仍分页；`page=1`、`pageSize=100`、最大 `1000`；支持 `keyword/isActive` |
 | batches | `POST` | `/admin/batches` | `BatchesController` | `BatchesService` | `SessionAuthGuard` + `RolesGuard(admin)` | `CreateBatchDto` | `BatchResponse` | implemented | `name` 唯一 |
 | batches | `GET` | `/admin/batches/:id` | `BatchesController` | `BatchesService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `BatchResponse` | implemented | ObjectId 非法返回 `400` |
@@ -109,10 +115,10 @@
 ## 4. 列表返回结构口径
 
 - 非分页数组：`GET /admin/dictionaries`、`GET /admin/tree-dictionaries`、`GET /admin/review-schemes`
-- 分页对象：`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`、`GET /admin/project-imports`、`GET /admin/project-imports/:id/rows`、`GET /review-manager/projects`、`GET /project-owner/projects`、`GET /expert/projects`、`GET /expert/review-tasks`、专家候选列表
+- 分页对象：`GET /admin/users`、`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`、`GET /admin/project-imports`、`GET /admin/project-imports/:id/rows`、`GET /review-manager/projects`、`GET /project-owner/projects`、`GET /expert/projects`、`GET /expert/review-tasks`、专家候选列表
 - 非分页材料数组：`GET /project-owner/projects/:id/materials`、`GET /review-manager/projects/:id/materials`、`GET /expert/projects/:id/materials`、`GET /admin/projects/:id/materials`
 - 非分页申诉数组：单项目 `appeals` 列表最多 3 条，返回数组；单个申诉 `attachments` 列表返回 active 附件数组；`level-history` 返回等级变更日志数组
-- 当前尚未实现管理员用户列表；未来用户列表应保留分页，`pageSize` 最大 `1000`
+- 管理员用户列表已实现分页对象，`pageSize` 最大 `1000`；当前只返回单位/学科 ID，不 populate 名称
 - 后续审计类或跨项目长列表仍建议分页；当前单项目申诉列表和附件列表按本阶段小数据量返回数组
 
 ## 5. 管理端权限口径

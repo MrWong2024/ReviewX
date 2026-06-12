@@ -237,7 +237,7 @@
 - 状态：accepted
 - 背景：ReviewX 第一阶段管理端数据量较小，普通字典、树形字典和评审方案分页会增加前后端契约复杂度；项目和单位仍可能需要批次级或区域级分页查询。
 - 决策：`GET /admin/dictionaries`、`GET /admin/tree-dictionaries`、`GET /admin/review-schemes` 列表不分页，直接返回数组；`GET /admin/projects`、`GET /admin/organizations` 保留分页；通用分页默认 `page=1`、`pageSize=100`、最大 `1000`，超过最大值按 DTO 校验返回 `400`；当前不新增 `/admin/tree-dictionaries/tree` 接口，不新增用户管理列表。
-- 理由：小型主数据直接全量返回更适合当前业务规模；项目、单位和未来用户列表仍保留分页以承载批次级数据和后续扩展。
+- 理由：小型主数据直接全量返回更适合当前业务规模；项目、单位和用户列表仍保留分页以承载批次级数据和后续扩展。
 - 影响范围：`PaginationQueryDto`、dictionaries/tree-dictionaries/review-schemes 查询 DTO 与列表 Service、`test/admin-foundation.e2e-spec.ts`、backend handoff。
 - 后续动作：如后续新增用户列表，应使用分页对象并沿用 `pageSize <= 1000`；如新增树形 children 接口，必须单独补 API、测试和 handoff。
 - 相关文档：`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
@@ -326,6 +326,20 @@
 - 本次验证：`backend` 下 `npm run lint`、`npm run test`、`npm run test:e2e`、`npm run build`、`npm run sync-indexes -- --env-file .env.test` 均通过。
 - 后续动作：当前不做历史 `region` 数据迁移；如本地测试库已存在 `treeType=region` 行政区划数据，可人工删除或按 `treeType=administrative_division` 重新维护。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`、`docs/handoff/handoff-frontend-snapshot.md`
+
+### 决策 026
+
+- 编号：BD-026
+- 日期：2026-06-13
+- 状态：accepted
+- 背景：ReviewX 已具备 Session + HttpOnly Cookie 登录、admin 角色守卫和本地 `create-local-user` 脚本，但正式业务不能依赖脚本维护用户，且下一阶段前端 `/admin/users` 需要稳定后端契约。
+- 决策：新增管理员用户维护后端 API：`GET/POST /admin/users`、`GET/PATCH /admin/users/:id`、`PATCH /admin/users/:id/status`、`POST /admin/users/:id/reset-password`；全部要求登录且具备 `admin` 角色。用户返回结构使用 `AdminUserResponse` 安全字段，只返回 ID 数组，不 populate 单位/学科名称，不返回 `passwordHash`。普通 `PATCH /admin/users/:id` 支持更新 `isActive`，同时保留单独 `PATCH /admin/users/:id/status` 作为前端明确启用/停用入口，两者共享自我保护和最后启用 admin 保护。
+- 理由：正式用户维护需要后端兜底权限和安全边界；单独 status 接口让前端启用/停用操作语义清晰，而普通 PATCH 保持字段维护能力；不 populate 可复用已有主数据接口并减少本阶段实现范围。
+- 影响范围：`AdminUsersModule`、`AdminUsersController`、`UsersService` 管理员方法、users DTO、`test/admin-users.e2e-spec.ts`、backend handoff。
+- 安全口径：创建和重置密码均可不传 `password`，默认使用手机号并写 bcrypt hash；`mustChangePassword` 默认 `true`；`organizationIds` 必须引用启用 Organization；`disciplineIds` 必须引用启用 `treeType=discipline` 节点；当前管理员不能停用自己或移除自己的 `admin` 角色，不能让系统没有启用 admin 用户。
+- 索引口径：本阶段未新增 users 查询索引，沿用既有 `users.phone` unique 索引；后续如用户规模或查询压力上升，再按受控索引流程评估 `roles/isActive/organizationIds/disciplineIds/name/phone` 查询索引。
+- 非目标：本阶段不实现 frontend `/admin/users` 页面，不实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置或前端第二阶段业务页面。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`、`docs/handoff/handoff-backend-config-matrix.md`
 
 ## 5. 明确不记录
 

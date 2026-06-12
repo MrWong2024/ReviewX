@@ -1,11 +1,23 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/schemas/organization.schema';
+import {
+  TreeDictionary,
+  TreeDictionarySchema,
+} from '../tree-dictionaries/schemas/tree-dictionary.schema';
 import { User, UserSchema } from './schemas/user.schema';
 import { UsersService } from './users.service';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Organization.name, schema: OrganizationSchema },
+      { name: TreeDictionary.name, schema: TreeDictionarySchema },
+    ]),
   ],
   providers: [UsersService],
   exports: [UsersService],

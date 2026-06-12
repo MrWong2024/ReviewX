@@ -9,7 +9,7 @@
 
 - `backend` 已初始化为可运行的 NestJS 公共骨架
 - 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器、users 模块基础模型、sessions 模块基础模型和 auth 模块第一阶段登录基线
-- 当前已有 users 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
+- 当前已有 users 基础模块和管理员用户维护模块；`UsersModule` 提供 Schema + Service，`AdminUsersModule` 组合 `AuthModule + UsersModule` 并暴露 `/admin/users` 管理员用户维护 API
 - 当前已有 sessions 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
 - 当前已有 auth 模块；该模块包含 AuthController、AuthService 和 SessionAuthGuard
 - 当前已确认最小健康检查 API：`GET /health`
@@ -37,7 +37,7 @@
 - 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 或 `admin` 角色；具体项目操作时非 admin 必须是该项目 `reviewManagerId`
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
 - 当前分页列表口径：批次、单位、项目、导入任务、导入行列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
-- 当前无管理员用户列表接口；未来如新增用户列表，应保留分页并沿用 `pageSize <= 1000`
+- 当前已实现管理员用户列表与维护接口：`GET/POST /admin/users`、`GET/PATCH /admin/users/:id`、`PATCH /admin/users/:id/status`、`POST /admin/users/:id/reset-password`；列表分页沿用 `{ items, page, pageSize, total }`，`pageSize <= 1000`
 - 当前行政区划树形字典统一使用 `treeType=administrative_division`；`Organization.regionId` 字段名保持不变，但引用节点必须属于该 treeType；历史 `treeType=region` 不再作为行政区划口径，当前不做历史数据迁移
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
@@ -96,18 +96,27 @@ backend/
 │     │  ├─ sessions.service.spec.ts
 │     │  └─ sessions.service.ts
 │     └─ users/
+│        ├─ controllers/
+│        │  └─ admin-users.controller.ts
 │        ├─ dto/
-│        │  └─ create-user.input.ts
+│        │  ├─ create-admin-user.dto.ts
+│        │  ├─ create-user.input.ts
+│        │  ├─ query-admin-users.dto.ts
+│        │  ├─ reset-admin-user-password.dto.ts
+│        │  ├─ update-admin-user.dto.ts
+│        │  └─ update-admin-user-status.dto.ts
 │        ├─ schemas/
 │        │  └─ user.schema.ts
 │        ├─ types/
 │        │  ├─ public-user.type.ts
 │        │  ├─ user-role.type.ts
 │        │  └─ user-status.type.ts
+│        ├─ admin-users.module.ts
 │        ├─ users.module.ts
 │        ├─ users.service.spec.ts
 │        └─ users.service.ts
 ├─ test/
+│  ├─ admin-users.e2e-spec.ts
 │  ├─ auth.e2e-spec.ts
 │  ├─ app.e2e-spec.ts
 │  └─ jest-e2e.json
@@ -135,6 +144,14 @@ backend/
   - `UsersModule`
   - `UsersService`
   - `User` schema
+- 当前已有管理员用户维护模块：
+  - `AdminUsersModule`
+  - `AdminUsersController`
+  - `QueryAdminUsersDto`
+  - `CreateAdminUserDto`
+  - `UpdateAdminUserDto`
+  - `ResetAdminUserPasswordDto`
+  - `UpdateAdminUserStatusDto`
 - 当前已有 sessions 基础模块：
   - `SessionsModule`
   - `SessionsService`
@@ -198,7 +215,7 @@ backend/
   - `ProjectAppeal` schema
   - `ProjectAppealAttachment` schema
   - `ProjectLevelChangeLog` schema
-- 当前 users 模块不包含 Controller，也未暴露 HTTP API
+- 当前 users 基础模块本身不包含普通用户 Controller；管理员用户维护 HTTP API 由 `AdminUsersModule` 下的 `AdminUsersController` 暴露
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
 ### 4.3 认证与会话
@@ -217,6 +234,10 @@ backend/
 - 当前用户模型支持多角色数组 `roles`
 - 当前角色枚举：`admin`、`client`、`review_manager`、`expert`、`project_owner`
 - 当前用户模型新增 `organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`
+- 当前 `/admin/users` 可由 admin 分页查看、搜索、创建、编辑、启用/停用用户，维护多角色、关联单位和学科，并重置密码；创建用户未传 `password` 时默认使用手机号，重置密码未传 `password` 时默认重置为手机号，`mustChangePassword` 默认 `true`
+- 当前 `/admin/users` 响应只返回安全字段：`id`、`phone`、`name`、`roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`createdAt`、`updatedAt`；不 populate 单位/学科名称，不返回 `passwordHash`
+- 当前管理员用户维护要求 `organizationIds` 引用启用的 `Organization`，`disciplineIds` 引用启用且 `treeType=discipline` 的 `TreeDictionary` 节点
+- 当前管理员不能停用自己，不能移除自己的 `admin` 角色，且后端保护系统不能进入没有启用 admin 用户的状态
 - 旧用户兼容口径：`isActive` 缺失按启用处理；新增数组缺失按空数组处理
 - 当前不实现注册、找回密码、修改密码、phone one-time code、复杂角色权限矩阵、菜单权限或数据范围权限
 - 仅启用了 `cookie-parser` 作为通用基础设施准备
@@ -241,6 +262,7 @@ backend/
 - `MONGO_ADMIN_URI` 当前不参与应用运行连接
 - 当前已创建 `users` 集合对应 schema
 - 当前 `users.phone` 具备唯一约束
+- 当前未为 `/admin/users` 新增 users 查询索引；本阶段沿用既有 `users.phone` unique 索引与当前后台数据规模下的普通筛选查询
 - 当前已创建 `sessions` 集合对应 schema
 - 当前 `sessions.token` 具备唯一约束
 - 当前 `sessions.expiresAt` 定义 TTL index，TTL 删除不保证精确到秒
@@ -326,6 +348,7 @@ backend/
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
+- 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败

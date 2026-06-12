@@ -19,6 +19,11 @@
 | `CreateUserInput` | users    | Service 创建用户输入 | `phone`、`passwordHash`、`name`、`roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`status` | `phone/passwordHash/name` 必填；其他可选 | `phone/passwordHash/name: string`；`roles: UserRole[]`；数组 ID 为 string[]；`status: UserStatus` | 当前为 TypeScript interface，无 HTTP validation | `roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`status` 由 schema 默认值兜底 | `{ phone, passwordHash, name, roles }` | 无 | 不包含明文密码、email 或 phone code 字段 |
 | `CreateSessionInput` | sessions | Service 创建 session 输入 | `userId`、`ttlMs` 或 `expiresAt`、`userAgent`、`ip` | `userId` 必填；`ttlMs/expiresAt` 二选一；`userAgent/ip` 可选 | `userId: string \| ObjectId`；`ttlMs: number`；`expiresAt: Date`；`userAgent/ip: string` | 当前为 TypeScript type，无 HTTP validation | 无全局默认 TTL，由调用方显式传入 | `{ userId, ttlMs }` | 无 | 不包含 Cookie 配置、角色权限或业务字段 |
 | `LoginDto` | auth | `POST /auth/login` 请求体 | `phone`、`password` | 均必填 | `phone/password: string` | `phone` trim、非空字符串；`password` 非空字符串 | 无 | `{ phone, password }` | `POST /auth/login` | 不包含 email、rememberMe 或 phone code 字段 |
+| `QueryAdminUsersDto` | users | 管理员用户分页查询 | `page/pageSize/keyword/isActive/role/organizationId/disciplineId` | 全可选 | number / string / boolean / ObjectId | `page>=1`、`pageSize<=1000`；`keyword` trim；`isActive` 支持 `true/false` 字符串转换；`role` 必须是既有角色枚举；ID 必须是 ObjectId | `page=1`、`pageSize=100` | `{ role: "expert", keyword: "138" }` | `GET /admin/users` | 返回分页对象；当前只返回单位/学科 ID，不 populate 名称 |
+| `CreateAdminUserDto` | users | 管理员创建用户 | `name`、`phone`、`roles`、`password`、`organizationIds`、`disciplineIds`、`isActive`、`mustChangePassword` | `name/phone/roles` 必填；`password` 可选；数组和布尔可选 | string / string array / boolean | `name/phone` trim 且非空；`roles` 至少 1 个且必须是既有角色枚举；`password` 如传入最少 6 位；数组 ID 去重且必须是 ObjectId；业务层校验单位/学科启用和类型 | `password` 未传默认手机号；`isActive=true`；`mustChangePassword=true` | `{ name, phone, roles: ["expert"], organizationIds, disciplineIds }` | `POST /admin/users` | `phone` 唯一；`organizationIds` 必须引用启用 Organization；`disciplineIds` 必须引用启用 `treeType=discipline` 节点；响应不返回 `passwordHash` |
+| `UpdateAdminUserDto` | users | 管理员更新用户 | `name`、`roles`、`isActive`、`organizationIds`、`disciplineIds`、`mustChangePassword`；显式拒绝 `password/passwordHash` | 全可选；`roles` 如传入至少 1 个 | string / string array / boolean | `name` trim 且非空；`roles` 必须是既有角色枚举；数组 ID 去重且必须是 ObjectId；业务层校验单位/学科启用和类型 | 无 | `{ roles: ["expert", "project_owner"], isActive: true }` | `PATCH /admin/users/:id` | 本阶段不允许修改 `phone`；修改密码必须走 reset-password；后端保护当前 admin 和最后启用 admin |
+| `UpdateAdminUserStatusDto` | users | 管理员启用/停用用户 | `isActive` | 必填 | boolean | 必须是 boolean | 无 | `{ isActive: false }` | `PATCH /admin/users/:id/status` | 与普通 PATCH 的 `isActive` 使用同一保护规则；不允许当前 admin 停用自己，不允许破坏最后启用 admin |
+| `ResetAdminUserPasswordDto` | users | 管理员重置用户密码 | `password`、`mustChangePassword` | 均可选 | string / boolean | `password` 如传入最少 6 位；`mustChangePassword` 必须是 boolean | `password` 未传默认手机号；`mustChangePassword=true` | `{ password: "new-password" }` | `POST /admin/users/:id/reset-password` | 可重置管理员自己的密码；写入 bcrypt hash；响应不返回 `passwordHash` |
 | `CreateBatchDto` / `UpdateBatchDto` / `QueryBatchesDto` | batches | 批次管理 | `name`、`year`、`description`、`isActive`；查询含 `page/pageSize/keyword/isActive` | create `name` 必填；update 全可选 | string / number / boolean | trim、分页范围校验、ObjectId 路径由 service 校验 | `page=1`、`pageSize=100`、最大 `1000` | `{ name: "2026", year: 2026 }` | `/admin/batches` | 当前仍分页；`name` 唯一 |
 | `CreateDictionaryDto` / `UpdateDictionaryDto` / `QueryDictionariesDto` | dictionaries | 普通字典管理 | 写入含 `dictType`、`code`、`name`、`description`、`sortOrder`、`isActive`；查询含 `dictType`、`keyword`、`isActive` | create `dictType/code/name` 必填 | string / number / boolean | trim、`sortOrder >= 0`、查询支持 `dictType/keyword/isActive` | `sortOrder=0` | `{ dictType: "project_status", code: "in_progress", name: "实施中" }` | `/admin/dictionaries` | 列表不分页，返回数组；`dictType+code`、`dictType+name` 唯一 |
 | `CreateTreeDictionaryDto` / `UpdateTreeDictionaryDto` / `QueryTreeDictionariesDto` | tree-dictionaries | 树形字典管理 | 写入含 `treeType`、`parentId`、`code`、`name`、`fullName`、`sortOrder`、`isActive`；查询含 `treeType`、`parentId`、`keyword`、`isActive` | create `treeType/name` 必填 | string / ObjectId / number / boolean | trim、`parentId` ObjectId 校验、查询支持 `treeType/parentId/keyword/isActive` | `level/pathIds` 后端计算 | `{ treeType: "administrative_division", name: "重庆市" }` | `/admin/tree-dictionaries` | 列表不分页，返回平铺数组；行政区划统一使用 `treeType=administrative_division`；当前未实现 tree children 接口 |
@@ -55,6 +60,7 @@
 | `UserStatus`   | `active`、`disabled`                                                              | 用户基础状态      | 后续如暴露 API 再确认 | 是           | 当前不扩展复杂状态机       |
 | `UserRole`     | `admin`、`client`、`review_manager`、`expert`、`project_owner` | 用户角色枚举 | 是 | 是 | `/admin/*` 当前只使用 `admin` |
 | `PublicUser`   | `id`、`phone`、`name`、`roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`status`、`createdAt`、`updatedAt`、`lastLoginAt` | 公开用户返回类型 | 是 | 否 | 不包含 `passwordHash` |
+| `AdminUserResponse` | `id`、`phone`、`name`、`roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`createdAt`、`updatedAt` | 管理员用户维护返回类型 | 是 | 否 | 不包含 `passwordHash`；当前不返回 `status/lastLoginAt`，不 populate 单位/学科名称 |
 | `AuthIdentity` | `id`、`phone`、`passwordHash`、`roles`、`isActive`、`status` | auth 内部身份类型 | 否 | 否 | 仅供认证流程内部使用 |
 | `PublicSession` | `id`、`userId`、`expiresAt`、`revokedAt`、`lastSeenAt`、`userAgent`、`ip`、`createdAt`、`updatedAt` | 公开 session 返回类型 | 后续如暴露 API 再确认 | 否 | 不包含 `token` |
 | `CreatedSessionResult` | `token`、`session`、`expiresAt` | session 创建结果 | 否 | 否 | `createSession()` 专用返回，允许把 token 交给后续 auth 层 |
@@ -84,6 +90,7 @@
 | `POST /auth/login` | `PublicUser` | 不包含 `passwordHash`、session token 或 Cookie 内容 | session token 只通过 HttpOnly Cookie 下发 |
 | `POST /auth/logout` | `{ success: true }` | 不泄露 session 是否存在 | 幂等清理 Cookie |
 | `GET /auth/me` | `PublicUser` | 不包含 `passwordHash`、session token 或 Cookie 内容 | 未登录返回 `401` |
+| `/admin/users` 管理员用户维护 | 列表 `{ items: AdminUserResponse[], page, pageSize, total }`；创建/详情/更新/状态/重置密码返回 `AdminUserResponse` | 不返回 `passwordHash`、明文密码、session token 或 Cookie 内容 | 支持多角色、启用状态、单位/学科 ID 和 `mustChangePassword`；当前不 populate 名称；创建/重置默认密码为手机号 |
 | `/admin/dictionaries` 列表 | `DictionaryResponse[]` | 不返回用户密码哈希或 session token | 不分页；支持 `dictType/keyword/isActive` |
 | `/admin/tree-dictionaries` 列表 | `TreeDictionaryResponse[]` | 不返回用户密码哈希或 session token | 不分页；平铺数组；支持 `treeType/parentId/keyword/isActive` |
 | `/admin/review-schemes` 列表 | `ReviewSchemeResponse[]` | 不返回用户密码哈希或 session token | 不分页；支持 `keyword/isActive` |
@@ -104,7 +111,7 @@
 | 申诉附件下载 URL | `{ url, expiresAt }` | 不返回 OSS AccessKey 或持久化 URL | 默认有效期 10 分钟；deleted 附件不可生成 URL |
 | 申诉附件软删除 | `{ deleted, alreadyDeleted }` | 不返回文件内容或 OSS AccessKey | 重复删除幂等成功；不物理删除 OSS object |
 | 等级变更历史 | `ProjectLevelChangeLogResponse[]` | 不返回用户密码或 session token | 包含 `fromLevel/toLevel/source/reason/changedByUserId/changedAt/appealId/consensusReviewId`；无日志返回空数组 |
-| 管理员用户列表 | 未实现 | 无 | 未来若实现，应保留分页，`pageSize` 最大 `1000` |
+| 管理员用户列表 | `{ items: AdminUserResponse[], page, pageSize, total }` | 不返回 `passwordHash` | `page=1`、`pageSize=100`、最大 `1000`；支持 `keyword/role/isActive/organizationId/disciplineId` |
 
 ## 6. Excel 导入字段映射
 
