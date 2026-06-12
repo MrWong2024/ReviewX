@@ -9,7 +9,10 @@
 
 - `frontend` 已初始化
 - 技术栈：Next.js App Router + React + TypeScript
-- 当前样式方案：普通全局 CSS，不使用 Tailwind、不使用外部字体 CDN、不使用图片资源
+- 当前样式方案：Tailwind CSS 4 + 少量全局 CSS variables / 语义布局类
+- 当前视觉方向：政务可信、科技评审、AI 协同、轻未来感
+- 当前全局 CSS 已引入 `@import "tailwindcss"`，并通过 `frontend/postcss.config.mjs` 接入 `@tailwindcss/postcss`
+- 当前不使用外部字体 CDN、不使用图片资源
 - 当前不引入大型 UI 组件库
 - 当前不引入 Redux、Zustand 等状态管理库
 - 当前不引入 axios，请求统一使用 fetch 封装
@@ -53,6 +56,7 @@ frontend/
 ├─ .env.local.example
 ├─ eslint.config.mjs
 ├─ next.config.ts
+├─ postcss.config.mjs
 ├─ package.json
 └─ tsconfig.json
 ```
@@ -73,15 +77,15 @@ frontend/
 
 ## 6. 已实现能力
 
-- `/login`：手机号 + 密码登录，已登录访问自动回 `/workspace`
-- `/workspace`：读取当前用户角色并展示入口
-- `/admin`：管理员后台概览
+- `/login`：品牌化登录页，手机号 + 密码登录，已登录访问自动回 `/workspace`
+- `/workspace`：现代化角色入口，展示 admin、client、review_manager、expert、project_owner 中文角色状态
+- `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息
 - `/admin/batches`：批次列表、新增、编辑、停用
-- `/admin/dictionaries`：普通字典列表、dictType 过滤、新增、编辑、停用
-- `/admin/tree-dictionaries`：树形字典平铺列表、treeType 过滤、parent 下拉、新增、编辑、停用
-- `/admin/organizations`：单位分页、搜索、行政区划选择、新增、编辑、停用
-- `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项
-- `/admin/projects`：管理员项目只读分页列表、关键词和低成本过滤、基础名称映射
+- `/admin/dictionaries`：普通字典列表、字典类型中文过滤、新增、编辑、停用；支持自定义 dictType 保存
+- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用
+- `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用
+- `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
+- `/admin/projects`：管理员项目只读分页列表、关键词和低成本过滤、基础名称映射，视觉风格已同步
 
 ## 7. 当前未实现
 
@@ -107,7 +111,10 @@ frontend/
 ## 8. 已知口径
 
 - 本阶段直接按 `NEXT_PUBLIC_API_BASE_URL` 调后端；未实现 BFF 代理
-- 单位 `regionId` 按后端当前契约关联 `treeType=region`
-- 任务中提到的 `administrative_division` 可在树形字典页维护，但不能直接作为单位 `regionId` 提交给当前后端
+- 普通字典预设 `dictType` 前端显示中文：`project_status=项目状态`、`material_type=材料类型`、`review_level=评审等级`
+- 树形字典预设 `treeType` 前端显示中文：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
+- 单位行政区划选择优先读取 `treeType=administrative_division`；如无数据则兼容读取当前后端历史契约 `treeType=region`，底层仍提交 `regionId` ObjectId
+- 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别
 - 管理员项目列表暂无用户列表接口，因此项目负责人、评审负责人先展示 ID
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
+- 本阶段未实现 Excel 导入、专家分配、材料、评分、合议、申诉、甲方看板、腾讯会议或真实 AI

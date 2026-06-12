@@ -154,7 +154,7 @@ export function BatchesPage() {
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small">
+          <Button onClick={() => openEdit(item)} size="small" variant="ghost">
             编辑
           </Button>
           <Button
@@ -237,14 +237,15 @@ export function BatchesPage() {
             }
             value={form.description}
           />
-          <label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
+              className="h-4 w-4 accent-cyan-700"
               onChange={(event) =>
                 setForm({ ...form, isActive: event.target.checked })
               }
               type="checkbox"
-            />{' '}
+            />
             启用
           </label>
         </form>

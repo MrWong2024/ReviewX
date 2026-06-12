@@ -14,6 +14,10 @@ import { Select } from '@/src/components/ui/Select';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { displayValue, statusText } from '@/src/lib/format/value';
 import {
+  flattenTree,
+  indentedTreeLabel,
+} from '@/src/lib/tree/build-tree';
+import {
   createOrganization,
   deleteOrganization,
   listOrganizations,
@@ -60,14 +64,30 @@ export function OrganizationsPage() {
   const [total, setTotal] = useState(0);
 
   const regionNameById = useMemo(
-    () => new Map(regions.map((region) => [region.id, region.name])),
+    () =>
+      new Map(
+        regions.map((region) => [
+          region.id,
+          region.fullName || region.name,
+        ]),
+      ),
     [regions],
   );
+  const regionOptions = useMemo(() => flattenTree(regions), [regions]);
 
   async function loadRegions() {
     try {
-      const response = await listTreeDictionaries({ treeType: 'region' });
-      setRegions(response);
+      const administrativeDivisions = await listTreeDictionaries({
+        treeType: 'administrative_division',
+      });
+
+      if (administrativeDivisions.length > 0) {
+        setRegions(administrativeDivisions);
+        return;
+      }
+
+      const legacyRegions = await listTreeDictionaries({ treeType: 'region' });
+      setRegions(legacyRegions);
     } catch {
       setRegions([]);
     }
@@ -201,7 +221,7 @@ export function OrganizationsPage() {
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small">
+          <Button onClick={() => openEdit(item)} size="small" variant="ghost">
             编辑
           </Button>
           <Button
@@ -223,7 +243,7 @@ export function OrganizationsPage() {
       <div className="page-title">
         <div>
           <h1>单位管理</h1>
-          <p>维护承担单位基础信息，行政区划按后端 region 树字典关联。</p>
+          <p>维护承担单位基础信息，行政区划按树形层级选择并提交区划节点 ID。</p>
         </div>
         <Button onClick={openCreate} variant="primary">
           新增单位
@@ -240,15 +260,20 @@ export function OrganizationsPage() {
             value={keyword}
           />
           <Select
+            hint={
+              regions.length === 0
+                ? '暂无行政区划，请先在树形字典中维护。'
+                : undefined
+            }
             id="organization-region-filter"
             label="行政区划"
             onChange={(event) => setRegionFilter(event.target.value)}
             value={regionFilter}
           >
             <option value="">全部</option>
-            {regions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.name}
+            {regionOptions.map(({ depth, hasChildren, item }) => (
+              <option key={item.id} value={item.id}>
+                {indentedTreeLabel(item.name, depth, hasChildren)}
               </option>
             ))}
           </Select>
@@ -323,26 +348,33 @@ export function OrganizationsPage() {
             />
           </div>
           <Select
+            disabled={regions.length === 0}
+            hint={
+              regions.length === 0
+                ? '暂无行政区划，请先在树形字典中维护；当前可不选择。'
+                : undefined
+            }
             id="organization-region"
             label="行政区划"
             onChange={(event) => setForm({ ...form, regionId: event.target.value })}
             value={form.regionId}
           >
             <option value="">不选择</option>
-            {regions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.name}
+            {regionOptions.map(({ depth, hasChildren, item }) => (
+              <option key={item.id} value={item.id}>
+                {indentedTreeLabel(item.name, depth, hasChildren)}
               </option>
             ))}
           </Select>
-          <label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
+              className="h-4 w-4 accent-cyan-700"
               onChange={(event) =>
                 setForm({ ...form, isActive: event.target.checked })
               }
               type="checkbox"
-            />{' '}
+            />
             启用
           </label>
         </form>

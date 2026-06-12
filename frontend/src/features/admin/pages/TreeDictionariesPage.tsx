@@ -6,13 +6,21 @@ import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
 import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
-import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
 import { Input } from '@/src/components/ui/Input';
 import { Modal } from '@/src/components/ui/Modal';
 import { Select } from '@/src/components/ui/Select';
 import { Textarea } from '@/src/components/ui/Textarea';
+import { TreeList } from '@/src/components/ui/TreeList';
+import {
+  PRESET_TREE_TYPES,
+  treeTypeLabel,
+} from '@/src/lib/labels/dictionary-labels';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { displayValue, statusText } from '@/src/lib/format/value';
+import {
+  flattenTree,
+  indentedTreeLabel,
+} from '@/src/lib/tree/build-tree';
 import {
   createTreeDictionary,
   deleteTreeDictionary,
@@ -31,14 +39,6 @@ type TreeFormState = {
   sortOrder: string;
   treeType: string;
 };
-
-const TREE_TYPES = [
-  'project_type',
-  'discipline',
-  'department',
-  'administrative_division',
-  'region',
-];
 
 const EMPTY_FORM: TreeFormState = {
   code: '',
@@ -61,18 +61,39 @@ export function TreeDictionariesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [treeType, setTreeType] = useState('project_type');
 
-  const nameById = useMemo(() => {
-    return new Map(items.map((item) => [item.id, item.name]));
+  const treeTypes = useMemo(() => {
+    const existingTypes = Array.from(
+      new Set(items.map((item) => item.treeType)),
+    ).filter((type) => !PRESET_TREE_TYPES.includes(type as never));
+
+    return [...PRESET_TREE_TYPES, ...existingTypes];
   }, [items]);
 
-  const parentOptions = items.filter((item) => item.treeType === form.treeType);
+  const currentItems = useMemo(
+    () => items.filter((item) => item.treeType === treeType),
+    [items, treeType],
+  );
 
-  async function loadData(nextTreeType = treeType) {
+  const treeRows = useMemo(() => flattenTree(currentItems), [currentItems]);
+
+  const parentOptions = useMemo(() => {
+    const candidates = items.filter((item) => item.treeType === form.treeType);
+
+    return flattenTree(candidates).filter(({ item }) => {
+      if (!editing) {
+        return true;
+      }
+
+      return item.id !== editing.id && !item.pathIds.includes(editing.id);
+    });
+  }, [editing, form.treeType, items]);
+
+  async function loadData() {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listTreeDictionaries({ treeType: nextTreeType });
+      const response = await listTreeDictionaries();
       setItems(response);
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -82,12 +103,22 @@ export function TreeDictionariesPage() {
   }
 
   useEffect(() => {
-    loadData(treeType);
-  }, [treeType]);
+    loadData();
+  }, []);
 
-  function openCreate() {
+  function openCreateRoot() {
     setEditing(null);
-    setForm({ ...EMPTY_FORM, treeType });
+    setForm({ ...EMPTY_FORM, treeType, parentId: '' });
+    setModalOpen(true);
+  }
+
+  function openCreateChild(parent: TreeDictionary) {
+    setEditing(null);
+    setForm({
+      ...EMPTY_FORM,
+      parentId: parent.id,
+      treeType: parent.treeType,
+    });
     setModalOpen(true);
   }
 
@@ -129,7 +160,7 @@ export function TreeDictionariesPage() {
 
       setModalOpen(false);
       setTreeType(payload.treeType);
-      await loadData(payload.treeType);
+      await loadData();
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     } finally {
@@ -156,57 +187,15 @@ export function TreeDictionariesPage() {
     }
   }
 
-  const columns: DataColumn<TreeDictionary>[] = [
-    { key: 'treeType', render: (item) => item.treeType, title: 'treeType' },
-    { key: 'name', render: (item) => item.name, title: '名称' },
-    { key: 'code', render: (item) => displayValue(item.code), title: 'code' },
-    {
-      key: 'parent',
-      render: (item) =>
-        item.parentId ? nameById.get(item.parentId) ?? item.parentId : '根节点',
-      title: '父节点',
-    },
-    { key: 'level', render: (item) => item.level, title: '层级' },
-    { key: 'sortOrder', render: (item) => item.sortOrder, title: '排序' },
-    {
-      key: 'isActive',
-      render: (item) => (
-        <Badge tone={item.isActive ? 'success' : 'muted'}>
-          {statusText(item.isActive)}
-        </Badge>
-      ),
-      title: '状态',
-    },
-    {
-      key: 'actions',
-      render: (item) => (
-        <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small">
-            编辑
-          </Button>
-          <Button
-            disabled={!item.isActive}
-            onClick={() => setConfirmTarget(item)}
-            size="small"
-            variant="danger"
-          >
-            停用
-          </Button>
-        </div>
-      ),
-      title: '操作',
-    },
-  ];
-
   return (
     <>
       <div className="page-title">
         <div>
           <h1>树形字典管理</h1>
-          <p>以平铺表格维护项目类型、学科、处室、行政区划等树形数据。</p>
+          <p>按树形层级维护项目类型、学科、受理处室和行政区划，支持新增根节点与子节点。</p>
         </div>
-        <Button onClick={openCreate} variant="primary">
-          新增节点
+        <Button onClick={openCreateRoot} variant="primary">
+          新增根节点
         </Button>
       </div>
 
@@ -214,27 +203,16 @@ export function TreeDictionariesPage() {
         <div className="toolbar-left">
           <Select
             id="tree-type-filter"
-            label="treeType 过滤"
+            label="树类型筛选"
             onChange={(event) => setTreeType(event.target.value)}
             value={treeType}
           >
-            {TREE_TYPES.map((type) => (
+            {treeTypes.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {treeTypeLabel(type)}
               </option>
             ))}
           </Select>
-          <Input
-            id="tree-type-custom"
-            label="自定义 treeType"
-            onBlur={(event) => {
-              const value = event.target.value.trim();
-              if (value) {
-                setTreeType(value);
-              }
-            }}
-            placeholder="输入后离开输入框"
-          />
         </div>
       </div>
 
@@ -244,7 +222,49 @@ export function TreeDictionariesPage() {
         {loading ? (
           <LoadingState />
         ) : (
-          <DataTable columns={columns} getRowKey={(item) => item.id} items={items} />
+          <TreeList
+            emptyText="暂无节点，请先新增根节点。"
+            renderActions={(item) => (
+              <>
+                <Button
+                  onClick={() => openCreateChild(item)}
+                  size="small"
+                  variant="secondary"
+                >
+                  添加子节点
+                </Button>
+                <Button onClick={() => openEdit(item)} size="small" variant="ghost">
+                  编辑
+                </Button>
+                <Button
+                  disabled={!item.isActive}
+                  onClick={() => setConfirmTarget(item)}
+                  size="small"
+                  variant="danger"
+                >
+                  停用
+                </Button>
+              </>
+            )}
+            renderMeta={(item) => (
+              <div className="grid gap-1">
+                <span>
+                  编码：
+                  <span className="code">{displayValue(item.code)}</span>
+                </span>
+                <span>树类型：{treeTypeLabel(item.treeType)}</span>
+                <span>排序：{item.sortOrder}</span>
+                {item.fullName ? <span>全称：{item.fullName}</span> : null}
+              </div>
+            )}
+            renderStatus={(item) => (
+              <Badge tone={item.isActive ? 'success' : 'muted'}>
+                {statusText(item.isActive)}
+              </Badge>
+            )}
+            rows={treeRows}
+            title={(item) => item.name}
+          />
         )}
       </section>
 
@@ -274,15 +294,20 @@ export function TreeDictionariesPage() {
           onSubmit={handleSubmit}
         >
           <div className="grid-2">
-            <Input
+            <Select
               id="tree-type"
-              label="treeType"
+              label="树类型"
               onChange={(event) =>
                 setForm({ ...form, treeType: event.target.value, parentId: '' })
               }
-              required
               value={form.treeType}
-            />
+            >
+              {treeTypes.map((type) => (
+                <option key={type} value={type}>
+                  {treeTypeLabel(type)}
+                </option>
+              ))}
+            </Select>
             <Select
               id="tree-parent"
               label="父节点"
@@ -292,14 +317,11 @@ export function TreeDictionariesPage() {
               value={form.parentId}
             >
               <option value="">根节点</option>
-              {parentOptions
-                .filter((item) => item.id !== editing?.id)
-                .map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {'--'.repeat(Math.max(0, item.level - 1))}
-                    {item.name}
-                  </option>
-                ))}
+              {parentOptions.map(({ depth, hasChildren, item }) => (
+                <option key={item.id} value={item.id}>
+                  {indentedTreeLabel(item.name, depth, hasChildren)}
+                </option>
+              ))}
             </Select>
           </div>
           <div className="grid-2">
@@ -311,8 +333,9 @@ export function TreeDictionariesPage() {
               value={form.name}
             />
             <Input
+              hint="用于系统识别，建议使用英文、数字或下划线，创建后不建议频繁修改。"
               id="tree-code"
-              label="code"
+              label="编码"
               onChange={(event) => setForm({ ...form, code: event.target.value })}
               value={form.code}
             />
@@ -335,14 +358,15 @@ export function TreeDictionariesPage() {
             }
             value={form.fullName}
           />
-          <label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
+              className="h-4 w-4 accent-cyan-700"
               onChange={(event) =>
                 setForm({ ...form, isActive: event.target.checked })
               }
               type="checkbox"
-            />{' '}
+            />
             启用
           </label>
         </form>

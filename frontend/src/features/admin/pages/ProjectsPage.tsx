@@ -12,6 +12,10 @@ import { Select } from '@/src/components/ui/Select';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { displayValue, statusText } from '@/src/lib/format/value';
 import {
+  flattenTree,
+  indentedTreeLabel,
+} from '@/src/lib/tree/build-tree';
+import {
   listBatches,
   listDictionaries,
   listOrganizations,
@@ -77,12 +81,22 @@ export function ProjectsPage() {
     [reviewSchemes],
   );
   const treeNameById = useMemo(
-    () => new Map(treeDictionaries.map((item) => [item.id, item.name])),
+    () =>
+      new Map(
+        treeDictionaries.map((item) => [
+          item.id,
+          item.fullName || item.name,
+        ]),
+      ),
     [treeDictionaries],
   );
 
   const projectTypes = treeDictionaries.filter(
     (item) => item.treeType === 'project_type',
+  );
+  const projectTypeOptions = useMemo(
+    () => flattenTree(projectTypes),
+    [projectTypes],
   );
   const projectStatuses = dictionaries.filter(
     (item) => item.dictType === 'project_status',
@@ -170,7 +184,7 @@ export function ProjectsPage() {
         item.statusId
           ? dictionaryNameById.get(item.statusId) ?? item.statusId
           : '-',
-      title: '状态',
+      title: '项目状态',
     },
     {
       key: 'ownerUserId',
@@ -211,7 +225,7 @@ export function ProjectsPage() {
           {statusText(item.isActive)}
         </Badge>
       ),
-      title: '状态',
+      title: '启用状态',
     },
   ];
 
@@ -259,9 +273,9 @@ export function ProjectsPage() {
             value={filters.projectTypeId}
           >
             <option value="">全部</option>
-            {projectTypes.map((item) => (
+            {projectTypeOptions.map(({ depth, hasChildren, item }) => (
               <option key={item.id} value={item.id}>
-                {item.name}
+                {indentedTreeLabel(item.name, depth, hasChildren)}
               </option>
             ))}
           </Select>

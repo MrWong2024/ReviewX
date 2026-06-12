@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Badge } from '@/src/components/feedback/Badge';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
@@ -11,8 +11,12 @@ import { Input } from '@/src/components/ui/Input';
 import { Modal } from '@/src/components/ui/Modal';
 import { Select } from '@/src/components/ui/Select';
 import { Textarea } from '@/src/components/ui/Textarea';
+import {
+  dictionaryTypeLabel,
+  PRESET_DICTIONARY_TYPES,
+} from '@/src/lib/labels/dictionary-labels';
 import { getErrorMessage } from '@/src/lib/api/errors';
-import { displayValue, statusText } from '@/src/lib/format/value';
+import { statusText } from '@/src/lib/format/value';
 import {
   createDictionary,
   deleteDictionary,
@@ -24,6 +28,7 @@ import type { Dictionary, DictionaryFormInput } from '../types';
 
 type DictionaryFormState = {
   code: string;
+  customDictType: string;
   description: string;
   dictType: string;
   isActive: boolean;
@@ -31,10 +36,12 @@ type DictionaryFormState = {
   sortOrder: string;
 };
 
-const DICT_TYPES = ['project_status', 'material_type', 'review_level'];
+const CUSTOM_DICT_TYPE = '__custom__';
+const CUSTOM_DICT_FILTER = '__custom_filter__';
 
 const EMPTY_FORM: DictionaryFormState = {
   code: '',
+  customDictType: '',
   description: '',
   dictType: 'project_status',
   isActive: true,
@@ -44,7 +51,7 @@ const EMPTY_FORM: DictionaryFormState = {
 
 export function DictionariesPage() {
   const [confirmTarget, setConfirmTarget] = useState<Dictionary | null>(null);
-  const [dictType, setDictType] = useState('project_status');
+  const [dictTypeFilter, setDictTypeFilter] = useState('');
   const [editing, setEditing] = useState<Dictionary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DictionaryFormState>(EMPTY_FORM);
@@ -53,12 +60,37 @@ export function DictionariesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  async function loadData(nextDictType = dictType) {
+  const customTypes = useMemo(() => {
+    return Array.from(
+      new Set(
+        items
+          .map((item) => item.dictType)
+          .filter((type) => !PRESET_DICTIONARY_TYPES.includes(type as never)),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    if (!dictTypeFilter) {
+      return items;
+    }
+
+    if (dictTypeFilter === CUSTOM_DICT_FILTER) {
+      return items.filter(
+        (item) =>
+          !PRESET_DICTIONARY_TYPES.includes(item.dictType as never),
+      );
+    }
+
+    return items.filter((item) => item.dictType === dictTypeFilter);
+  }, [dictTypeFilter, items]);
+
+  async function loadData() {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listDictionaries({ dictType: nextDictType });
+      const response = await listDictionaries();
       setItems(response);
     } catch (loadError) {
       setError(getErrorMessage(loadError));
@@ -68,21 +100,30 @@ export function DictionariesPage() {
   }
 
   useEffect(() => {
-    loadData(dictType);
-  }, [dictType]);
+    loadData();
+  }, []);
 
   function openCreate() {
+    const presetType = PRESET_DICTIONARY_TYPES.includes(
+      dictTypeFilter as never,
+    )
+      ? dictTypeFilter
+      : 'project_status';
+
     setEditing(null);
-    setForm({ ...EMPTY_FORM, dictType });
+    setForm({ ...EMPTY_FORM, dictType: presetType });
     setModalOpen(true);
   }
 
   function openEdit(item: Dictionary) {
+    const isPreset = PRESET_DICTIONARY_TYPES.includes(item.dictType as never);
+
     setEditing(item);
     setForm({
       code: item.code,
+      customDictType: isPreset ? '' : item.dictType,
       description: item.description ?? '',
-      dictType: item.dictType,
+      dictType: isPreset ? item.dictType : CUSTOM_DICT_TYPE,
       isActive: item.isActive,
       name: item.name,
       sortOrder: item.sortOrder.toString(),
@@ -95,10 +136,21 @@ export function DictionariesPage() {
     setSubmitting(true);
     setError(null);
 
+    const resolvedDictType =
+      form.dictType === CUSTOM_DICT_TYPE
+        ? form.customDictType.trim()
+        : form.dictType.trim();
+
+    if (!resolvedDictType) {
+      setSubmitting(false);
+      setError('请输入自定义类型标识。');
+      return;
+    }
+
     const payload: DictionaryFormInput = {
       code: form.code.trim(),
       description: emptyToUndefined(form.description),
-      dictType: form.dictType.trim(),
+      dictType: resolvedDictType,
       isActive: form.isActive,
       name: form.name.trim(),
       sortOrder: toNumber(form.sortOrder, 0),
@@ -112,8 +164,8 @@ export function DictionariesPage() {
       }
 
       setModalOpen(false);
-      setDictType(payload.dictType);
-      await loadData(payload.dictType);
+      setDictTypeFilter(payload.dictType);
+      await loadData();
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     } finally {
@@ -141,13 +193,16 @@ export function DictionariesPage() {
   }
 
   const columns: DataColumn<Dictionary>[] = [
-    { key: 'dictType', render: (item) => item.dictType, title: 'dictType' },
-    { key: 'code', render: (item) => item.code, title: 'code' },
+    {
+      key: 'code',
+      render: (item) => <span className="code">{item.code}</span>,
+      title: '编码',
+    },
     { key: 'name', render: (item) => item.name, title: '名称' },
     {
-      key: 'description',
-      render: (item) => displayValue(item.description),
-      title: '说明',
+      key: 'dictType',
+      render: (item) => dictionaryTypeLabel(item.dictType),
+      title: '字典类型',
     },
     { key: 'sortOrder', render: (item) => item.sortOrder, title: '排序' },
     {
@@ -163,7 +218,7 @@ export function DictionariesPage() {
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small">
+          <Button onClick={() => openEdit(item)} size="small" variant="ghost">
             编辑
           </Button>
           <Button
@@ -185,7 +240,7 @@ export function DictionariesPage() {
       <div className="page-title">
         <div>
           <h1>普通字典管理</h1>
-          <p>维护 project_status、material_type、review_level 等普通字典。</p>
+          <p>维护项目状态、材料类型、评审等级等普通字典，支持新增自定义类型。</p>
         </div>
         <Button onClick={openCreate} variant="primary">
           新增字典
@@ -196,27 +251,23 @@ export function DictionariesPage() {
         <div className="toolbar-left">
           <Select
             id="dict-type-filter"
-            label="dictType 过滤"
-            onChange={(event) => setDictType(event.target.value)}
-            value={dictType}
+            label="字典类型筛选"
+            onChange={(event) => setDictTypeFilter(event.target.value)}
+            value={dictTypeFilter}
           >
-            {DICT_TYPES.map((type) => (
+            <option value="">全部</option>
+            {PRESET_DICTIONARY_TYPES.map((type) => (
               <option key={type} value={type}>
-                {type}
+                {dictionaryTypeLabel(type)}
+              </option>
+            ))}
+            <option value={CUSTOM_DICT_FILTER}>自定义类型</option>
+            {customTypes.map((type) => (
+              <option key={type} value={type}>
+                {dictionaryTypeLabel(type)}
               </option>
             ))}
           </Select>
-          <Input
-            id="dict-type-custom"
-            label="自定义 dictType"
-            onBlur={(event) => {
-              const value = event.target.value.trim();
-              if (value) {
-                setDictType(value);
-              }
-            }}
-            placeholder="输入后离开输入框"
-          />
         </div>
       </div>
 
@@ -226,7 +277,11 @@ export function DictionariesPage() {
         {loading ? (
           <LoadingState />
         ) : (
-          <DataTable columns={columns} getRowKey={(item) => item.id} items={items} />
+          <DataTable
+            columns={columns}
+            getRowKey={(item) => item.id}
+            items={filteredItems}
+          />
         )}
       </section>
 
@@ -251,19 +306,46 @@ export function DictionariesPage() {
         title={editing ? '编辑字典' : '新增字典'}
       >
         <form className="form-stack" id="dictionary-form" onSubmit={handleSubmit}>
-          <Input
+          <Select
             id="dictionary-dict-type"
-            label="dictType"
+            label="字典类型"
             onChange={(event) =>
-              setForm({ ...form, dictType: event.target.value })
+              setForm({
+                ...form,
+                dictType: event.target.value,
+                customDictType:
+                  event.target.value === CUSTOM_DICT_TYPE
+                    ? form.customDictType
+                    : '',
+              })
             }
-            required
             value={form.dictType}
-          />
+          >
+            {PRESET_DICTIONARY_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {dictionaryTypeLabel(type)}
+              </option>
+            ))}
+            <option value={CUSTOM_DICT_TYPE}>自定义类型</option>
+          </Select>
+          {form.dictType === CUSTOM_DICT_TYPE ? (
+            <Input
+              hint="用于系统识别，建议使用英文、数字、下划线或中划线。"
+              id="dictionary-custom-dict-type"
+              label="自定义类型标识"
+              onChange={(event) =>
+                setForm({ ...form, customDictType: event.target.value })
+              }
+              placeholder="例如 custom_type"
+              required
+              value={form.customDictType}
+            />
+          ) : null}
           <div className="grid-2">
             <Input
+              hint="用于系统识别，建议使用英文、数字或下划线，创建后不建议频繁修改。"
               id="dictionary-code"
-              label="code"
+              label="编码"
               onChange={(event) => setForm({ ...form, code: event.target.value })}
               required
               value={form.code}
@@ -294,14 +376,15 @@ export function DictionariesPage() {
             }
             value={form.description}
           />
-          <label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
+              className="h-4 w-4 accent-cyan-700"
               onChange={(event) =>
                 setForm({ ...form, isActive: event.target.checked })
               }
               type="checkbox"
-            />{' '}
+            />
             启用
           </label>
         </form>

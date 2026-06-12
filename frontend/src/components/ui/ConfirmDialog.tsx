@@ -38,7 +38,7 @@ export function ConfirmDialog({
       open={open}
       title={title}
     >
-      <p className="muted">{description}</p>
+      <p className="text-sm leading-6 text-slate-600">{description}</p>
     </Modal>
   );
 }

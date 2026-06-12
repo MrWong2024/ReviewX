@@ -54,6 +54,15 @@
 - `409`：展示后端 message 或默认冲突提示
 - `500`：展示默认服务异常提示
 
+## 4.1 前端展示映射口径
+
+- 普通字典预设 `dictType`：`project_status=项目状态`、`material_type=材料类型`、`review_level=评审等级`
+- 自定义普通字典类型保存时提交用户输入的真实 `dictType`，不提交 literal `"custom"` 或空值
+- 树形字典预设 `treeType`：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
+- 后端字段名仍保持英文，前端仅做中文显示映射
+- 树形字典仍调用 `GET /admin/tree-dictionaries` 平铺数组接口，由前端构建缩进树
+- 单位 `regionId` 仍提交区划节点 ObjectId；前端优先读取 `administrative_division`，无数据时兼容当前后端历史 `region`
+
 ## 5. 当前未对接的后端接口
 
 - `/admin/project-imports*`

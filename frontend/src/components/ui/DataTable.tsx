@@ -25,20 +25,31 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="data-table-wrap">
-      <table className="data-table">
+    <div className="overflow-x-auto">
+      <table className="min-w-[860px] w-full border-separate border-spacing-0 text-sm">
         <thead>
-          <tr>
+          <tr className="bg-slate-50/90">
             {columns.map((column) => (
-              <th key={column.key}>{column.title}</th>
+              <th
+                className="border-b border-slate-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500 first:rounded-tl-xl last:rounded-tr-xl"
+                key={column.key}
+              >
+                {column.title}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
-            <tr key={getRowKey(item)}>
+            <tr
+              className="group transition hover:bg-cyan-50/40"
+              key={getRowKey(item)}
+            >
               {columns.map((column) => (
-                <td key={column.key}>
+                <td
+                  className="border-b border-slate-100 px-4 py-3 align-top text-slate-700 group-last:border-b-0"
+                  key={column.key}
+                >
                   {column.render ? column.render(item) : null}
                 </td>
               ))}

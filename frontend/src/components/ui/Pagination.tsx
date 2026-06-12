@@ -16,8 +16,8 @@ export function Pagination({
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="pagination">
-      <span className="muted">
+    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 px-4 py-3">
+      <span className="text-sm text-slate-500">
         第 {page} / {pageCount} 页，共 {total} 条
       </span>
       <Button

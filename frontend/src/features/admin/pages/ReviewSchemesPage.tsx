@@ -26,6 +26,7 @@ import type {
 } from '../types';
 
 type SchemeItemForm = {
+  clientId: string;
   maxScore: string;
   name: string;
   scoringGuide: string;
@@ -40,7 +41,7 @@ type SchemeFormState = {
   name: string;
 };
 
-const EMPTY_ITEM: SchemeItemForm = {
+const EMPTY_ITEM_BASE = {
   maxScore: '100',
   name: '',
   scoringGuide: '',
@@ -48,18 +49,36 @@ const EMPTY_ITEM: SchemeItemForm = {
   suggestionRequiredThresholdRatio: '0.8',
 };
 
-const EMPTY_FORM: SchemeFormState = {
-  description: '',
-  isActive: true,
-  items: [{ ...EMPTY_ITEM }],
-  name: '',
-};
+function createClientId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createEmptyItem(sortOrder = '0'): SchemeItemForm {
+  return {
+    ...EMPTY_ITEM_BASE,
+    clientId: createClientId(),
+    sortOrder,
+  };
+}
+
+function createEmptyForm(): SchemeFormState {
+  return {
+    description: '',
+    isActive: true,
+    items: [createEmptyItem()],
+    name: '',
+  };
+}
 
 export function ReviewSchemesPage() {
   const [confirmTarget, setConfirmTarget] = useState<ReviewScheme | null>(null);
   const [editing, setEditing] = useState<ReviewScheme | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<SchemeFormState>(EMPTY_FORM);
+  const [form, setForm] = useState<SchemeFormState>(() => createEmptyForm());
   const [items, setItems] = useState<ReviewScheme[]>([]);
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(true);
@@ -86,7 +105,7 @@ export function ReviewSchemesPage() {
 
   function openCreate() {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm(createEmptyForm());
     setModalOpen(true);
   }
 
@@ -194,7 +213,7 @@ export function ReviewSchemesPage() {
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
-          <Button onClick={() => openEdit(item)} size="small">
+          <Button onClick={() => openEdit(item)} size="small" variant="ghost">
             编辑
           </Button>
           <Button
@@ -216,7 +235,7 @@ export function ReviewSchemesPage() {
       <div className="page-title">
         <div>
           <h1>评审方案管理</h1>
-          <p>维护评分项，totalScore 由后端按评分项自动计算。</p>
+            <p>维护评分项，totalScore 由后端按评分项自动计算，前端仅提供录入预估。</p>
         </div>
         <Button onClick={openCreate} variant="primary">
           新增方案
@@ -290,13 +309,21 @@ export function ReviewSchemesPage() {
           />
           <div className="form-section">
             <div className="toolbar">
-              <strong>评分项</strong>
+              <div>
+                <strong>评分项</strong>
+                <div className="mt-1 text-xs text-slate-500">
+                  预计总分 {estimateTotalScore(form.items)}，仅供录入参考。
+                </div>
+              </div>
               <Button
                 onClick={() =>
-                  setForm({
-                    ...form,
-                    items: [...form.items, { ...EMPTY_ITEM }],
-                  })
+                  setForm((current) => ({
+                    ...current,
+                    items: [
+                      ...current.items,
+                      createEmptyItem(current.items.length.toString()),
+                    ],
+                  }))
                 }
                 size="small"
                 variant="secondary"
@@ -306,7 +333,7 @@ export function ReviewSchemesPage() {
             </div>
             <div className="form-stack">
               {form.items.map((item, index) => (
-                <div className="score-item" key={`${index}-${item.name}`}>
+                <div className="score-item" key={item.clientId}>
                   <div className="grid-2">
                     <Input
                       id={`score-name-${index}`}
@@ -375,14 +402,15 @@ export function ReviewSchemesPage() {
               ))}
             </div>
           </div>
-          <label>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <input
               checked={form.isActive}
+              className="h-4 w-4 accent-cyan-700"
               onChange={(event) =>
                 setForm({ ...form, isActive: event.target.checked })
               }
               type="checkbox"
-            />{' '}
+            />
             启用
           </label>
         </form>
@@ -402,6 +430,7 @@ export function ReviewSchemesPage() {
 
 function toItemForm(item: ReviewSchemeItem): SchemeItemForm {
   return {
+    clientId: createClientId(),
     maxScore: item.maxScore.toString(),
     name: item.name,
     scoringGuide: item.scoringGuide ?? '',
@@ -422,4 +451,8 @@ function toItemPayload(item: SchemeItemForm): ReviewSchemeItem {
       0.8,
     ),
   };
+}
+
+function estimateTotalScore(items: SchemeItemForm[]): number {
+  return items.reduce((sum, item) => sum + toNumber(item.maxScore, 0), 0);
 }
