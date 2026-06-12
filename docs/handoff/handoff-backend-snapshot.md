@@ -29,7 +29,9 @@
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
-- 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力；仍不包含 frontend 页面、专家评分、AI 合议、申诉、甲方看板或腾讯会议集成
+- 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
+- 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
+- 当前仍不包含 frontend 页面、真实 AI 接入、申诉、甲方看板或腾讯会议集成
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
 - 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 或 `admin` 角色；具体项目操作时非 admin 必须是该项目 `reviewManagerId`
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
@@ -172,6 +174,19 @@ backend/
   - `ReviewManagerMaterialsController`
   - `ExpertMaterialsController`
   - `AdminMaterialsController`
+- 当前已有第五阶段专家评分模块：
+  - `ExpertReviewsModule`
+  - `ExpertReviewsService`
+  - `ExpertReviewTasksController`
+  - `ReviewManagerExpertReviewsController`
+  - `AdminExpertReviewsController`
+  - `ExpertReview` schema
+- 当前已有第五阶段合议评审模块：
+  - `ConsensusReviewsModule`
+  - `ConsensusReviewsService`
+  - `ReviewManagerConsensusController`
+  - `AdminConsensusController`
+  - `ConsensusReview` schema
 - 当前 users 模块不包含 Controller，也未暴露 HTTP API
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
@@ -204,6 +219,7 @@ backend/
 - 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectExpertAssignment` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectMaterial` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
+- 当前 `scripts/sync-indexes.ts` 也显式注册 `ExpertReview` 和 `ConsensusReview` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 在 production 或目标库为 `reviewx` 时要求 `--confirm-production`
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
 - 当前新增 session Cookie 配置项：`SESSION_COOKIE_NAME`、`SESSION_TTL_MS`、`MAX_ACTIVE_SESSIONS_PER_USER`、`SESSION_COOKIE_SECURE`、`SESSION_COOKIE_SAME_SITE`
@@ -229,6 +245,17 @@ backend/
 - 当前已创建 `project_materials` 集合，用于保存项目材料文件引用和元数据，字段包括 `projectId`、`materialTypeId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`deletedAt`、`deletedByUserId` 和 timestamps
 - 当前 `project_materials` 索引：`projectId + status`、`projectId + materialTypeId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
 - 当前材料删除为软删除，`status=deleted` 并记录 `deletedAt/deletedByUserId`，不默认物理删除 OSS object
+- 当前已创建 `expert_reviews` 集合，用于保存专家对项目的评分记录，字段包括 `projectId`、`expertUserId`、`assignmentId`、`reviewSchemeSnapshot`、`items.itemSnapshot`、`items.score`、`items.evaluationDescription`、`items.improvementSuggestion`、`items.hasMajorIssue`、`totalScore`、`status`、`submittedAt`、`returnedAt`、`returnedByUserId`、`returnReason` 和 timestamps
+- 当前 `expert_reviews` 索引：`projectId + expertUserId` unique、`projectId + status`、`expertUserId + status`、`projectId + submittedAt`
+- 当前 `ExpertReview.status` 取值：`draft/submitted/returned`；无记录时接口返回视图状态 `not_started`，不入库
+- 当前专家评分必须使用 `Project.reviewSchemeSnapshot`；保存时复制项目快照到 `ExpertReview.reviewSchemeSnapshot`；不直接读取当前 `ReviewScheme.items`；项目快照缺失时专家评分接口返回 `409`
+- 当前专家评分提交校验：每项 `score` 必填且在 `0..maxScore`，`evaluationDescription` 必填；`improvementSuggestion` 在 `score < maxScore * suggestionRequiredThresholdRatio` 或 `hasMajorIssue=true` 时必填，阈值缺失默认 `0.8`；非满分但未低于阈值只建议填写，不硬阻断；`totalScore` 由后端计算
+- 当前已创建 `consensus_reviews` 集合，用于保存项目合议结果，字段包括 `projectId`、`reviewSchemeSnapshot`、`draftGeneratedAt`、`draftGeneratedByUserId`、`draftSource`、`draftOpinion`、`draftScore`、`finalOpinion`、`finalScore`、`finalLevel`、`originalLevel`、`confirmedByUserId`、`confirmedAt`、`status`、`expertReviewStats` 和 timestamps
+- 当前 `consensus_reviews` 索引：`projectId` unique、`status`、`confirmedAt`
+- 当前 `ConsensusReview.status` 取值：`draft/confirmed/reopened`；`reopened` 仅预留，当前阶段不使用
+- 当前合议草稿只实现 `draftSource=rule_based` 规则聚合：平均 submitted 专家总分作为 `draftScore`，拼接专家评价描述、改进建议和重大问题提示作为 `draftOpinion`；不调用真实 AI 或外部大模型
+- 当前人工确认合议会写 `ConsensusReview.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt/status=confirmed`，并写 `Project.finalLevel`；`Project.originalLevel` 为空时同步写入；不修改 `Project.reviewSchemeSnapshot`
+- 当前 `finalLevel` 优先校验启用的普通字典 `dictType=review_level` 的 `code` 或 `name`；若该字典为空，允许字符串 `A/B/C/D` 兜底；本阶段不自动创建 `review_level` 字典
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前已创建 `project_import_rows` 集合，用于记录每一行原始值、标准化值、自动/人工 resolved ID、issues、行状态和确认留痕
 - 后续集合以真实模块实现为准
@@ -254,7 +281,7 @@ backend/
 
 - 当前已预留通用 `LLM_PROVIDER` 与 `BAILIAN_*` 配置
 - 当前 `BAILIAN_MODEL` 由 env 提供，代码中不固化默认模型
-- 当前尚未实现任何 LLM 调用服务
+- 当前尚未实现任何 LLM 调用服务；第五阶段合议草稿为后端 `rule_based` 规则聚合，不消费 LLM 配置
 - 当前已基于 `ali-oss` 实现 OSS storage adapter；fake storage 用于 development/test 和自动化测试
 - 当前除 OSS storage adapter 外，未实现其他外部服务集成
 
@@ -274,6 +301,8 @@ backend/
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性和既有接口轻量回归
+- 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总
+- 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
@@ -283,9 +312,9 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报和项目材料管理后端能力；仍不包含 frontend 页面、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、专家评分和规则化合议评审后端能力；仍不包含 frontend 页面、真实 AI 接入、申诉、甲方看板或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
-- 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务
+- 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务；合议草稿为 `rule_based`，不调用外部大模型
 - 后续业务模块仍需按架构文档逐步扩展，不得绕过当前 auth、角色和数据隔离口径
 
 ## 5. 维护规则

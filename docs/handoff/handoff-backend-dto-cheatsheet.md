@@ -39,6 +39,11 @@
 | `QueryProjectImportJobsDto` | project-imports | 导入任务列表查询 | `page/pageSize/status/batchId/keyword` | 全可选 | number / string / ObjectId | status 枚举、`batchId` ObjectId、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, batchId, pageSize: 1000 }` | `GET /admin/project-imports` | 返回分页对象 |
 | `QueryProjectImportRowsDto` | project-imports | 导入行列表查询 | `page/pageSize/status/keyword` | 全可选 | number / string | status 枚举、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, keyword, pageSize: 1000 }` | `GET /admin/project-imports/:id/rows` | 返回分页对象 |
 | `UpdateProjectImportRowDto` | project-imports | 导入行人工修正 | `normalized`、`resolved`、`createOrganization`、`createOwnerUser` | 全可选；按修正场景传入 | nested object | ObjectId 校验、数组去重、资金 `>=0`、创建单位/用户字段 trim | 无 | `{ resolved: { leadOrganizationId }, createOwnerUser: { name, phone } }` | `PATCH /admin/project-imports/:id/rows/:rowId` | 可选择既有主数据；可创建单位和项目负责人用户；不可创建字典/树形字典 |
+| `QueryExpertReviewTasksDto` | expert-reviews | 专家评分任务列表 | `page/pageSize/keyword/batchId/status/reviewManagerId/reviewSchemeId` | 全可选 | number / string / ObjectId / enum | ObjectId 校验；`status` 为 `not_started/draft/submitted/returned`；分页最大 `1000` | `page=1`、`pageSize=100` | `{ status: "submitted" }` | `GET /expert/review-tasks` | 只返回当前专家已分配项目 |
+| `SaveExpertReviewDto` / `ExpertReviewItemInputDto` | expert-reviews | 保存草稿或提交评分 | `items[]`；item 含 `name/score/evaluationDescription/improvementSuggestion/hasMajorIssue` | 草稿 items 可选；提交时业务层要求每项完整 | string / number / boolean / array | DTO 校验字符串长度；业务层校验 score 范围、快照项存在、提交必填和改进建议条件必填 | 无 | `{ items: [{ name: "技术", score: 55 }] }` | `PUT /expert/review-tasks/:projectId`、`POST /expert/review-tasks/:projectId/submit` | `totalScore` 不接收前端值，由后端计算 |
+| `ReturnExpertReviewDto` | expert-reviews | 退回专家评分 | `returnReason` | 必填 | string | trim，1..1000 | 无 | `{ returnReason: "请补充说明" }` | `POST /review-manager/projects/:id/expert-reviews/:expertUserId/return` | 仅 submitted 可退回 |
+| `GenerateConsensusDraftDto` | consensus-reviews | 合议草稿生成查询参数 | `force` | 可选 | boolean | 支持 `true/false` 字符串转换 | `false` | `?force=true` | `POST /review-manager/projects/:id/consensus/draft` | 已有 draft 时需 `force=true` 才覆盖；confirmed 不可覆盖 |
+| `ConfirmConsensusReviewDto` | consensus-reviews | 人工确认合议 | `finalOpinion/finalScore/finalLevel/useDraftAsBase` | `finalOpinion/finalScore/finalLevel` 必填；`useDraftAsBase` 预留可选 | string / number / boolean | `finalOpinion` 1..10000；`finalScore` 业务层校验 `0..reviewSchemeSnapshot.totalScore`；`finalLevel` 校验 review_level 字典或 A/B/C/D 兜底 | 无 | `{ finalOpinion, finalScore: 82, finalLevel: "A" }` | `POST /review-manager/projects/:id/consensus/confirm`、`POST /admin/projects/:id/consensus/confirm` | 当前允许再次确认覆盖最新确认结果，不做完整等级变更历史 |
 
 ## 4. 类型 / 状态
 
@@ -61,6 +66,10 @@
 | `ExpertEligibilityReason` | `expert_not_found`、`expert_inactive`、`expert_role_missing`、`project_not_found`、`project_inactive`、`project_discipline_missing`、`expert_discipline_missing`、`discipline_mismatch`、`lead_organization_conflict`、`cooperation_organization_conflict`、`duplicate_expert`、`invalid_object_id` | 专家资格校验原因码 | 是 | 否 | 由 `ExpertEligibilityService` 输出；当前未使用 `duplicate_expert` 阻断重复添加，重复添加按幂等成功处理 |
 | `ProjectMaterialStatus` | `active`、`deleted` | 项目材料状态 | 是 | 是 | 删除材料只标记 `deleted`，不物理删除 OSS object |
 | `StorageDriver` | `fake`、`oss` | 项目材料存储驱动 | 是 | 是 | `ProjectMaterial.storageDriver` 保存上传时使用的驱动；接口不返回任何 AccessKey |
+| `ExpertReviewStatus` | `draft`、`submitted`、`returned` | 专家评分持久化状态 | 是 | 是 | 无记录时接口返回视图状态 `not_started`，不入库 |
+| `ExpertReviewViewStatus` | `not_started`、`draft`、`submitted`、`returned` | 专家评分接口视图状态 | 是 | 否 | 任务列表和负责人评分列表使用 |
+| `ConsensusReviewStatus` | `draft`、`confirmed`、`reopened` | 合议评审状态 | 是 | 是 | `reopened` 当前仅预留 |
+| `ConsensusDraftSource` | `rule_based`、`manual`、`ai` | 合议草稿来源 | 是 | 是 | 当前阶段只生成 `rule_based`；`ai` 仅预留，不代表已实现真实 AI |
 
 ## 5. 当前 HTTP 响应结构
 

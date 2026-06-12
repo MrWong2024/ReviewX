@@ -8,7 +8,9 @@ import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
+import { ConsensusReviewsModule } from './modules/consensus-reviews/consensus-reviews.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
+import { ExpertReviewsModule } from './modules/expert-reviews/expert-reviews.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { ProjectExpertAssignmentsModule } from './modules/project-expert-assignments/project-expert-assignments.module';
 import { ProjectImportsModule } from './modules/project-imports/project-imports.module';
@@ -49,6 +51,8 @@ import { UsersModule } from './modules/users/users.module';
     ProjectImportsModule,
     ProjectExpertAssignmentsModule,
     ProjectMaterialsModule,
+    ExpertReviewsModule,
+    ConsensusReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

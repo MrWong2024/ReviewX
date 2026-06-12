@@ -290,6 +290,18 @@
 - 后续动作：后续如实现专家评分、AI 合议、申诉、甲方看板、腾讯会议集成、病毒扫描、在线预览转码、前端直传、分片上传或断点续传，必须在当前材料权限、短期 URL 和软删除口径上显式扩展；不得把 OSS object 物理删除作为本阶段默认业务删除行为。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-config-matrix.md`
 
+### 决策 023
+
+- 编号：BD-023
+- 日期：2026-06-12
+- 状态：accepted
+- 背景：ReviewX 已具备评审方案快照、专家分配和材料可见性，需要实现专家评分与合议评审后端闭环，但当前阶段明确不接真实 AI、不做申诉和前端页面。
+- 决策：新增 `ExpertReview` 和 `ConsensusReview` 两个独立集合；专家评分必须基于 `Project.reviewSchemeSnapshot`，保存时复制快照，不直接读取当前 `ReviewScheme.items`；专家提交后不可修改，评审负责人可退回为 `returned` 后专家重新提交；合议草稿使用 `draftSource=rule_based` 的规则化平均分与文本拼接，人工确认才写正式合议结果和 `Project.finalLevel/originalLevel`。
+- 理由：独立集合可以保留专家评分、合议草稿和人工确认结果留痕；使用项目方案快照避免后续方案改动影响已评分项目；rule_based 草稿满足当前不接真实 AI 的约束，同时为后续 AI 合议预留来源枚举。
+- 影响范围：`ExpertReviewsModule`、`ConsensusReviewsModule`、`expert_reviews`、`consensus_reviews`、`scripts/sync-indexes.ts`、专家/评审负责人/管理员新增 API、handoff 文档和 E2E。
+- 后续动作：如后续实现真实 AI、申诉、完整等级变更历史、报告导出或前端页面，应在当前评分/合议留痕口径上显式扩展，不得覆写现有快照和评分记录。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

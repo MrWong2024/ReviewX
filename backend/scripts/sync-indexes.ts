@@ -10,6 +10,14 @@ import {
   DictionarySchema,
 } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import {
+  ConsensusReview,
+  ConsensusReviewSchema,
+} from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
+import {
+  ExpertReview,
+  ExpertReviewSchema,
+} from '../src/modules/expert-reviews/schemas/expert-review.schema';
+import {
   Organization,
   OrganizationSchema,
 } from '../src/modules/organizations/schemas/organization.schema';
@@ -316,6 +324,12 @@ function registerModels(): RegisteredModel[] {
   const projectMaterialModel = mongoose.models[ProjectMaterial.name]
     ? mongoose.model<unknown>(ProjectMaterial.name)
     : mongoose.model(ProjectMaterial.name, ProjectMaterialSchema);
+  const expertReviewModel = mongoose.models[ExpertReview.name]
+    ? mongoose.model<unknown>(ExpertReview.name)
+    : mongoose.model(ExpertReview.name, ExpertReviewSchema);
+  const consensusReviewModel = mongoose.models[ConsensusReview.name]
+    ? mongoose.model<unknown>(ConsensusReview.name)
+    : mongoose.model(ConsensusReview.name, ConsensusReviewSchema);
 
   return [
     { name: User.name, model: userModel },
@@ -330,6 +344,8 @@ function registerModels(): RegisteredModel[] {
     { name: ProjectImportJob.name, model: projectImportJobModel },
     { name: ProjectImportRow.name, model: projectImportRowModel },
     { name: ProjectMaterial.name, model: projectMaterialModel },
+    { name: ExpertReview.name, model: expertReviewModel },
+    { name: ConsensusReview.name, model: consensusReviewModel },
   ];
 }
 
