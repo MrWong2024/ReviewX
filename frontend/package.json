@@ -7,14 +7,17 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint .",
-    "lint:file": "eslint", 
+    "lint:file": "eslint",
     "lint:file:fix": "eslint --fix",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
     "next": "16.2.9",
+    "postcss": "^8.5.15",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
     "@types/node": "24.13.2",
