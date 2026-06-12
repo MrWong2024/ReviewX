@@ -1,33 +1,32 @@
 # ReviewX 前端路由地图
 
-## 1. 用途
+## 1. 当前路由
 
-- 记录前端 App Router 路由、页面用途、权限、主要数据源和状态
-- 方便 Codex 修改页面时判断影响范围
+| 路由 | 页面文件 | 权限 / 会话 | 状态 | 说明 |
+| --- | --- | --- | --- | --- |
+| `/` | `frontend/app/page.tsx` | 无 | implemented | 直接跳转 `/workspace` |
+| `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 手机号 + 密码登录 |
+| `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 多角色入口；仅 admin 当前可进入真实后台 |
+| `/admin` | `frontend/app/admin/page.tsx` | 需要登录 + admin 角色 | implemented | 管理员后台概览 |
+| `/admin/batches` | `frontend/app/admin/batches/page.tsx` | 需要登录 + admin 角色 | implemented | 批次管理 |
+| `/admin/dictionaries` | `frontend/app/admin/dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 普通字典管理 |
+| `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理 |
+| `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理 |
+| `/admin/review-schemes` | `frontend/app/admin/review-schemes/page.tsx` | 需要登录 + admin 角色 | implemented | 评审方案管理 |
+| `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目只读列表 |
+| `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
-## 2. 当前状态
+## 2. 管理员 layout
 
-- `frontend` 尚未初始化
-- 当前无已确认路由
-- 本文档仅建立后续记录模板
+- layout 文件：`frontend/app/admin/layout.tsx`
+- 壳组件：`frontend/src/components/layout/AdminShell.tsx`
+- 顶部栏显示平台名、当前用户、当前角色和退出登录
+- 侧边栏提供管理员功能菜单
+- 守卫为 client component 守卫：
+  - 未登录访问 `/admin/*`：跳转 `/login`
+  - 已登录但无 admin 角色：显示 403 状态并提供返回工作台入口
 
-## 3. 路由记录模板
+## 3. 当前不包含的路由
 
-| 路由 | 页面名称 | 所属区域 | 权限 / 角色 | 主要数据源 | 主要组件 | 状态 | 备注 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 待定 | 待定 | 待定 | 待定 | 待定 | 待定 | planned | 后续由真实实现补充 |
-
-## 4. 状态建议
-
-- `planned`
-- `implemented`
-- `deprecated`
-- `removed`
-- `pending-review`
-
-## 5. 维护规则
-
-- 新增页面路由必须同步本文档
-- 修改路由路径、权限、数据源或页面职责必须同步本文档
-- 删除或废弃路由必须标注状态
-- 不得把未实现路由写成 `implemented`
+- 不包含 `/admin/project-imports`
+- 不包含专家分配、材料上传、专家评分、合议、申诉、甲方看板和腾讯会议相关页面
