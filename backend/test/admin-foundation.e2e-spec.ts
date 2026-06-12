@@ -149,17 +149,18 @@ describe('Admin foundation APIs (e2e)', () => {
       .expect(409);
 
     const region = await post(adminCookie, '/admin/tree-dictionaries', {
-      treeType: 'region',
+      treeType: 'administrative_division',
       code: '500000',
       name: '重庆市',
     });
     const regionId = getString(region, 'id');
     const childRegion = await post(adminCookie, '/admin/tree-dictionaries', {
-      treeType: 'region',
+      treeType: 'administrative_division',
       parentId: regionId,
       code: '500100',
       name: '市辖区',
     });
+    const childRegionId = getString(childRegion, 'id');
     expect(childRegion).toMatchObject({
       parentId: regionId,
       level: 2,
@@ -169,6 +170,19 @@ describe('Admin foundation APIs (e2e)', () => {
       .delete(`/admin/tree-dictionaries/${regionId}`)
       .set('Cookie', adminCookie)
       .expect(409);
+    const legacyRegion = await post(adminCookie, '/admin/tree-dictionaries', {
+      treeType: 'region',
+      code: 'legacy-region',
+      name: '历史区划',
+    });
+    await request(httpServer)
+      .post('/admin/organizations')
+      .set('Cookie', adminCookie)
+      .send({
+        name: '历史区划单位',
+        regionId: getString(legacyRegion, 'id'),
+      })
+      .expect(400);
 
     const projectType = await post(adminCookie, '/admin/tree-dictionaries', {
       treeType: 'project_type',
@@ -206,6 +220,15 @@ describe('Admin foundation APIs (e2e)', () => {
       regionId,
     });
     const organizationId = getString(organization, 'id');
+    const updatedOrganization = await request(httpServer)
+      .patch(`/admin/organizations/${organizationId}`)
+      .set('Cookie', adminCookie)
+      .send({ regionId: childRegionId })
+      .expect(200);
+    expect(getString(getJsonBody(updatedOrganization), 'regionId')).toBe(
+      childRegionId,
+    );
+
     const cooperationOrganization = await post(
       adminCookie,
       '/admin/organizations',

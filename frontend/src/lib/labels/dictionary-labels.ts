@@ -15,7 +15,6 @@ export const TREE_TYPE_LABELS: Record<string, string> = {
   department: '受理处室',
   discipline: '学科',
   project_type: '项目类型',
-  region: '行政区划',
 };
 
 export const PRESET_TREE_TYPES = [

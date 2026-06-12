@@ -314,6 +314,19 @@
 - 后续动作：后续如实现前端页面、甲方看板、申诉撤回、多级复议、复杂等级变更审批、通知或报告导出，应在当前申诉状态机和等级留痕口径上显式扩展；不得把申诉等级调整写回 `ConsensusReview.finalLevel`。
 - 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`
 
+### 决策 025
+
+- 编号：BD-025
+- 日期：2026-06-12
+- 状态：accepted
+- 背景：行政区划主数据曾在前后端存在 `region` 与 `administrative_division` 两套 treeType 口径，容易导致单位 `regionId` 引用的树节点来源漂移。
+- 决策：行政区划树形字典统一使用 `treeType=administrative_division`；`Organization.regionId` 字段名保持不变，但必须引用 `treeType=administrative_division` 的 `TreeDictionary` 节点；历史 `treeType=region` 不再作为后端合法行政区划口径，前端也不再兼容读取。
+- 理由：本次真正需要统一的是树形字典类型，不是 Organization API/Schema 字段名；保留 `regionId` 可避免 DTO、接口和既有引用的大范围破坏，同时消除两套行政区划数据并存风险。
+- 影响范围：`OrganizationsService` 行政区划校验、`test/admin-foundation.e2e-spec.ts`、前端单位行政区划选择和树类型显示映射、handoff 文档。
+- 本次验证：`backend` 下 `npm run lint`、`npm run test`、`npm run test:e2e`、`npm run build`、`npm run sync-indexes -- --env-file .env.test` 均通过。
+- 后续动作：当前不做历史 `region` 数据迁移；如本地测试库已存在 `treeType=region` 行政区划数据，可人工删除或按 `treeType=administrative_division` 重新维护。
+- 相关文档：`docs/handoff/handoff-backend-snapshot.md`、`docs/handoff/handoff-backend-api-map.md`、`docs/handoff/handoff-backend-service-map.md`、`docs/handoff/handoff-backend-dto-cheatsheet.md`、`docs/handoff/handoff-frontend-snapshot.md`
+
 ## 5. 明确不记录
 
 - 不记录普通代码小改

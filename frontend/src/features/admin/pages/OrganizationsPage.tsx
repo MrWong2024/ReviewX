@@ -77,17 +77,10 @@ export function OrganizationsPage() {
 
   async function loadRegions() {
     try {
-      const administrativeDivisions = await listTreeDictionaries({
+      const response = await listTreeDictionaries({
         treeType: 'administrative_division',
       });
-
-      if (administrativeDivisions.length > 0) {
-        setRegions(administrativeDivisions);
-        return;
-      }
-
-      const legacyRegions = await listTreeDictionaries({ treeType: 'region' });
-      setRegions(legacyRegions);
+      setRegions(response);
     } catch {
       setRegions([]);
     }
@@ -262,7 +255,7 @@ export function OrganizationsPage() {
           <Select
             hint={
               regions.length === 0
-                ? '暂无行政区划，请先在树形字典中维护。'
+                ? '暂无行政区划数据，请先在树形字典中维护行政区划。'
                 : undefined
             }
             id="organization-region-filter"
@@ -351,7 +344,7 @@ export function OrganizationsPage() {
             disabled={regions.length === 0}
             hint={
               regions.length === 0
-                ? '暂无行政区划，请先在树形字典中维护；当前可不选择。'
+                ? '暂无行政区划数据，请先在树形字典中维护行政区划；当前可不选择。'
                 : undefined
             }
             id="organization-region"

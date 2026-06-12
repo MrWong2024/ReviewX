@@ -64,7 +64,9 @@ export function TreeDictionariesPage() {
   const treeTypes = useMemo(() => {
     const existingTypes = Array.from(
       new Set(items.map((item) => item.treeType)),
-    ).filter((type) => !PRESET_TREE_TYPES.includes(type as never));
+    ).filter(
+      (type) => type !== 'region' && !PRESET_TREE_TYPES.includes(type as never),
+    );
 
     return [...PRESET_TREE_TYPES, ...existingTypes];
   }, [items]);

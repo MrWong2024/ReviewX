@@ -61,7 +61,7 @@
 - 树形字典预设 `treeType`：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
 - 后端字段名仍保持英文，前端仅做中文显示映射
 - 树形字典仍调用 `GET /admin/tree-dictionaries` 平铺数组接口，由前端构建缩进树
-- 单位 `regionId` 仍提交区划节点 ObjectId；前端优先读取 `administrative_division`，无数据时兼容当前后端历史 `region`
+- 单位 `regionId` 仍提交区划节点 ObjectId；前端只读取 `administrative_division` 行政区划树，不再兼容历史 `region`
 
 ## 5. 当前未对接的后端接口
 

@@ -2,6 +2,18 @@
 
 ## 2026-06-12
 
+### 行政区划 treeType 口径统一
+
+- 统一行政区划树形字典口径为 `treeType=administrative_division`
+- `OrganizationsPage` 行政区划选择只读取 `administrative_division`，不再备用读取历史 `region`
+- `TreeDictionariesPage` 树类型预设保持项目类型、学科、受理处室、行政区划四类；历史 `region` 不再作为行政区划推荐或兼容类型显示
+- `dictionary-labels` 移除历史 `region` 行政区划映射
+- 无行政区划数据时提示“暂无行政区划数据，请先在树形字典中维护行政区划。”
+- `Organization.regionId` 字段名不变，仍提交行政区划节点 ObjectId
+- 当前不做历史 `region` 数据迁移；本地如有历史测试数据，可人工删除或重建为 `administrative_division`
+- 本次未新增接口、未新增环境变量、未新增第三方依赖
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### UI 基线升级与管理员基础页面交互修正
 
 - 启用 Tailwind CSS 4：
@@ -44,8 +56,8 @@
   - `code` UI 统一改为“编码”，并补充用途说明
 - 修复 `/admin/organizations`：
   - 行政区划选择改为树形缩进下拉
-  - 优先读取 `treeType=administrative_division`
-  - 兼容当前后端历史 `treeType=region`
+  - 读取 `treeType=administrative_division`
+  - 不再兼容历史 `treeType=region`
   - 无行政区划数据时显示友好提示并允许为空
 - 修复 `/admin/review-schemes`：
   - 动态评分项新增稳定 `clientId`

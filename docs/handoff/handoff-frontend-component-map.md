@@ -53,7 +53,7 @@
 | `displayValue` / `statusText` | `frontend/src/lib/format/value.ts` | 空值和状态展示 |
 | form utils | `frontend/src/features/admin/form-utils.ts` | trim、空值、数值转换 |
 | `cx` | `frontend/src/lib/styles.ts` | 轻量 className 拼接 |
-| dictionary/tree labels | `frontend/src/lib/labels/dictionary-labels.ts` | 普通字典和树形字典中文显示映射 |
+| dictionary/tree labels | `frontend/src/lib/labels/dictionary-labels.ts` | 普通字典和树形字典中文显示映射；行政区划只映射 `administrative_division`，不再映射历史 `region` |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
 
 ## 6. 当前 UI 基线
@@ -63,3 +63,4 @@
 - 表格、分页、空状态、错误提示、加载态、Modal、ConfirmDialog 已同步现代化样式
 - `AdminShell` 已升级为深海军蓝 / 墨蓝 / 靛蓝渐变侧栏、胶囊选中态、顶部用户与角色 Badge、浅灰蓝内容背景
 - 页面仍保留少量语义 class（如 `page-title`、`toolbar`、`panel`、`form-stack`），由全局 CSS 通过 Tailwind `@apply` 统一承载
+- 单位行政区划选择只使用 `treeType=administrative_division` 的缩进树选项；无数据时提示先在树形字典中维护行政区划

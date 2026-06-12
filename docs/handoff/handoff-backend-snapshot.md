@@ -38,6 +38,7 @@
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
 - 当前分页列表口径：批次、单位、项目、导入任务、导入行列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
 - 当前无管理员用户列表接口；未来如新增用户列表，应保留分页并沿用 `pageSize <= 1000`
+- 当前行政区划树形字典统一使用 `treeType=administrative_division`；`Organization.regionId` 字段名保持不变，但引用节点必须属于该 treeType；历史 `treeType=region` 不再作为行政区划口径，当前不做历史数据迁移
 - 当前仍未接入外部集成
 - 当前本地默认后端端口为 `5001`
 - 当前本地前端来源示例为 `http://localhost:3001`

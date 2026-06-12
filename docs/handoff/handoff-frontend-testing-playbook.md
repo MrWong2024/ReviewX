@@ -34,6 +34,12 @@ npm run build
 - `npm run typecheck`
 - `npm run build`
 
+本次行政区划 treeType 口径统一已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -76,7 +82,9 @@ npm run build
   - department 显示为“受理处室”
   - administrative_division 显示为“行政区划”
 - `/admin/organizations`：分页、关键词搜索、行政区划缩进树选择、新增、编辑、停用
-  - 无行政区划数据时显示“暂无行政区划，请先在树形字典中维护”
+  - 行政区划只读取 `treeType=administrative_division`
+  - 无行政区划数据时显示“暂无行政区划数据，请先在树形字典中维护行政区划。”
+  - 不再需要或兼容 `treeType=region` 测试数据
 - `/admin/review-schemes`：列表、新增、编辑、停用、添加/删除评分项
   - 新增和编辑方案时评分项名称输入不失焦
   - 保存前 `clientId` 不提交给后端

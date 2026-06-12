@@ -113,7 +113,8 @@ frontend/
 - 本阶段直接按 `NEXT_PUBLIC_API_BASE_URL` 调后端；未实现 BFF 代理
 - 普通字典预设 `dictType` 前端显示中文：`project_status=项目状态`、`material_type=材料类型`、`review_level=评审等级`
 - 树形字典预设 `treeType` 前端显示中文：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
-- 单位行政区划选择优先读取 `treeType=administrative_division`；如无数据则兼容读取当前后端历史契约 `treeType=region`，底层仍提交 `regionId` ObjectId
+- 单位行政区划选择只读取 `treeType=administrative_division`；不再兼容历史 `treeType=region`；底层仍提交 `regionId` ObjectId
+- `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
 - 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别
 - 管理员项目列表暂无用户列表接口，因此项目负责人、评审负责人先展示 ID
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -16,6 +17,8 @@ import { CreateOrganizationDto } from '../dto/create-organization.dto';
 import { QueryOrganizationsDto } from '../dto/query-organizations.dto';
 import { UpdateOrganizationDto } from '../dto/update-organization.dto';
 import { Organization } from '../schemas/organization.schema';
+
+const ADMINISTRATIVE_DIVISION_TREE_TYPE = 'administrative_division';
 
 export type OrganizationResponse = {
   id: string;
@@ -157,7 +160,16 @@ export class OrganizationsService {
       return;
     }
 
-    await this.treeDictionariesService.findByIdAndType(regionId, 'region');
+    try {
+      await this.treeDictionariesService.findByIdAndType(
+        regionId,
+        ADMINISTRATIVE_DIVISION_TREE_TYPE,
+      );
+    } catch {
+      throw new BadRequestException(
+        'regionId must reference an administrative division node',
+      );
+    }
   }
 
   private async assertUniqueName(
