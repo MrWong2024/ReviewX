@@ -20,6 +20,8 @@
 | `DataTable` | `frontend/src/components/ui/DataTable.tsx` | 简单数据表格 |
 | `Pagination` | `frontend/src/components/ui/Pagination.tsx` | 简单分页控件 |
 | `TreeList` | `frontend/src/components/ui/TreeList.tsx` | 树形缩进列表，用于树形字典展示 |
+| `MultiSelect` | `frontend/src/components/ui/MultiSelect.tsx` | 轻量 checkbox 多选，用于用户角色和单位多选 |
+| `TreeMultiSelect` | `frontend/src/components/ui/TreeMultiSelect.tsx` | 轻量树形/缩进 checkbox 多选，用于用户学科关联 |
 
 ## 3. Feedback 组件
 
@@ -43,6 +45,7 @@
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
 | `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 项目只读列表 |
+| `UsersPage` | `frontend/src/features/admin/pages/UsersPage.tsx` | 管理员用户管理，支持列表、筛选、分页、新增、编辑、启停和重置密码 |
 
 ## 5. 工具
 
@@ -55,6 +58,7 @@
 | form utils | `frontend/src/features/admin/form-utils.ts` | trim、空值、数值转换 |
 | `cx` | `frontend/src/lib/styles.ts` | 轻量 className 拼接 |
 | dictionary/tree labels | `frontend/src/lib/labels/dictionary-labels.ts` | 普通字典和树形字典中文显示映射；行政区划只映射 `administrative_division`，不再映射历史 `region` |
+| role labels | `frontend/src/lib/labels/role-labels.ts` | 用户角色中文显示映射、角色选项和格式化工具；请求仍使用英文角色值 |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
 
 ## 6. 当前 UI 基线

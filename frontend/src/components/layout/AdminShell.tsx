@@ -6,8 +6,8 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/src/components/feedback/Badge';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
-import { ROLE_LABELS } from '@/src/features/auth/types';
 import { useAuth } from '@/src/features/auth/AuthProvider';
+import { ROLE_LABELS } from '@/src/lib/labels/role-labels';
 
 type AdminShellProps = {
   children: ReactNode;
@@ -15,6 +15,7 @@ type AdminShellProps = {
 
 const NAV_ITEMS = [
   { href: '/admin', icon: '◇', label: '概览' },
+  { href: '/admin/users', icon: '00', label: '用户管理' },
   { href: '/admin/batches', icon: '01', label: '批次管理' },
   { href: '/admin/dictionaries', icon: '02', label: '普通字典' },
   { href: '/admin/tree-dictionaries', icon: '03', label: '树形字典' },

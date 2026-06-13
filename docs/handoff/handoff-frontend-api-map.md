@@ -24,6 +24,12 @@
 
 | 前端函数 | 后端接口 | 返回口径 | 页面 |
 | --- | --- | --- | --- |
+| `listUsers` | `GET /admin/users` | 分页对象；不返回 `passwordHash` | `/admin/users` |
+| `getUser` | `GET /admin/users/:id` | 单对象；不返回 `passwordHash` | `/admin/users` 后续扩展 |
+| `createUser` | `POST /admin/users` | 单对象；密码可空，空则后端默认手机号；不返回 `passwordHash` | `/admin/users` |
+| `updateUser` | `PATCH /admin/users/:id` | 单对象；只提交 `name/roles/isActive/organizationIds/disciplineIds/mustChangePassword`；不提交 `phone/password/passwordHash` | `/admin/users` |
+| `updateUserStatus` | `PATCH /admin/users/:id/status` | 单对象；启用/停用；不返回 `passwordHash` | `/admin/users` |
+| `resetUserPassword` | `POST /admin/users/:id/reset-password` | 单对象；密码可空，空则后端默认手机号；不返回 `passwordHash` | `/admin/users` |
 | `listBatches` | `GET /admin/batches` | 分页对象 | `/admin/batches`、`/admin/projects` |
 | `createBatch` | `POST /admin/batches` | 单对象 | `/admin/batches` |
 | `updateBatch` | `PATCH /admin/batches/:id` | 单对象 | `/admin/batches` |
@@ -62,10 +68,15 @@
 - 后端字段名仍保持英文，前端仅做中文显示映射
 - 树形字典仍调用 `GET /admin/tree-dictionaries` 平铺数组接口，由前端构建缩进树
 - 单位 `regionId` 仍提交区划节点 ObjectId；前端只读取 `administrative_division` 行政区划树，不再兼容历史 `region`
+- 用户角色显示中文：`admin=管理员`、`client=甲方`、`review_manager=评审负责人`、`expert=评审专家`、`project_owner=项目负责人`；请求仍提交英文角色值
+- 用户管理关联单位通过 `GET /admin/organizations?page=1&pageSize=1000` 映射名称并多选提交 `organizationIds`
+- 用户管理关联学科通过 `GET /admin/tree-dictionaries?treeType=discipline` 映射名称并树形/缩进多选提交 `disciplineIds`
+- 用户创建和重置密码留空时不提交 `password`，由后端默认手机号；编辑用户手机号只读，不提交 `phone/password/passwordHash`
 
 ## 5. 当前未对接的后端接口
 
 - `/admin/project-imports*`
+- 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
 - `/admin/projects/:id/review-assignment`
 - `/admin/projects/review-assignment/batch`
 - `/admin/projects/:id/schedule`

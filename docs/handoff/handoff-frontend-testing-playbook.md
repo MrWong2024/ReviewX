@@ -46,6 +46,12 @@ npm run build
 - `npm run typecheck`
 - `npm run build`
 
+本次管理员用户管理页面已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -111,8 +117,30 @@ npm run build
 - 批次、字典、单位、方案等低成本主数据可映射名称
 - 没有数据时显示空状态
 
-## 8. 当前不验证
+## 8. 用户管理人工验证
 
+- `/admin/users` 可访问，侧边栏“用户管理”入口正常显示并可选中
+- 用户列表加载成功，不显示 `passwordHash`
+- keyword 搜索姓名或手机号可用
+- 角色筛选和启用状态筛选可用
+- 分页可用
+- 新增评审负责人、专家、项目负责人用户成功
+- 新增专家时可选择单位和学科；单位为多选，学科为树形/缩进多选
+- 新增用户初始密码留空时前端不提交 `password`，由后端默认手机号
+- 编辑用户姓名、角色、单位、学科、启用状态、`mustChangePassword` 成功
+- 编辑用户时手机号只读，前端不提交 `phone/password/passwordHash`
+- 停用用户前有二次确认；当前登录 admin 自己的停用快捷操作禁用或后端返回 409 并清楚显示
+- 重置密码成功；新密码留空时前端不提交 `password`，由后端默认手机号
+- 使用重置后的密码登录成功
+- 原有 `/admin/dictionaries`、`/admin/tree-dictionaries`、`/admin/organizations`、`/admin/review-schemes`、`/admin/projects` 仍正常
+
+## 9. 当前不验证
+
+- 用户自助改密
+- 忘记密码
+- 短信验证码
+- 用户批量导入
+- 权限矩阵配置
 - Excel 导入
 - 专家分配
 - 项目负责人材料上传

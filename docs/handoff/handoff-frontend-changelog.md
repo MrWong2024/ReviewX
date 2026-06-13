@@ -1,5 +1,23 @@
 # ReviewX 前端变更记录
 
+## 2026-06-14
+
+### 管理员用户管理页面
+
+- 新增 `/admin/users` 页面和 AdminShell “用户管理”菜单入口
+- 新增 `frontend/src/features/admin/api/users.ts`，封装 `listUsers`、`getUser`、`createUser`、`updateUser`、`updateUserStatus`、`resetUserPassword`
+- 新增 `frontend/src/features/admin/types/users.ts`，定义管理员用户、用户角色、列表参数、创建/更新/状态更新/重置密码输入类型；类型不包含 `passwordHash`
+- 新增 `frontend/src/lib/labels/role-labels.ts`，统一角色中文显示：管理员、甲方、评审负责人、评审专家、项目负责人；请求仍提交英文角色值
+- 新增轻量 `MultiSelect` 和 `TreeMultiSelect`，不引入第三方依赖，用于角色多选、单位多选和学科树形/缩进多选
+- 用户列表支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、角色 Badge、单位名称映射、学科名称映射、状态显示和 `mustChangePassword` 显示
+- 新增用户支持姓名、手机号、初始密码可空、角色多选、单位多选、学科树形/缩进多选、启用状态、首次登录要求改密；密码留空时不提交 `password`，由后端默认手机号
+- 编辑用户支持姓名、角色、单位、学科、启用状态、首次登录要求改密；手机号只读，不提交 `phone/password/passwordHash`
+- 启用/停用调用 `PATCH /admin/users/:id/status`；停用前二次确认；当前登录管理员自己的停用快捷操作禁用，后端 409 仍显示错误
+- 重置密码支持新密码可空和 `mustChangePassword`；密码留空时不提交 `password`，成功后提示已重置为用户手机号
+- 本阶段未修改 backend，未新增依赖，未新增环境变量，未修改真实 `.env`，未修改 `frontend/package.json` 或 `package-lock.json`
+- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、Excel 导入、专家分配、项目负责人材料、专家评分、合议、申诉、甲方看板、腾讯会议或真实 AI
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ## 2026-06-12
 
 ### 表单控件与行内操作按钮一致性修正
