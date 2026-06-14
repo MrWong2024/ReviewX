@@ -38,6 +38,7 @@ import {
   parseProjectImportWorkbook,
   ParsedProjectImportRow,
 } from '../utils/excel-parser';
+import { normalizeUploadedFilename } from '../utils/project-import-filename.util';
 import { ProjectImportJob } from '../schemas/project-import-job.schema';
 import { ProjectImportRow } from '../schemas/project-import-row.schema';
 import {
@@ -223,7 +224,7 @@ export class ProjectImportsService {
     );
     const duplicateProjectNos = this.findDuplicateProjectNos(parsed.rows);
     const job = await this.jobModel.create({
-      originalFilename: input.file.originalname,
+      originalFilename: normalizeUploadedFilename(input.file.originalname),
       uploadedByUserId: toObjectId(input.uploadedByUserId, 'uploadedByUserId'),
       batchId: toObjectId(input.batchId, 'batchId'),
       status: 'pending_confirmation',

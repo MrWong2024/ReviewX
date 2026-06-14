@@ -28,6 +28,7 @@
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
+- 当前项目导入上传创建任务时，会在入库前对 multipart 场景下 latin1 误解码的中文 Excel 文件名做保守修正；正常 UTF-8 中文、英文和常见空格/括号/短横线/下划线文件名保持原样
 - 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
@@ -304,6 +305,7 @@ backend/
 - 当前申诉处理导致等级变更时只更新 `Project.finalLevel` 并写 `ProjectLevelChangeLog(source=appeal_handling)`；不修改 `ConsensusReview.finalLevel`；`Project.originalLevel` 保留首次合议确认等级，若历史数据为空则申诉处理时写入调整前等级
 - 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
+- 当前 `project_import_jobs.originalFilename` 仅用于展示，上传新任务入库前会保守修正常见中文文件名 mojibake；历史已入库乱码数据不自动迁移
 - 当前已创建 `project_import_rows` 集合，用于记录每一行原始值、标准化值、自动/人工 resolved ID、issues、行状态和确认留痕
 - 当前已创建 `project_import_field_mappings` 集合，用于保存 Excel 字段映射自定义配置；一条 `standardField` 一条配置，字段包括 `standardField`、`aliases`、`normalizedAliases`、`isActive`、`description`、`createdByUserId`、`updatedByUserId` 和 timestamps
 - 当前 `project_import_field_mappings` 索引：`standardField` unique、`isActive`、`normalizedAliases`
@@ -314,6 +316,7 @@ backend/
 ### 4.5 文件上传 / 对象存储
 
 - 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；表头字段映射优先读取 `project_import_field_mappings` 中启用配置，未配置或停用时回退 `PROJECT_IMPORT_FIELD_ALIASES` 内置默认别名
+- 当前 Excel 项目导入上传不保存原 Excel 文件；上传文件名只作为任务展示字段保存，保存前会对典型 `å¹´/ç»©/ï¼` 等 mojibake 片段做保守 latin1 到 UTF-8 修正，旧任务不自动回填
 - 当前不长期保存原 Excel 文件；只保存导入任务与导入行解析结果
 - 当前 `dca16ae` 基线已安装 `ali-oss`，并已在 `.env.development.example`、`.env.test.example`、`.env.production.example` 准备 Storage / OSS 配置样例
 - `STORAGE_DRIVER` 支持 `fake / oss`：development/test example 默认 `fake`，production example 默认 `oss`
@@ -351,6 +354,7 @@ backend/
 - `test/admin-foundation.e2e-spec.ts` 当前也覆盖普通字典、树形字典、评审方案列表返回数组，以及项目/单位 `pageSize=1000` 和超过上限返回 `400`
 - 已包含 `test/project-imports.e2e-spec.ts`，用于验证导入权限、上传校验、字段别名、自动匹配、待确认、人工修正、确认入库、批量确认、跳过和既有列表口径不回退
 - 已包含 `src/modules/project-imports/services/project-import-field-mappings.service.spec.ts`，用于验证 Excel 字段映射配置标准字段清单、完整配置视图、upsert/update/delete/reset-defaults、effective alias map、非法字段、空别名、同字段重复、跨字段冲突和停用 fallback
+- 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底和非乱码边界不误改
 - 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
 - `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析，以及删除配置后默认内置别名 fallback 仍可用
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
