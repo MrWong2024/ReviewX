@@ -2,6 +2,22 @@
 
 ## 2026-06-14
 
+### ReviewX 第二阶段补丁二：Excel 字段映射配置前端接入
+
+- 新增 `/admin/project-import-field-mappings` 页面，支持管理员维护项目 Excel 标准字段的自定义表头别名
+- 新增 AdminShell “字段映射”入口，并在 `/admin` 概览页新增“Excel 字段映射”卡片
+- 新增 `frontend/src/features/admin/api/project-import-field-mappings.ts`，封装 `listProjectImportStandardFields`、`listProjectImportFieldMappings`、`getProjectImportFieldMapping`、`upsertProjectImportFieldMapping`、`updateProjectImportFieldMapping`、`deleteProjectImportFieldMapping`、`resetProjectImportFieldMappingDefaults`
+- 新增 `frontend/src/features/admin/types/project-import-field-mappings.ts`，显式定义标准字段、标准字段响应、配置视图、查询参数、upsert/update 输入和删除响应类型；标准字段保持 `disciplineName`
+- 新增 `frontend/src/lib/labels/project-import-field-mapping-labels.ts`，中文化必填、配置状态、启用状态、标准字段 fallback 和别名展示
+- 新增 `ProjectImportFieldMappingsPage`、`FieldMappingEditorModal`、`AliasChips`，展示标准字段、字段中文名、是否必填、默认别名、自定义别名、最终生效别名、启用状态、配置状态、备注和更新时间
+- 支持 keyword / isActive 筛选；keyword 和空 isActive 不提交无效 query
+- 支持创建或覆盖配置、编辑已有配置、启用 / 停用配置、删除自定义配置和 reset-defaults 重置默认
+- 停用、删除和重置默认均有二次确认；页面明确停用和删除不是禁用标准字段，而是回退内置默认别名
+- 编辑弹窗使用 textarea 一行一个别名，保存前 trim、过滤空行、校验空别名和重复别名；409 冲突显示“字段别名已被其他标准字段使用，请更换别名”
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未实现项目分配、专家分配、材料、评分、合议、申诉、甲方看板或腾讯会议
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 前端第二阶段：管理员 Excel 导入与待确认处理
 
 - 新增 `/admin/project-imports` 页面，支持批次选择、Excel 文件选择、上传前校验、FormData 上传、上传成功提示和任务列表刷新

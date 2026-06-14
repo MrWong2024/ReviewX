@@ -87,6 +87,7 @@ frontend/
 - `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
 - `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选和分页
 - `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认
+- `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
 - `/admin/projects`：管理员项目只读分页列表、关键词和低成本过滤、基础名称映射，视觉风格已同步
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 
@@ -124,6 +125,10 @@ frontend/
 - 项目导入修正页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为选择项；行政区划只读取 `treeType=administrative_division`
 - 项目导入行修正支持选择已有主数据、已有单位、已有项目负责人；只允许通过 `createOrganization` 创建新单位，通过 `createOwnerUser` 创建新项目负责人用户
 - 项目导入页面不创建项目类型、学科、受理处室或项目状态；缺失时提示先到对应主数据页面维护
+- 字段映射配置页已对接 `/admin/project-import-field-mappings*` 系列接口；请求均为 JSON，不使用 FormData
+- 字段映射标准字段由后端标准字段清单 / 配置视图返回，前端不允许管理员新增、删除或重命名标准字段
+- 字段映射标准字段类型使用 `disciplineName`，不使用导入 normalized 结构中的 `disciplineNames`
+- 字段映射未配置、停用和删除自定义配置均回退默认内置别名；reset-defaults 会创建或覆盖配置，使自定义别名等于默认别名并启用
 - `/admin/projects` 本阶段仍未接入用户名称映射，项目负责人、评审负责人仍展示 ID
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
 - 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、项目分配、专家分配、材料、评分、合议、申诉、甲方看板、腾讯会议或真实 AI

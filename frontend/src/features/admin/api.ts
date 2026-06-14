@@ -170,3 +170,4 @@ export function listProjects(params: QueryParams = {}) {
 
 export * from './api/users';
 export * from './api/project-imports';
+export * from './api/project-import-field-mappings';

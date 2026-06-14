@@ -53,14 +53,21 @@ const SECTIONS = [
         title: '项目导入',
       },
       {
-        href: '/admin/projects',
+        href: '/admin/project-import-field-mappings',
         mark: '07',
+        status: '已开放',
+        text: '维护 Excel 表头别名，提升项目导入自动识别率。',
+        title: 'Excel 字段映射',
+      },
+      {
+        href: '/admin/projects',
+        mark: '08',
         status: '只读',
         text: '查看项目基础信息、批次、状态和评审方案映射。',
         title: '项目列表',
       },
     ],
-    intro: '当前阶段开放方案维护、项目导入闭环与项目只读视图，分配和排期在后续阶段建设。',
+    intro: '当前阶段开放方案维护、项目导入闭环、字段映射配置与项目只读视图，分配和排期在后续阶段建设。',
     title: '项目评审组织',
   },
   {

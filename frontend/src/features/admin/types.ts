@@ -137,3 +137,4 @@ export type ReviewSchemeFormInput = {
 
 export * from './types/users';
 export * from './types/project-imports';
+export * from './types/project-import-field-mappings';

@@ -59,6 +59,13 @@
 | `confirmProjectImportRow` | `POST /admin/project-imports/:id/rows/:rowId/confirm` | `ProjectImportRow`；仅 `importable` 行可确认 | `/admin/project-imports/[jobId]` |
 | `confirmProjectImportJob` | `POST /admin/project-imports/:id/confirm` | `{ successCount, failedCount, skippedCount }`；只处理所有 `importable` 行 | `/admin/project-imports/[jobId]` |
 | `skipProjectImportRow` | `POST /admin/project-imports/:id/rows/:rowId/skip` | `ProjectImportRow`；`confirmed` 行会返回 409 | `/admin/project-imports/[jobId]` |
+| `listProjectImportStandardFields` | `GET /admin/project-import-field-mappings/standard-fields` | `{ items }`；admin 权限；标准字段、中文名、必填和默认内置别名 | `/admin/project-import-field-mappings` |
+| `listProjectImportFieldMappings` | `GET /admin/project-import-field-mappings` | `{ items }`；admin 权限；支持 `keyword/isActive`；返回所有标准字段配置视图，未配置字段 `effectiveAliases=defaultAliases` | `/admin/project-import-field-mappings` |
+| `getProjectImportFieldMapping` | `GET /admin/project-import-field-mappings/:standardField` | 单个 `ProjectImportFieldMappingView`；admin 权限；非法标准字段返回 400 | `/admin/project-import-field-mappings` |
+| `upsertProjectImportFieldMapping` | `PUT /admin/project-import-field-mappings/:standardField` | 单个 `ProjectImportFieldMappingView`；admin 权限；创建或覆盖 `aliases/isActive/description`；JSON 请求，不使用 FormData | `/admin/project-import-field-mappings` |
+| `updateProjectImportFieldMapping` | `PATCH /admin/project-import-field-mappings/:standardField` | 单个 `ProjectImportFieldMappingView`；admin 权限；部分更新已有配置；配置不存在返回 404；JSON 请求，不使用 FormData | `/admin/project-import-field-mappings` |
+| `deleteProjectImportFieldMapping` | `DELETE /admin/project-import-field-mappings/:standardField` | `{ success: boolean }`；admin 权限；删除自定义配置后标准字段仍保留并回退默认别名 | `/admin/project-import-field-mappings` |
+| `resetProjectImportFieldMappingDefaults` | `POST /admin/project-import-field-mappings/:standardField/reset-defaults` | 单个 `ProjectImportFieldMappingView`；admin 权限；创建或覆盖配置，使自定义别名等于默认别名并启用 | `/admin/project-import-field-mappings` |
 
 ## 4. 错误处理
 
@@ -83,6 +90,10 @@
 - 项目导入任务状态、行状态和 issue code 通过 `frontend/src/lib/labels/project-import-labels.ts` 中文化展示；请求仍提交后端英文枚举值
 - 项目导入详情页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为修正选项；行政区划只读取 `treeType=administrative_division`
 - 项目导入行修正允许通过 `createOrganization` 创建新承担单位，通过 `createOwnerUser` 创建新项目负责人用户；不在本页面创建项目类型、学科、受理处室或项目状态
+- 字段映射配置页通过 `frontend/src/lib/labels/project-import-field-mapping-labels.ts` 中文化必填、配置状态、启用状态和 fallback 说明
+- 字段映射配置页只使用 JSON 请求，不使用 FormData；`isActive=''` 和空 keyword 不提交 query
+- 字段映射标准字段由后端标准字段清单 / 配置视图返回，前端不允许新增、删除或重命名标准字段
+- 字段映射停用和删除自定义配置均不是禁用标准字段，而是回退系统默认别名；reset-defaults 是创建或覆盖配置，使自定义别名等于默认别名
 
 ## 5. 当前未对接的后端接口
 
