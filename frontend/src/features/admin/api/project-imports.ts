@@ -2,6 +2,7 @@ import { apiRequest } from '@/src/lib/api/client';
 import type { PaginatedResponse } from '@/src/lib/api/types';
 import type {
   BulkConfirmProjectImportResponse,
+  DeleteProjectImportJobResponse,
   ListProjectImportJobsParams,
   ListProjectImportRowsParams,
   ProjectImportJob,
@@ -38,6 +39,15 @@ export function getProjectImportJob(id: string) {
   return apiRequest<ProjectImportJob>(`/admin/project-imports/${id}`, {
     method: 'GET',
   });
+}
+
+export function deleteProjectImportJob(id: string) {
+  return apiRequest<DeleteProjectImportJobResponse>(
+    `/admin/project-imports/${id}`,
+    {
+      method: 'DELETE',
+    },
+  );
 }
 
 export function listProjectImportRows(

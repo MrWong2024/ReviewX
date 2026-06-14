@@ -54,6 +54,7 @@
 | `uploadProjectImport` | `POST /admin/project-imports/upload` | `ProjectImportJob`；上传使用 `FormData`，字段名固定为 `file` 和 `batchId`，不手动设置 `Content-Type` | `/admin/project-imports` |
 | `listProjectImportJobs` | `GET /admin/project-imports` | 分页对象；支持 `page/pageSize/status/batchId/keyword` | `/admin/project-imports` |
 | `getProjectImportJob` | `GET /admin/project-imports/:id` | `ProjectImportJob`；不内联全部 rows | `/admin/project-imports/[jobId]` |
+| `deleteProjectImportJob` | `DELETE /admin/project-imports/:id` | `{ success, deletedJobId, deletedRows }`；admin 权限；只删除导入任务和行级解析记录，不删除正式项目；`parsing` 或已有 confirmed 行返回 `409` | `/admin/project-imports` |
 | `listProjectImportRows` | `GET /admin/project-imports/:id/rows` | 分页对象；支持 `page/pageSize/status/keyword` | `/admin/project-imports/[jobId]` |
 | `updateProjectImportRow` | `PATCH /admin/project-imports/:id/rows/:rowId` | `ProjectImportRow`；提交 `normalized/resolved/createOrganization/createOwnerUser` | `/admin/project-imports/[jobId]` |
 | `confirmProjectImportRow` | `POST /admin/project-imports/:id/rows/:rowId/confirm` | `ProjectImportRow`；仅 `importable` 行可确认 | `/admin/project-imports/[jobId]` |
@@ -90,6 +91,7 @@
 - 项目导入任务状态、行状态和 issue code 通过 `frontend/src/lib/labels/project-import-labels.ts` 中文化展示；请求仍提交后端英文枚举值
 - 项目导入详情页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为修正选项；行政区划只读取 `treeType=administrative_division`
 - 项目导入行修正允许通过 `createOrganization` 创建新承担单位，通过 `createOwnerUser` 创建新项目负责人用户；不在本页面创建项目类型、学科、受理处室或项目状态
+- 项目导入任务删除入口只在列表页提供；前端对 `confirmedRows > 0` 的任务禁用删除按钮，后端仍以 `409` 做最终限制
 - 字段映射配置页通过 `frontend/src/lib/labels/project-import-field-mapping-labels.ts` 中文化必填、配置状态、启用状态和 fallback 说明
 - 字段映射配置页只使用 JSON 请求，不使用 FormData；`isActive=''` 和空 keyword 不提交 query
 - 字段映射标准字段由后端标准字段清单 / 配置视图返回，前端不允许新增、删除或重命名标准字段

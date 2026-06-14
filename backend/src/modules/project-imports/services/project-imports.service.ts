@@ -97,6 +97,12 @@ export type BulkConfirmProjectImportResponse = {
   skippedCount: number;
 };
 
+export type DeleteProjectImportJobResponse = {
+  success: true;
+  deletedJobId: string;
+  deletedRows: number;
+};
+
 type TimestampFields = {
   createdAt: Date;
   updatedAt: Date;
@@ -282,6 +288,49 @@ export class ProjectImportsService {
   async findJobById(id: string): Promise<ProjectImportJobResponse> {
     const job = await this.findJobLeanById(id);
     return this.toJobResponse(job);
+  }
+
+  async deleteJob(id: string): Promise<DeleteProjectImportJobResponse> {
+    const objectId = toObjectId(id);
+    const job = await this.jobModel
+      .findById(objectId)
+      .lean<ProjectImportJobLean | null>()
+      .exec();
+
+    if (!job) {
+      throw new NotFoundException('Project import job not found');
+    }
+
+    if (job.status === 'parsing') {
+      throw new ConflictException('导入任务仍在解析中，不能删除');
+    }
+
+    if (job.confirmedRows > 0) {
+      throw new ConflictException(
+        '该导入任务已有项目确认入库，不能删除导入记录',
+      );
+    }
+
+    const confirmedRowExists = await this.rowModel
+      .exists({ jobId: objectId, status: 'confirmed' })
+      .exec();
+
+    if (confirmedRowExists) {
+      throw new ConflictException(
+        '该导入任务已有项目确认入库，不能删除导入记录',
+      );
+    }
+
+    const deleteRowsResult = await this.rowModel
+      .deleteMany({ jobId: objectId })
+      .exec();
+    await this.jobModel.findByIdAndDelete(objectId).exec();
+
+    return {
+      success: true,
+      deletedJobId: id,
+      deletedRows: deleteRowsResult.deletedCount ?? 0,
+    };
   }
 
   async listRows(

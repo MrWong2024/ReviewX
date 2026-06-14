@@ -386,7 +386,7 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
         );
         setNotice(
           updated.status === 'confirmed'
-            ? `第 ${updated.rowNumber} 行已确认入库。`
+            ? `Excel 第 ${updated.rowNumber} 行已确认入库。`
             : `确认请求已返回，当前行状态为 ${getProjectImportRowStatusLabel(updated.status)}，请检查问题列表。`,
         );
         if (selectedRow?.id === updated.id) {
@@ -394,7 +394,9 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
         }
       } else {
         const updated = await skipProjectImportRow(jobId, confirmAction.row.id);
-        setNotice(`第 ${updated.rowNumber} 行已跳过，本阶段不支持恢复。`);
+        setNotice(
+          `Excel 第 ${updated.rowNumber} 行已跳过，本阶段不支持恢复。`,
+        );
         if (selectedRow?.id === updated.id) {
           setSelectedRow(updated);
         }
@@ -413,7 +415,7 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
     {
       key: 'rowNumber',
       render: (item) => item.rowNumber,
-      title: '行号',
+      title: 'Excel 行号',
     },
     {
       key: 'project',
@@ -762,10 +764,10 @@ function getConfirmDescription(action: ConfirmAction | null): string {
   }
 
   if (action.type === 'skip-row') {
-    return `确认跳过第 ${action.row.rowNumber} 行？跳过后本阶段不支持恢复。`;
+    return `确认跳过 Excel 第 ${action.row.rowNumber} 行？跳过后本阶段不支持恢复。`;
   }
 
-  return `确认将第 ${action.row.rowNumber} 行入库？确认后会创建或更新正式项目。`;
+  return `确认将 Excel 第 ${action.row.rowNumber} 行入库？确认后会创建或更新正式项目。`;
 }
 
 function getProjectImportErrorMessage(error: unknown, fallback: string): string {

@@ -94,6 +94,12 @@ export type BulkConfirmProjectImportResponse = {
   skippedCount: number;
 };
 
+export type DeleteProjectImportJobResponse = {
+  success: boolean;
+  deletedJobId: string;
+  deletedRows: number;
+};
+
 export type ListProjectImportJobsParams = {
   batchId?: string;
   keyword?: string;

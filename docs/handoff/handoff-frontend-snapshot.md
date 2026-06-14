@@ -85,8 +85,8 @@ frontend/
 - `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用
 - `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用
 - `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
-- `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选和分页
-- `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认
+- `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选、分页和未确认导入任务删除
+- `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、Excel 行号行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认
 - `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
 - `/admin/projects`：管理员项目只读分页列表、关键词和低成本过滤、基础名称映射，视觉风格已同步
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
@@ -122,6 +122,8 @@ frontend/
 - 管理员用户管理页面已对接 `/admin/users` 系列接口；创建和重置密码时密码留空不提交，由后端默认手机号；编辑用户时手机号只读且不提交 `phone/password`
 - 项目导入页面已对接 `/admin/project-imports*` 系列接口；上传使用 `FormData`，字段名为 `file` 和 `batchId`，不手动设置 `Content-Type`
 - 项目导入任务状态、行状态和 issue code 均中文化展示，请求仍使用英文枚举值
+- 项目导入任务列表支持删除未确认导入任务；删除只调用 `DELETE /admin/project-imports/:id` 清理导入任务和行级解析记录，不删除正式项目，`confirmedRows > 0` 的任务在前端禁用删除
+- 项目导入详情页将后端 `rowNumber` 展示为“Excel 行号”；该值是 Excel 原始行号，第一条数据通常从 2 开始
 - 项目导入修正页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为选择项；行政区划只读取 `treeType=administrative_division`
 - 项目导入行修正支持选择已有主数据、已有单位、已有项目负责人；只允许通过 `createOrganization` 创建新单位，通过 `createOwnerUser` 创建新项目负责人用户
 - 项目导入页面不创建项目类型、学科、受理处室或项目状态；缺失时提示先到对应主数据页面维护

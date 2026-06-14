@@ -1,5 +1,16 @@
 # ReviewX 前端变更记录
 
+## 2026-06-15
+
+### ReviewX 小修：项目导入行号展示优化与导入任务删除能力
+
+- `/admin/project-imports` 任务列表新增删除按钮和二次确认，确认文案说明只删除导入任务与行级解析记录、不删除已入库项目、已有确认入库任务不能删除
+- 删除成功后提示“已删除导入任务，并清理 X 条行记录。”并刷新任务列表；当前页删除后为空且存在上一页时回退上一页
+- `confirmedRows > 0` 的导入任务删除按钮置灰并提示“已有确认入库项目，不能删除导入任务”；后端 409 / 404 / 400 / 500 均映射为友好错误
+- `/admin/project-imports/[jobId]` 行列表列名由“行号”调整为“Excel 行号”，确认/跳过弹窗、成功提示和行修正弹窗标题统一使用“Excel 第 X 行”
+- 新增 `deleteProjectImportJob` 前端 API 和 `DeleteProjectImportJobResponse` 类型；统一出口继续通过 wildcard export 暴露
+- 本次未修改字段映射配置页面，未新增依赖，未新增环境变量，未修改 `frontend/package.json` 或锁文件
+
 ## 2026-06-14
 
 ### ReviewX 第二阶段补丁二：Excel 字段映射配置前端接入

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -58,6 +59,11 @@ export class ProjectImportsController {
   @Get(':id')
   findById(@Param('id') id: string) {
     return this.projectImportsService.findJobById(id);
+  }
+
+  @Delete(':id')
+  deleteJob(@Param('id') id: string) {
+    return this.projectImportsService.deleteJob(id);
   }
 
   @Get(':id/rows')

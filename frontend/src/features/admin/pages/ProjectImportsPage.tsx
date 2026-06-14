@@ -6,6 +6,7 @@ import { Badge } from '@/src/components/feedback/Badge';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
+import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
 import { Input } from '@/src/components/ui/Input';
 import { Pagination } from '@/src/components/ui/Pagination';
@@ -18,6 +19,7 @@ import {
   PROJECT_IMPORT_JOB_STATUS_OPTIONS,
 } from '@/src/lib/labels/project-import-labels';
 import {
+  deleteProjectImportJob,
   listBatches,
   listProjectImportJobs,
   uploadProjectImport,
@@ -45,6 +47,10 @@ const EMPTY_FILTERS: ProjectImportFilters = {
 export function ProjectImportsPage() {
   const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectImportJob | null>(
+    null,
+  );
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -150,6 +156,32 @@ export function ProjectImportsPage() {
     }
   }
 
+  async function handleDeleteJob() {
+    if (!deleteTarget) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const result = await deleteProjectImportJob(deleteTarget.id);
+      const nextPage = items.length === 1 && page > 1 ? page - 1 : page;
+
+      setNotice(
+        `已删除导入任务，并清理 ${result.deletedRows} 条行记录。`,
+      );
+      setDeleteTarget(null);
+      await loadJobs(nextPage, filters);
+    } catch (deleteFailure) {
+      setError(getDeleteProjectImportErrorMessage(deleteFailure));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const columns: DataColumn<ProjectImportJob>[] = [
     {
       key: 'originalFilename',
@@ -208,6 +240,19 @@ export function ProjectImportsPage() {
             variant="ghost"
           >
             查看详情
+          </Button>
+          <Button
+            disabled={deleting || item.confirmedRows > 0}
+            onClick={() => setDeleteTarget(item)}
+            size="sm"
+            title={
+              item.confirmedRows > 0
+                ? '已有确认入库项目，不能删除导入任务'
+                : '删除导入任务'
+            }
+            variant="danger"
+          >
+            删除
           </Button>
         </div>
       ),
@@ -346,6 +391,18 @@ export function ProjectImportsPage() {
           </>
         )}
       </section>
+
+      <ConfirmDialog
+        confirmLabel="删除"
+        description={getDeleteConfirmDescription(deleteTarget)}
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          void handleDeleteJob();
+        }}
+        open={Boolean(deleteTarget)}
+        title="删除导入任务"
+      />
     </>
   );
 }
@@ -386,6 +443,38 @@ function getProjectImportErrorMessage(error: unknown, fallback: string): string 
   }
 
   return `${fallback}：${getErrorMessage(error)}`;
+}
+
+function getDeleteProjectImportErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    if (error.status === 400) {
+      return '删除导入任务失败：请求参数不正确，请刷新列表后重试。';
+    }
+
+    if (error.status === 404) {
+      return '导入任务已不存在，请刷新列表。';
+    }
+
+    if (error.status === 409) {
+      return error.message.includes('解析')
+        ? '导入任务仍在解析中，不能删除。'
+        : '该导入任务已有项目确认入库，不能删除导入记录。';
+    }
+
+    if (error.status >= 500) {
+      return '删除导入任务失败：服务异常，请稍后重试。';
+    }
+  }
+
+  return `删除导入任务失败：${getErrorMessage(error)}`;
+}
+
+function getDeleteConfirmDescription(job: ProjectImportJob | null): string {
+  if (!job) {
+    return '';
+  }
+
+  return `确认删除导入任务“${job.originalFilename}”？仅删除本次导入任务和行级解析记录，不会删除已入库项目。已有确认入库项目的导入任务不能删除。`;
 }
 
 function appendOriginalMessage(message: string): string {

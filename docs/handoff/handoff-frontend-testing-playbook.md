@@ -164,18 +164,22 @@ npm run build
 4. 选择批次并上传合法 Excel，上传成功后任务列表刷新
 5. 任务列表可按批次、任务状态和 keyword 筛选，可分页
 6. 点击任务进入 `/admin/project-imports/[jobId]`
-7. 查看任务基础信息、统计卡片、fieldMapping 和行列表
+7. 查看任务基础信息、统计卡片、fieldMapping 和行列表，行列表列名应显示“Excel 行号”，第一条数据通常为 Excel 行号 2
 8. 行列表可按状态和 keyword 筛选，可分页
 9. 打开一条 `pending_confirmation` 行，确认 raw / normalized / resolved / issues 可读
 10. issues 中文提示可读；如有 candidates，可点击“采用此候选”填入对应 resolved 字段
 11. 选择已有项目类型、项目状态、项目负责人、单位、学科、受理处室后保存，行重新评估
 12. 勾选“创建新承担单位”，填写名称、联系人、联系电话、行政区划后保存，后端通过 `createOrganization` 创建并重新匹配
 13. 勾选“创建新项目负责人用户”，填写姓名、手机号、关联单位、关联学科后保存，后端通过 `createOwnerUser` 创建并重新匹配
-14. 对一条 `importable` 行点击“确认入库”，二次确认后行变为 `confirmed`，任务统计刷新
-15. 对一条 `pending_confirmation` / `failed` / `importable` 行点击“跳过”，二次确认后行变为 `skipped`，任务统计刷新
+14. 对一条 `importable` 行点击“确认入库”，二次确认文案使用“Excel 第 X 行”，确认后行变为 `confirmed`，任务统计刷新
+15. 对一条 `pending_confirmation` / `failed` / `importable` 行点击“跳过”，二次确认文案使用“Excel 第 X 行”，确认后行变为 `skipped`，任务统计刷新
 16. 点击“批量确认可导入行”，二次确认提示只处理 `importable` 行，完成后显示 successCount / failedCount / skippedCount 并刷新统计和行列表
 17. 到 `/admin/projects` 查看导入或更新后的项目
-18. 后端停止、401、403、409、400、500 等错误态应显示友好错误，不应白屏
+18. 上传一个新的 Excel 且不确认入库，回到任务列表点击“删除”，二次确认应说明只删除导入任务和行级解析记录、不删除已入库项目、已有确认入库任务不能删除
+19. 确认删除后应提示“已删除导入任务，并清理 X 条行记录。”，任务列表刷新且该任务不再出现，直接访问该任务详情应显示不存在或加载失败
+20. 上传并至少确认一行入库后回到任务列表，删除按钮应禁用；如绕过前端调用删除接口，后端 409 应展示“该导入任务已有项目确认入库，不能删除导入记录。”
+21. 删除未确认导入任务后，到 `/admin/projects` 确认正式项目没有被误删
+22. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
 ## 10. Excel 字段映射配置人工验证
 

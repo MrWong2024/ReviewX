@@ -119,7 +119,12 @@ describe('Project import admin APIs (e2e)', () => {
   });
 
   it('requires login and admin role for project import APIs', async () => {
+    const deleteTargetId = new Types.ObjectId().toString();
+
     await request(httpServer).get('/admin/project-imports').expect(401);
+    await request(httpServer)
+      .delete(`/admin/project-imports/${deleteTargetId}`)
+      .expect(401);
 
     await createUser({
       phone: '+8613810000001',
@@ -130,6 +135,10 @@ describe('Project import admin APIs (e2e)', () => {
 
     await request(httpServer)
       .get('/admin/project-imports')
+      .set('Cookie', nonAdminCookie)
+      .expect(403);
+    await request(httpServer)
+      .delete(`/admin/project-imports/${deleteTargetId}`)
       .set('Cookie', nonAdminCookie)
       .expect(403);
 
@@ -151,6 +160,95 @@ describe('Project import admin APIs (e2e)', () => {
       pageSize: 100,
       total: 0,
     });
+  });
+
+  it('allows admin to delete unconfirmed import jobs and clears rows', async () => {
+    await createUser({
+      phone: '+8613810000003',
+      name: 'Admin User',
+      roles: ['admin'],
+    });
+    const adminCookie = await login('+8613810000003');
+    const batchId = await createBatch('2026');
+
+    const upload = await uploadWorkbook(adminCookie, batchId, [
+      ['项目编号', '项目名称', '项目承担单位'],
+      ['P-DELETE-001', '可删除任务', '不存在单位'],
+    ]);
+    const jobId = getString(upload, 'id');
+
+    const deleteResponse = await request(httpServer)
+      .delete(`/admin/project-imports/${jobId}`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    expect(getJsonBody(deleteResponse)).toEqual({
+      success: true,
+      deletedJobId: jobId,
+      deletedRows: 1,
+    });
+    await expect(importJobModel.exists({ _id: jobId }).exec()).resolves.toBe(
+      null,
+    );
+    await expect(importRowModel.countDocuments({ jobId }).exec()).resolves.toBe(
+      0,
+    );
+
+    const jobsResponse = await request(httpServer)
+      .get('/admin/project-imports')
+      .set('Cookie', adminCookie)
+      .expect(200);
+    expect(getJsonBody(jobsResponse)).toMatchObject({ items: [], total: 0 });
+    await request(httpServer)
+      .get(`/admin/project-imports/${jobId}/rows`)
+      .set('Cookie', adminCookie)
+      .expect(404);
+  });
+
+  it('rejects deleting jobs that already confirmed rows and keeps projects', async () => {
+    await createUser({
+      phone: '+8613810000004',
+      name: 'Admin User',
+      roles: ['admin'],
+    });
+    const adminCookie = await login('+8613810000004');
+    const seed = await seedMasterData();
+    const upload = await uploadWorkbook(adminCookie, seed.batchId, [
+      ['项目编号', '项目名称', '项目负责人', '项目负责人手机', '项目承担单位'],
+      [
+        'P-CONFIRMED-DELETE-001',
+        '已确认任务不可删',
+        '张三',
+        '13810000001',
+        '重庆测试单位',
+      ],
+    ]);
+    const jobId = getString(upload, 'id');
+    const row = await getFirstImportRow(adminCookie, jobId);
+
+    const confirmed = await request(httpServer)
+      .post(
+        `/admin/project-imports/${jobId}/rows/${getString(row, 'id')}/confirm`,
+      )
+      .set('Cookie', adminCookie)
+      .expect(201);
+    const confirmedBody = getJsonBody(confirmed);
+
+    const deleteResponse = await request(httpServer)
+      .delete(`/admin/project-imports/${jobId}`)
+      .set('Cookie', adminCookie)
+      .expect(409);
+    expect(getJsonBody(deleteResponse)).toMatchObject({
+      message: '该导入任务已有项目确认入库，不能删除导入记录',
+    });
+    await expect(
+      importJobModel.exists({ _id: jobId }).exec(),
+    ).resolves.not.toBe(null);
+    await expect(
+      projectModel
+        .exists({ _id: getString(confirmedBody, 'projectId') })
+        .exec(),
+    ).resolves.not.toBe(null);
   });
 
   it('rejects non-Excel files, missing required headers, and empty workbooks', async () => {

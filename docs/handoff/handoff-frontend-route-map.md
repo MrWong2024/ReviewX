@@ -14,8 +14,8 @@
 | `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，缩进树展示和子节点新增 |
 | `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理，树形缩进行政区划选择 |
 | `/admin/review-schemes` | `frontend/app/admin/review-schemes/page.tsx` | 需要登录 + admin 角色 | implemented | 评审方案管理，评分项稳定 clientId 防失焦 |
-| `/admin/project-imports` | `frontend/app/admin/project-imports/page.tsx` | 需要登录 + admin 角色 | implemented | 项目 Excel 导入任务列表与上传入口 |
-| `/admin/project-imports/[jobId]` | `frontend/app/admin/project-imports/[jobId]/page.tsx` | 需要登录 + admin 角色 | implemented | 项目导入任务详情、行列表、人工修正、确认和跳过 |
+| `/admin/project-imports` | `frontend/app/admin/project-imports/page.tsx` | 需要登录 + admin 角色 | implemented | 项目 Excel 导入任务列表、上传入口和未确认导入任务删除入口 |
+| `/admin/project-imports/[jobId]` | `frontend/app/admin/project-imports/[jobId]/page.tsx` | 需要登录 + admin 角色 | implemented | 项目导入任务详情、Excel 行号展示、行列表、人工修正、确认和跳过 |
 | `/admin/project-import-field-mappings` | `frontend/app/admin/project-import-field-mappings/page.tsx` | 需要登录 + admin 角色 | implemented | Excel 字段映射配置，维护标准字段自定义别名、启停、删除和 reset-defaults fallback |
 | `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目只读列表 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
