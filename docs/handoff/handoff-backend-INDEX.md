@@ -32,6 +32,7 @@ ReviewX 科评星：科技项目评审协同与监管平台
 
 ## 5. 当前后端 handoff 文档列表
 
+- `handoff-roadmap.md`：全局路线图，用于跨前后端阶段承接，建议新会话先读
 - `handoff-backend-snapshot.md`：后端当前事实快照
 - `handoff-backend-api-map.md`：后端 API 地图
 - `handoff-backend-dto-cheatsheet.md`：DTO 与请求响应速查

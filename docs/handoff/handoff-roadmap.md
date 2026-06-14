@@ -1,0 +1,363 @@
+# ReviewX / 科评星 handoff 路线图
+
+## 1. 文档定位
+
+- 本文档是 ReviewX / 科评星跨会话、跨阶段的 handoff 路线图。
+- 本文档不是正式产品方案，也不是客户文档。
+- 本文档用于 GPT / Codex 接续开发时快速理解当前工程状态、未完成能力和建议后续阶段。
+- 本文档是活文档。每次阶段性 Codex 执行后，如果阶段状态、接口口径、阶段顺序或未完成清单发生变化，应同步更新本文档。
+- 本文档不替代 backend / frontend handoff 细节。接口、DTO、组件、路由、验证和测试细节仍以对应 handoff 文档为准。
+
+## 2. 当前基线
+
+- 当前基线 Commit：`7a3a323`
+- 当前基线含义：前端 `/admin/users` 管理员用户管理页面已完成。
+- 更新时间：随本次文档补充任务更新。
+
+## 3. 项目目标概述
+
+ReviewX / 科评星是“科技项目评审协同与监管平台”，核心业务闭环如下：
+
+```text
+管理员维护主数据和用户
+→ Excel 导入项目并处理待确认数据
+→ 分配评审负责人和评审方案
+→ 评审负责人安排评审时间地点和专家
+→ 项目负责人填写后续推进需求并上传材料
+→ 专家查看材料并评分
+→ 评审负责人查看专家评分、退回、汇总并确认合议
+→ 项目负责人查看合议结果并申诉
+→ 评审负责人或管理员处理申诉
+→ 等级变更留痕
+→ 甲方通过看板监管整体评审进展和结果
+```
+
+## 4. 已完成能力
+
+### 4.1 后端已完成
+
+- 认证与 Session：
+  - 手机号 + 密码登录
+  - HttpOnly Cookie Session
+  - `/auth/me`
+  - `reviewx_session`
+  - 管理员权限 guard
+- 用户基础与管理员用户 API：
+  - `roles`
+  - `isActive`
+  - `organizationIds`
+  - `disciplineIds`
+  - `mustChangePassword`
+  - `/admin/users`
+  - 创建用户默认密码为手机号
+  - 重置密码默认手机号
+  - `passwordHash` 不返回
+  - 管理员自我保护与最后启用 admin 保护
+- 主数据：
+  - `batches`
+  - `dictionaries`
+  - `tree-dictionaries`
+  - `organizations`
+  - `review-schemes`
+  - `projects`
+- 行政区划口径：
+  - `treeType` 统一为 `administrative_division`
+  - `Organization.regionId` 字段名保留
+  - 历史 `region` 口径不再使用
+- Excel 导入后端：
+  - `ProjectImportJob`
+  - `ProjectImportRow`
+  - 上传解析
+  - 自动匹配
+  - 待确认
+  - 行修正
+  - 确认入库
+- 评审分配后端：
+  - 管理员分配 `reviewManagerId` / `reviewSchemeId`
+  - `reviewSchemeSnapshot`
+  - 评审安排
+  - 专家候选
+  - 单位回避
+  - 专家分配
+- 材料后端：
+  - Storage 抽象层
+  - fake / oss
+  - `ProjectMaterial`
+  - 项目负责人上传
+  - 专家 / 评审负责人 / admin 查看与下载 URL
+- 评分与合议后端：
+  - `ExpertReview`
+  - `ConsensusReview`
+  - 专家草稿 / 提交
+  - 条件必填建议
+  - 退回重提
+  - 汇总
+  - `rule_based` 合议草稿
+  - 人工确认最终等级
+- 申诉后端：
+  - `ProjectAppeal`
+  - `ProjectAppealAttachment`
+  - `ProjectLevelChangeLog`
+  - 最多 3 次申诉
+  - 未处理互斥
+  - 申诉附件
+  - 处理申诉
+  - 等级变更留痕
+- OSS 配置：
+  - `STORAGE_DRIVER=fake|oss`
+  - development / test 默认 fake
+  - production 默认 oss
+  - internal endpoint / public endpoint 分工
+- 索引同步：
+  - `sync-indexes`
+  - production confirm 保护
+
+### 4.2 前端已完成
+
+- Next.js App Router + TypeScript
+- Tailwind CSS 4
+- 登录页
+- workspace
+- `AdminShell`
+- UI 基线：
+  - 政务可信
+  - 科技评审
+  - AI 协同
+  - 轻未来感
+- 基础 UI 组件：
+  - `Button` size `sm/md/lg`
+  - `Input`
+  - `Select`
+  - `Textarea`
+  - `Modal`
+  - `ConfirmDialog`
+  - `DataTable`
+  - `Pagination`
+  - `Badge`
+  - `EmptyState`
+  - `ErrorAlert`
+  - `LoadingState`
+  - `MultiSelect`
+  - `TreeMultiSelect`
+- 管理员基础页面：
+  - `batches`
+  - `dictionaries`
+  - `tree-dictionaries`
+  - `organizations`
+  - `review-schemes`
+  - `projects` 只读列表
+  - `users`
+- 已修复：
+  - 字典 `dictType` 中文化和自定义类型保存
+  - `code` 显示为“编码”
+  - 树形字典缩进展示
+  - 单位行政区划 `administrative_division` 选择
+  - 评审方案评分项输入失焦
+  - 表单控件高度 / 对齐
+  - 行内按钮尺寸
+- 用户管理页面：
+  - `/admin/users`
+  - 列表、搜索、角色筛选、状态筛选、分页
+  - 新增 / 编辑用户
+  - 启用 / 停用
+  - 重置密码
+  - 角色多选
+  - 单位多选
+  - 学科树形多选
+
+### 4.3 工程治理已完成
+
+- `docs/handoff` backend / frontend 文档体系
+- Codex 指令规范
+- backend / frontend 架构规范
+- `e2e-testing` 文档
+- handoff 持续更新机制
+
+## 5. 未完成能力
+
+### 5.1 前端未完成
+
+- 管理员 Excel 导入页面
+- 管理员导入任务列表
+- 导入行待确认、修正、跳过、确认入库页面
+- 管理员项目分配页面：
+  - 设置评审负责人
+  - 设置评审方案
+  - 批量分配
+- 评审安排页面：
+  - `reviewTime`
+  - `reviewLocation`
+  - `meetingUrl`
+- 专家候选和分配页面：
+  - 候选专家
+  - 回避提示
+  - 追加 / 替换 / 删除专家
+  - 批量分配专家
+- 项目负责人工作台：
+  - 项目列表
+  - 项目详情
+  - 后续推进需求
+  - 材料上传 / 列表 / 下载 / 删除
+- 专家工作台：
+  - 评审任务列表
+  - 项目详情
+  - 材料查看
+  - 评分草稿
+  - 提交评分
+  - 退回后重提
+- 评审负责人工作台：
+  - 负责项目列表
+  - 专家评分查看
+  - 退回专家评分
+  - 汇总查看
+  - 生成 `rule_based` 合议草稿
+  - 人工确认合议和最终等级
+- 申诉前端：
+  - 项目负责人查看合议
+  - 提交申诉
+  - 申诉附件
+  - 查看申诉状态
+  - 评审负责人 / admin 处理申诉
+  - 等级变更记录
+- 甲方看板前端尚未实现
+- 腾讯会议监管前端
+- 文件预览
+- 真实 AI 汇总交互
+- 用户自助改密
+- 忘记密码 / 短信验证码
+- 用户批量导入
+- 专家库批量导入
+- 权限矩阵配置
+
+### 5.2 后端未完成
+
+- 甲方看板统计 API
+- 甲方看板权限与数据口径
+- 腾讯会议直播 / 推流 / 回看 / 会议 API 集成
+- 真实 AI 汇总接口
+- 文件预览 / 在线转换
+- 用户自助改密
+- 忘记密码 / 短信验证码
+- 用户批量导入
+- 专家库批量导入
+- 操作审计日志，如后续需要
+- 更细粒度权限矩阵，如后续需要
+
+## 6. 建议后续阶段顺序
+
+以下是建议顺序，不是固定不可调整的计划。后续应随执行结果、演示优先级、甲方监管需求和接口变化滚动调整。
+
+1. 前端阶段 A：管理员 Excel 导入与待确认处理
+   - 对接后端 `project-imports`
+   - 上传 Excel
+   - 任务列表
+   - 行列表
+   - 待确认修正
+   - 创建 / 选择单位和项目负责人
+   - 跳过 / 确认单行
+   - 批量确认导入
+
+2. 前端阶段 B：管理员项目分配与评审组织
+   - 项目列表增强
+   - 设置评审负责人
+   - 设置评审方案
+   - 评审安排
+   - 专家候选
+   - 专家分配
+   - 批量分配
+
+3. 前端阶段 C：项目负责人工作台与材料管理
+   - 项目负责人项目列表 / 详情
+   - 后续推进需求
+   - 材料上传
+   - 材料列表
+   - 下载 URL
+   - 软删除
+
+4. 前端阶段 D：专家工作台与评分
+   - 专家任务列表
+   - 项目和材料查看
+   - 评分草稿
+   - 条件必填建议
+   - 提交评分
+   - 退回后修改重提
+
+5. 前端阶段 E：评审负责人合议工作台
+   - 负责项目列表
+   - 专家评分列表
+   - 专家评分详情
+   - 退回
+   - 汇总
+   - 生成合议草稿
+   - 确认合议和最终等级
+
+6. 前端阶段 F：申诉闭环
+   - 项目负责人查看合议
+   - 提交申诉和附件
+   - 查看申诉状态
+   - 评审负责人 / admin 查看和处理申诉
+   - 等级变更历史
+
+7. 后端阶段 G：甲方看板统计 API
+   - 甲方可见数据范围
+   - 批次 / 类型 / 区域 / 状态 / 等级 / 进度统计
+   - 评审进度
+   - 申诉统计
+   - 专家评分完成率
+   - 材料上传完成情况
+   - `meetingUrl` / 监管入口数据
+
+8. 前端阶段 H：甲方看板
+   - 看板首页
+   - 统计卡片
+   - 图表
+   - 项目列表钻取
+   - 评审现场 `meetingUrl` 入口
+   - 导出能力如需要
+
+9. 后续增强：
+   - 腾讯会议直播 / 推流 / 回看集成
+   - 真实 AI 汇总
+   - 文件预览
+   - 审计日志
+   - 用户自助改密 / 短信 / 批量导入
+   - 权限矩阵
+
+## 7. 当前建议下一步
+
+- 当前建议下一步是“前端阶段 A：管理员 Excel 导入与待确认处理”。
+- 如果用户要求先做演示或甲方监管，也可以调整为“甲方看板后端 API + 前端看板雏形”。
+- 若进入较大任务，建议新会话先阅读本路线图和相关 handoff，再拆分阶段执行。
+
+## 8. 暂缓事项
+
+- 腾讯会议直播 / 推流 / 回看 / 会议 API 集成暂缓；当前仅保存 `meetingUrl`。
+- 真实 AI 汇总暂缓；当前后端合议草稿是 `rule_based`。
+- 文件预览 / 在线转换暂缓；当前只提供短期下载 URL。
+- 操作审计日志暂缓，除非后续监管或合规需求明确。
+- 用户自助改密、忘记密码、短信验证码、用户批量导入、专家库批量导入和权限矩阵配置暂缓。
+
+## 9. 风险与待确认事项
+
+- `reviewx_test` 不应作为长期人工联调数据源；自动化测试可能清理 test 库。
+- 人工联调建议使用 `reviewx_dev`。
+- 甲方看板后端统计 API 尚未实现，不能直接做完整前端看板。
+- 甲方看板前端尚未实现。
+- 腾讯会议目前只保存 `meetingUrl`，未接腾讯会议 API、直播、推流或回看。
+- 真实 AI 汇总尚未实现，目前合议草稿是 `rule_based`。
+- 文件存储生产依赖 OSS 配置，development / test 默认 fake。
+- 用户数据、项目数据、评审数据目前还未做细粒度操作审计。
+- 后续前端阶段较大，建议继续分阶段，不要一次做完整业务闭环。
+
+## 10. 路线图维护规则
+
+- 每次 Codex 阶段任务完成后，如果以下内容变化，应更新本路线图：
+  - 当前基线 Commit
+  - 已完成能力
+  - 未完成能力
+  - 后续阶段顺序
+  - 新增重要接口 / 页面 / 模型
+  - 新增重要风险或待确认事项
+- 小 UI 修正不一定必须更新路线图，除非影响阶段状态或通用约束。
+- 路线图不替代 backend / frontend handoff 细节；接口、DTO、组件、测试细节仍以对应 handoff 为准。
+- 新会话应先读本路线图，再读 backend / frontend snapshot、api-map、dto-cheatsheet、component-map、testing-playbook；涉及路由、变更记录或后端服务职责时，再读 route-map、changelog、service-map、config-matrix 和 decisions。
