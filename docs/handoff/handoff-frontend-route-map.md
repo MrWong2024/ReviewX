@@ -14,6 +14,8 @@
 | `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，缩进树展示和子节点新增 |
 | `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理，树形缩进行政区划选择 |
 | `/admin/review-schemes` | `frontend/app/admin/review-schemes/page.tsx` | 需要登录 + admin 角色 | implemented | 评审方案管理，评分项稳定 clientId 防失焦 |
+| `/admin/project-imports` | `frontend/app/admin/project-imports/page.tsx` | 需要登录 + admin 角色 | implemented | 项目 Excel 导入任务列表与上传入口 |
+| `/admin/project-imports/[jobId]` | `frontend/app/admin/project-imports/[jobId]/page.tsx` | 需要登录 + admin 角色 | implemented | 项目导入任务详情、行列表、人工修正、确认和跳过 |
 | `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目只读列表 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
@@ -22,13 +24,12 @@
 - layout 文件：`frontend/app/admin/layout.tsx`
 - 壳组件：`frontend/src/components/layout/AdminShell.tsx`
 - 顶部栏显示平台名、当前用户、当前角色 Badge 和退出登录
-- 侧边栏提供管理员功能菜单，包含用户管理入口，采用深海军蓝 / 靛蓝渐变、轻科技纹理、胶囊选中态
+- 侧边栏提供管理员功能菜单，包含用户管理和项目导入入口，采用深海军蓝 / 靛蓝渐变、轻科技纹理、胶囊选中态
 - 守卫为 client component 守卫：
   - 未登录访问 `/admin/*`：跳转 `/login`
   - 已登录但无 admin 角色：显示 403 状态并提供返回工作台入口
 
 ## 3. 当前不包含的路由
 
-- 不包含 `/admin/project-imports`
 - 不包含用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置
 - 不包含专家分配、材料上传、专家评分、合议、申诉、甲方看板和腾讯会议相关页面

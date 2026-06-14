@@ -2,6 +2,24 @@
 
 ## 2026-06-14
 
+### ReviewX 前端第二阶段：管理员 Excel 导入与待确认处理
+
+- 新增 `/admin/project-imports` 页面，支持批次选择、Excel 文件选择、上传前校验、FormData 上传、上传成功提示和任务列表刷新
+- 新增 `/admin/project-imports/[jobId]` 页面，支持任务基础信息、统计、字段映射、行列表、状态筛选、keyword 搜索和分页
+- 新增 `frontend/src/features/admin/api/project-imports.ts`，封装 `uploadProjectImport`、`listProjectImportJobs`、`getProjectImportJob`、`listProjectImportRows`、`updateProjectImportRow`、`confirmProjectImportRow`、`confirmProjectImportJob`、`skipProjectImportRow`
+- 新增 `frontend/src/features/admin/types/project-imports.ts`，显式定义 Job/Row/Issue/Normalized/Resolved/Update DTO/BulkConfirm 等前端类型，不使用 `any` 逃避建模
+- 新增 `frontend/src/lib/labels/project-import-labels.ts`，中文化任务状态、行状态、issue code 和导入字段名；`existing_project_matched` 明确提示确认后将更新已有项目
+- 新增 `ProjectImportJobStats`、`ProjectImportIssueList`、`ProjectImportRowModal` 局部组件，用于统计展示、issue 候选项采用和行修正弹窗
+- 行修正弹窗展示 raw / normalized / resolved / issues，并支持选择已有项目类型、项目状态、项目负责人、承担单位、合作单位、学科、受理处室
+- 行修正弹窗支持通过 `createOrganization` 创建新承担单位，通过 `createOwnerUser` 创建新项目负责人用户
+- 单行确认仅对 `importable` 行开放；单行跳过仅对 `importable/pending_confirmation/failed` 行开放；`confirmed` 行不允许修正或跳过
+- 批量确认按钮仅在任务存在可导入行时可用，并二次确认“仅确认当前任务中所有可导入行，待确认、已跳过、已确认行会跳过”
+- 操作成功后刷新当前任务统计、当前行列表，并在创建单位/用户后刷新主数据选项
+- AdminShell 新增“项目导入”入口，`/admin` 概览页新增项目导入卡片
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未实现项目分配、专家分配、材料、评分、合议、申诉、甲方看板、腾讯会议、Excel 模板下载、Excel 导出、导入任务删除/取消或 skipped 行恢复
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### 管理员用户管理页面
 
 - 新增 `/admin/users` 页面和 AdminShell “用户管理”菜单入口

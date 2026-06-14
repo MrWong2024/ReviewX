@@ -46,6 +46,11 @@
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
 | `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 项目只读列表 |
 | `UsersPage` | `frontend/src/features/admin/pages/UsersPage.tsx` | 管理员用户管理，支持列表、筛选、分页、新增、编辑、启停和重置密码 |
+| `ProjectImportsPage` | `frontend/src/features/admin/pages/ProjectImportsPage.tsx` | 管理员 Excel 项目导入上传、任务筛选、任务列表和分页 |
+| `ProjectImportDetailPage` | `frontend/src/features/admin/pages/ProjectImportDetailPage.tsx` | 项目导入任务详情、行筛选、行列表、人工修正、单行确认/跳过和批量确认 |
+| `ProjectImportJobStats` | `frontend/src/features/admin/components/project-imports/ProjectImportJobStats.tsx` | 导入任务统计卡片 |
+| `ProjectImportIssueList` | `frontend/src/features/admin/components/project-imports/ProjectImportIssueList.tsx` | 导入行 issue 中文展示和候选项采用按钮 |
+| `ProjectImportRowModal` | `frontend/src/features/admin/components/project-imports/ProjectImportRowModal.tsx` | 导入行 raw / normalized / resolved / issues 展示与人工修正表单 |
 
 ## 5. 工具
 
@@ -59,6 +64,7 @@
 | `cx` | `frontend/src/lib/styles.ts` | 轻量 className 拼接 |
 | dictionary/tree labels | `frontend/src/lib/labels/dictionary-labels.ts` | 普通字典和树形字典中文显示映射；行政区划只映射 `administrative_division`，不再映射历史 `region` |
 | role labels | `frontend/src/lib/labels/role-labels.ts` | 用户角色中文显示映射、角色选项和格式化工具；请求仍使用英文角色值 |
+| project import labels | `frontend/src/lib/labels/project-import-labels.ts` | 项目导入任务状态、行状态、issue code 和字段名中文显示映射 |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
 
 ## 6. 当前 UI 基线

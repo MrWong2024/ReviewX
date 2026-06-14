@@ -46,14 +46,21 @@ const SECTIONS = [
         title: '评审方案',
       },
       {
-        href: '/admin/projects',
+        href: '/admin/project-imports',
         mark: '06',
+        status: '已开放',
+        text: '上传 Excel 项目清单，修正待确认行并确认入库。',
+        title: '项目导入',
+      },
+      {
+        href: '/admin/projects',
+        mark: '07',
         status: '只读',
         text: '查看项目基础信息、批次、状态和评审方案映射。',
         title: '项目列表',
       },
     ],
-    intro: '当前阶段开放方案维护与项目只读视图，分配和排期在后续阶段建设。',
+    intro: '当前阶段开放方案维护、项目导入闭环与项目只读视图，分配和排期在后续阶段建设。',
     title: '项目评审组织',
   },
   {

@@ -51,6 +51,14 @@
 | `updateReviewScheme` | `PATCH /admin/review-schemes/:id` | 单对象 | `/admin/review-schemes` |
 | `deleteReviewScheme` | `DELETE /admin/review-schemes/:id` | 单对象，后端停用语义 | `/admin/review-schemes` |
 | `listProjects` | `GET /admin/projects` | 分页对象 | `/admin/projects` |
+| `uploadProjectImport` | `POST /admin/project-imports/upload` | `ProjectImportJob`；上传使用 `FormData`，字段名固定为 `file` 和 `batchId`，不手动设置 `Content-Type` | `/admin/project-imports` |
+| `listProjectImportJobs` | `GET /admin/project-imports` | 分页对象；支持 `page/pageSize/status/batchId/keyword` | `/admin/project-imports` |
+| `getProjectImportJob` | `GET /admin/project-imports/:id` | `ProjectImportJob`；不内联全部 rows | `/admin/project-imports/[jobId]` |
+| `listProjectImportRows` | `GET /admin/project-imports/:id/rows` | 分页对象；支持 `page/pageSize/status/keyword` | `/admin/project-imports/[jobId]` |
+| `updateProjectImportRow` | `PATCH /admin/project-imports/:id/rows/:rowId` | `ProjectImportRow`；提交 `normalized/resolved/createOrganization/createOwnerUser` | `/admin/project-imports/[jobId]` |
+| `confirmProjectImportRow` | `POST /admin/project-imports/:id/rows/:rowId/confirm` | `ProjectImportRow`；仅 `importable` 行可确认 | `/admin/project-imports/[jobId]` |
+| `confirmProjectImportJob` | `POST /admin/project-imports/:id/confirm` | `{ successCount, failedCount, skippedCount }`；只处理所有 `importable` 行 | `/admin/project-imports/[jobId]` |
+| `skipProjectImportRow` | `POST /admin/project-imports/:id/rows/:rowId/skip` | `ProjectImportRow`；`confirmed` 行会返回 409 | `/admin/project-imports/[jobId]` |
 
 ## 4. 错误处理
 
@@ -72,10 +80,12 @@
 - 用户管理关联单位通过 `GET /admin/organizations?page=1&pageSize=1000` 映射名称并多选提交 `organizationIds`
 - 用户管理关联学科通过 `GET /admin/tree-dictionaries?treeType=discipline` 映射名称并树形/缩进多选提交 `disciplineIds`
 - 用户创建和重置密码留空时不提交 `password`，由后端默认手机号；编辑用户手机号只读，不提交 `phone/password/passwordHash`
+- 项目导入任务状态、行状态和 issue code 通过 `frontend/src/lib/labels/project-import-labels.ts` 中文化展示；请求仍提交后端英文枚举值
+- 项目导入详情页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为修正选项；行政区划只读取 `treeType=administrative_division`
+- 项目导入行修正允许通过 `createOrganization` 创建新承担单位，通过 `createOwnerUser` 创建新项目负责人用户；不在本页面创建项目类型、学科、受理处室或项目状态
 
 ## 5. 当前未对接的后端接口
 
-- `/admin/project-imports*`
 - 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
 - `/admin/projects/:id/review-assignment`
 - `/admin/projects/review-assignment/batch`

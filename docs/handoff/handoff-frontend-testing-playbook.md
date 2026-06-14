@@ -52,6 +52,12 @@ npm run build
 - `npm run typecheck`
 - `npm run build`
 
+本次 ReviewX 前端第二阶段：管理员 Excel 导入与待确认处理已执行：
+
+- `npm run typecheck`：通过
+- `npm run lint`：通过
+- `npm run build`：通过
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -134,14 +140,44 @@ npm run build
 - 使用重置后的密码登录成功
 - 原有 `/admin/dictionaries`、`/admin/tree-dictionaries`、`/admin/organizations`、`/admin/review-schemes`、`/admin/projects` 仍正常
 
-## 9. 当前不验证
+## 9. 项目导入人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 使用 admin 用户登录
+4. 人工联调建议使用 `reviewx_dev`
+5. 系统中至少存在启用批次、项目类型、项目状态、学科、受理处室、行政区划、单位和 `project_owner` 用户
+
+最小闭环：
+
+1. 登录 admin，进入 `/admin/project-imports`
+2. 不选择批次或文件上传，应显示前端校验提示
+3. 选择非 `.xlsx/.xls` 或超过 10MB 文件，应显示前端校验提示
+4. 选择批次并上传合法 Excel，上传成功后任务列表刷新
+5. 任务列表可按批次、任务状态和 keyword 筛选，可分页
+6. 点击任务进入 `/admin/project-imports/[jobId]`
+7. 查看任务基础信息、统计卡片、fieldMapping 和行列表
+8. 行列表可按状态和 keyword 筛选，可分页
+9. 打开一条 `pending_confirmation` 行，确认 raw / normalized / resolved / issues 可读
+10. issues 中文提示可读；如有 candidates，可点击“采用此候选”填入对应 resolved 字段
+11. 选择已有项目类型、项目状态、项目负责人、单位、学科、受理处室后保存，行重新评估
+12. 勾选“创建新承担单位”，填写名称、联系人、联系电话、行政区划后保存，后端通过 `createOrganization` 创建并重新匹配
+13. 勾选“创建新项目负责人用户”，填写姓名、手机号、关联单位、关联学科后保存，后端通过 `createOwnerUser` 创建并重新匹配
+14. 对一条 `importable` 行点击“确认入库”，二次确认后行变为 `confirmed`，任务统计刷新
+15. 对一条 `pending_confirmation` / `failed` / `importable` 行点击“跳过”，二次确认后行变为 `skipped`，任务统计刷新
+16. 点击“批量确认可导入行”，二次确认提示只处理 `importable` 行，完成后显示 successCount / failedCount / skippedCount 并刷新统计和行列表
+17. 到 `/admin/projects` 查看导入或更新后的项目
+18. 后端停止、401、403、409、400、500 等错误态应显示友好错误，不应白屏
+
+## 10. 当前不验证
 
 - 用户自助改密
 - 忘记密码
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- Excel 导入
 - 专家分配
 - 项目负责人材料上传
 - 专家评分

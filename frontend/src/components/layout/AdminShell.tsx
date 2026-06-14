@@ -21,7 +21,8 @@ const NAV_ITEMS = [
   { href: '/admin/tree-dictionaries', icon: '03', label: '树形字典' },
   { href: '/admin/organizations', icon: '04', label: '单位管理' },
   { href: '/admin/review-schemes', icon: '05', label: '评审方案' },
-  { href: '/admin/projects', icon: '06', label: '项目列表' },
+  { href: '/admin/project-imports', icon: '06', label: '项目导入' },
+  { href: '/admin/projects', icon: '07', label: '项目列表' },
 ];
 
 export function AdminShell({ children }: AdminShellProps) {
