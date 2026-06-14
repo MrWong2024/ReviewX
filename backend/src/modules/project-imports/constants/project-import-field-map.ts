@@ -18,16 +18,18 @@ export const PROJECT_IMPORT_STANDARD_FIELDS = [
 export type ProjectImportStandardField =
   (typeof PROJECT_IMPORT_STANDARD_FIELDS)[number];
 
+export type ProjectImportAliasMap = Record<
+  ProjectImportStandardField,
+  string[]
+>;
+
 export const PROJECT_IMPORT_REQUIRED_FIELDS: ProjectImportStandardField[] = [
   'projectNo',
   'name',
   'leadOrganizationName',
 ];
 
-export const PROJECT_IMPORT_FIELD_ALIASES: Record<
-  ProjectImportStandardField,
-  string[]
-> = {
+export const PROJECT_IMPORT_FIELD_ALIASES: ProjectImportAliasMap = {
   projectNo: ['项目编号', '编号', '项目代码', '项目合同编号'],
   name: ['项目名称', '名称', '课题名称'],
   projectTypeName: ['项目类型', '类型', '项目类别', '类别'],
@@ -66,25 +68,74 @@ export const PROJECT_IMPORT_FIELD_ALIASES: Record<
   ],
 };
 
+export type ProjectImportStandardFieldMeta = {
+  standardField: ProjectImportStandardField;
+  label: string;
+  required: boolean;
+  defaultAliases: string[];
+};
+
+const PROJECT_IMPORT_FIELD_LABELS: Record<ProjectImportStandardField, string> =
+  {
+    projectNo: '项目编号',
+    name: '项目名称',
+    projectTypeName: '项目类型',
+    ownerName: '项目负责人',
+    ownerPhone: '项目负责人手机',
+    leadOrganizationName: '项目承担单位',
+    totalFunding: '拨款总额',
+    allocatedFunding: '已拨款',
+    disciplineName: '学科',
+    departmentName: '受理处室',
+    cooperationOrganizationNames: '合作单位',
+    statusName: '项目状态',
+    organizationContactName: '单位联系人',
+    organizationContactPhone: '单位联系人手机',
+  };
+
 export type ProjectImportFieldMapping = Partial<
   Record<ProjectImportStandardField, string>
 >;
 
-export function normalizeHeader(value: string): string {
-  return value
-    .replace(/\u3000/g, ' ')
-    .replace(/\s+/g, '')
-    .trim();
+export function isProjectImportStandardField(
+  value: string,
+): value is ProjectImportStandardField {
+  return PROJECT_IMPORT_STANDARD_FIELDS.includes(
+    value as ProjectImportStandardField,
+  );
 }
 
-export function buildHeaderAliasMap(): Map<string, ProjectImportStandardField> {
+export function getProjectImportStandardFieldMeta(): ProjectImportStandardFieldMeta[] {
+  return PROJECT_IMPORT_STANDARD_FIELDS.map((standardField) => ({
+    standardField,
+    label: PROJECT_IMPORT_FIELD_LABELS[standardField],
+    required: PROJECT_IMPORT_REQUIRED_FIELDS.includes(standardField),
+    defaultAliases: [...PROJECT_IMPORT_FIELD_ALIASES[standardField]],
+  }));
+}
+
+export function normalizeProjectImportFieldAlias(alias: string): string {
+  return alias
+    .replace(/\u3000/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+export function normalizeHeader(value: string): string {
+  return normalizeProjectImportFieldAlias(value);
+}
+
+export function buildHeaderAliasMap(
+  aliasMap: ProjectImportAliasMap = PROJECT_IMPORT_FIELD_ALIASES,
+): Map<string, ProjectImportStandardField> {
   const map = new Map<string, ProjectImportStandardField>();
 
   for (const field of PROJECT_IMPORT_STANDARD_FIELDS) {
-    map.set(normalizeHeader(field), field);
+    map.set(normalizeProjectImportFieldAlias(field), field);
 
-    for (const alias of PROJECT_IMPORT_FIELD_ALIASES[field]) {
-      map.set(normalizeHeader(alias), field);
+    for (const alias of aliasMap[field]) {
+      map.set(normalizeProjectImportFieldAlias(alias), field);
     }
   }
 

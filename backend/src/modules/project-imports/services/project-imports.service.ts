@@ -33,6 +33,7 @@ import {
   ProjectImportRowStatus,
 } from '../constants/project-import-status';
 import { ProjectImportFieldMapping } from '../constants/project-import-field-map';
+import { ProjectImportFieldMappingsService } from './project-import-field-mappings.service';
 import {
   parseProjectImportWorkbook,
   ParsedProjectImportRow,
@@ -200,6 +201,7 @@ export class ProjectImportsService {
     private readonly organizationsService: OrganizationsService,
     private readonly usersService: UsersService,
     private readonly projectsService: ProjectsService,
+    private readonly fieldMappingsService: ProjectImportFieldMappingsService,
   ) {}
 
   async upload(input: {
@@ -213,7 +215,12 @@ export class ProjectImportsService {
       throw new NotFoundException('Batch not found');
     }
 
-    const parsed = parseProjectImportWorkbook(input.file.buffer);
+    const effectiveAliasMap =
+      await this.fieldMappingsService.getEffectiveAliasMap();
+    const parsed = parseProjectImportWorkbook(
+      input.file.buffer,
+      effectiveAliasMap,
+    );
     const duplicateProjectNos = this.findDuplicateProjectNos(parsed.rows);
     const job = await this.jobModel.create({
       originalFilename: input.file.originalname,

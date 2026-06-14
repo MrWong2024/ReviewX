@@ -11,6 +11,7 @@ import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
+import { ProjectImportFieldMapping } from '../src/modules/project-imports/schemas/project-import-field-mapping.schema';
 import { ProjectImportJob } from '../src/modules/project-imports/schemas/project-import-job.schema';
 import { ProjectImportRow } from '../src/modules/project-imports/schemas/project-import-row.schema';
 import { Project } from '../src/modules/projects/schemas/project.schema';
@@ -47,6 +48,7 @@ describe('Project import admin APIs (e2e)', () => {
   let organizationModel: Model<Organization>;
   let reviewSchemeModel: Model<ReviewScheme>;
   let projectModel: Model<Project>;
+  let fieldMappingModel: Model<ProjectImportFieldMapping>;
   let importJobModel: Model<ProjectImportJob>;
   let importRowModel: Model<ProjectImportRow>;
   let models: Model<unknown>[];
@@ -78,6 +80,9 @@ describe('Project import admin APIs (e2e)', () => {
       getModelToken(ReviewScheme.name),
     );
     projectModel = app.get<Model<Project>>(getModelToken(Project.name));
+    fieldMappingModel = app.get<Model<ProjectImportFieldMapping>>(
+      getModelToken(ProjectImportFieldMapping.name),
+    );
     importJobModel = app.get<Model<ProjectImportJob>>(
       getModelToken(ProjectImportJob.name),
     );
@@ -93,6 +98,7 @@ describe('Project import admin APIs (e2e)', () => {
       organizationModel,
       reviewSchemeModel,
       projectModel,
+      fieldMappingModel,
       importJobModel,
       importRowModel,
     ];
@@ -523,6 +529,51 @@ describe('Project import admin APIs (e2e)', () => {
       .set('Cookie', adminCookie)
       .expect(201);
     expect(getJsonBody(skippedResponse)).toMatchObject({ status: 'skipped' });
+  });
+
+  it('uses configured field aliases during upload and falls back after deletion', async () => {
+    await createUser({
+      phone: '+8613810000050',
+      name: 'Admin User',
+      roles: ['admin'],
+    });
+    const adminCookie = await login('+8613810000050');
+    const seed = await seedMasterData();
+
+    await request(httpServer)
+      .put('/admin/project-import-field-mappings/projectNo')
+      .set('Cookie', adminCookie)
+      .send({
+        aliases: ['项目唯一编号'],
+        isActive: true,
+        description: '导入接入测试',
+      })
+      .expect(200);
+
+    const customUpload = await uploadWorkbook(adminCookie, seed.batchId, [
+      ['项目唯一编号', '项目名称', '项目承担单位'],
+      ['P-CUSTOM-ALIAS-001', '自定义别名项目', '重庆测试单位'],
+    ]);
+    expect(getRecord(customUpload, 'fieldMapping')).toMatchObject({
+      projectNo: '项目唯一编号',
+      name: '项目名称',
+      leadOrganizationName: '项目承担单位',
+    });
+
+    await request(httpServer)
+      .delete('/admin/project-import-field-mappings/projectNo')
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const fallbackUpload = await uploadWorkbook(adminCookie, seed.batchId, [
+      ['项目编号', '项目名称', '项目承担单位'],
+      ['P-DEFAULT-ALIAS-001', '默认别名项目', '重庆测试单位'],
+    ]);
+    expect(getRecord(fallbackUpload, 'fieldMapping')).toMatchObject({
+      projectNo: '项目编号',
+      name: '项目名称',
+      leadOrganizationName: '项目承担单位',
+    });
   });
 
   async function clearCollections(): Promise<void> {

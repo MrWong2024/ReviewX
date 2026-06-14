@@ -2,9 +2,12 @@ import { BadRequestException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import {
   buildHeaderAliasMap,
+  PROJECT_IMPORT_FIELD_ALIASES,
   PROJECT_IMPORT_REQUIRED_FIELDS,
+  ProjectImportAliasMap,
   ProjectImportFieldMapping,
   ProjectImportStandardField,
+  normalizeProjectImportFieldAlias,
 } from '../constants/project-import-field-map';
 import { normalizeCell, normalizeRawRecord } from './import-normalizer';
 
@@ -21,6 +24,7 @@ export type ParsedProjectImportWorkbook = {
 
 export function parseProjectImportWorkbook(
   buffer: Buffer,
+  aliasMap: ProjectImportAliasMap = PROJECT_IMPORT_FIELD_ALIASES,
 ): ParsedProjectImportWorkbook {
   let workbook: XLSX.WorkBook;
 
@@ -53,7 +57,7 @@ export function parseProjectImportWorkbook(
   }
 
   const headerRow = toRow(matrix[0]);
-  const fieldMapping = resolveFieldMapping(headerRow);
+  const fieldMapping = resolveFieldMapping(headerRow, aliasMap);
   const missingFields = PROJECT_IMPORT_REQUIRED_FIELDS.filter(
     (field) => !fieldMapping[field],
   );
@@ -78,13 +82,18 @@ export function parseProjectImportWorkbook(
   return { fieldMapping, rows };
 }
 
-function resolveFieldMapping(headers: unknown[]): ProjectImportFieldMapping {
-  const aliasMap = buildHeaderAliasMap();
+function resolveFieldMapping(
+  headers: unknown[],
+  aliasMap: ProjectImportAliasMap,
+): ProjectImportFieldMapping {
+  const headerAliasMap = buildHeaderAliasMap(aliasMap);
   const mapping: ProjectImportFieldMapping = {};
 
   for (const header of headers) {
     const headerText = normalizeCell(header);
-    const field = aliasMap.get(headerText.replace(/\s+/g, ''));
+    const field = headerAliasMap.get(
+      normalizeProjectImportFieldAlias(headerText),
+    );
 
     if (field && !mapping[field]) {
       mapping[field] = headerText;

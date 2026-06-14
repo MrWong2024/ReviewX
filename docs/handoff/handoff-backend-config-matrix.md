@@ -14,10 +14,10 @@
 - 当前已预留通用 LLM / Bailian 配置，但尚未实现模型调用服务
 - 当前 MongoDB 配置已区分应用运行连接 `MONGO_URI` 与运维脚本连接 `MONGO_ADMIN_URI`
 - 当前 `scripts/sync-indexes.ts` 已使用 `MONGO_ADMIN_URI` 执行受控索引同步
-- 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectExpertAssignment`、`ProjectMaterial`、`ProjectImportJob`、`ProjectImportRow`、`ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment`、`ProjectLevelChangeLog`
+- 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectExpertAssignment`、`ProjectMaterial`、`ProjectImportFieldMapping`、`ProjectImportJob`、`ProjectImportRow`、`ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment`、`ProjectLevelChangeLog`
 - 当前已新增 session / Cookie 配置基线，用于 auth 第一阶段登录态
 - 当前 `dca16ae` 基线已安装 `ali-oss`
-- 当前已实现 Storage 抽象层并消费 Storage / OSS 环境变量；第五阶段专家评分与合议评审未新增环境变量；第六阶段项目申诉与等级变更留痕未新增环境变量；管理员用户维护 API 也未新增环境变量
+- 当前已实现 Storage 抽象层并消费 Storage / OSS 环境变量；第五阶段专家评分与合议评审未新增环境变量；第六阶段项目申诉与等级变更留痕未新增环境变量；管理员用户维护 API 也未新增环境变量；Excel 字段映射配置后端化未新增环境变量
 
 ## 3. 当前配置项
 
@@ -81,8 +81,9 @@
 - E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`，当前自动化测试使用 `FakeStorageService`
 - 生产对象存储口径为 `STORAGE_DRIVER=oss`，Bucket 建议私有读写，下载/预览由后端生成短期签名 URL；默认有效期 10 分钟
 - `STORAGE_DRIVER=oss` 时应用启动不主动因 OSS 配置缺失崩溃；调用上传、删除或签名 URL 能力时校验缺失配置并返回明确服务不可用错误，不泄露 AccessKey
-- 第二阶段新增 `project_import_jobs`、`project_import_rows` 关键索引已纳入 `scripts/sync-indexes.ts`；第三阶段新增 `project_expert_assignments` 关键索引已纳入；第四阶段新增 `project_materials` 关键索引已纳入；第五阶段新增 `expert_reviews`、`consensus_reviews` 关键索引已纳入；第六阶段新增 `project_appeals`、`project_appeal_attachments`、`project_level_change_logs` 关键索引已纳入；管理员用户维护 API 本阶段未新增 users 查询索引，`scripts/sync-indexes.ts` 未调整；production 仍必须使用 `--confirm-production`
+- 第二阶段新增 `project_import_jobs`、`project_import_rows` 关键索引已纳入 `scripts/sync-indexes.ts`；第二阶段补丁一新增 `project_import_field_mappings` 集合，索引包括 `standardField` unique、`isActive`、`normalizedAliases`，并已纳入 `scripts/sync-indexes.ts`；第三阶段新增 `project_expert_assignments` 关键索引已纳入；第四阶段新增 `project_materials` 关键索引已纳入；第五阶段新增 `expert_reviews`、`consensus_reviews` 关键索引已纳入；第六阶段新增 `project_appeals`、`project_appeal_attachments`、`project_level_change_logs` 关键索引已纳入；管理员用户维护 API 本阶段未新增 users 查询索引，`scripts/sync-indexes.ts` 未调整；production 仍必须使用 `--confirm-production`
 - 第三阶段未新增环境变量、第三方依赖或腾讯会议相关配置；`meetingUrl` 仅作为 Project 字符串字段保存
 - 第五阶段未新增环境变量、第三方依赖或 AI provider 配置；合议草稿使用 `rule_based` 规则聚合，不调用外部大模型
 - 第六阶段未新增环境变量、第三方依赖或 OSS 配置；申诉附件继续复用既有 `STORAGE_DRIVER` 与 `OSS_*`，E2E 使用 fake storage，不依赖真实 OSS
 - 管理员用户维护 API 未新增环境变量、第三方依赖、OSS 配置或 `sync-indexes.ts` 模型/索引注册；继续沿用 `users.phone` unique 索引和受控索引同步流程
+- Excel 字段映射配置后端化未新增环境变量、第三方依赖、OSS 配置或正式产品配置项；production 索引不得依赖 `autoIndex`，新增 `project_import_field_mappings` 索引需按既有 `sync-indexes` 受控流程同步

@@ -41,6 +41,9 @@
 | `QueryProjectMaterialsDto` | project-materials | 单项目材料列表过滤 | `materialTypeId` | 可选 | ObjectId | ObjectId 校验 | 无 | `{ materialTypeId }` | `/project-owner/projects/:id/materials`、`/review-manager/projects/:id/materials`、`/expert/projects/:id/materials`、`/admin/projects/:id/materials` | 单项目材料列表不分页，只返回 `active` 材料 |
 | `UploadProjectMaterialsDto` | project-materials | 项目负责人上传项目材料 | `materialTypeId`、`remark`；multipart `files` | `materialTypeId/files` 必填；`remark` 可选 | ObjectId / string / file array | `materialTypeId` ObjectId 且必须是启用 `dictType=material_type`；`remark` trim 且最长 1000；文件数量最大 20，单文件最大 500MB，禁止空文件和危险扩展名 | 无 | multipart form-data | `POST /project-owner/projects/:id/materials` | 文件字段名 `files`，支持多文件；数据库只保存文件引用和元数据，不保存文件内容 |
 | `UploadProjectImportDto` | project-imports | Excel 项目导入上传 | `batchId`；multipart `file` | `batchId/file` 必填 | `batchId: ObjectId`；file buffer | `batchId` ObjectId；文件扩展名 `.xlsx/.xls`；文件大小 10MB 上限 | 无 | multipart form-data | `POST /admin/project-imports/upload` | 使用 `xlsx` 解析第一个工作表；关键表头缺失或无有效数据行返回 `400` |
+| `QueryProjectImportFieldMappingsDto` | project-imports | Excel 字段映射配置列表查询 | `keyword`、`isActive` | 全可选 | string / boolean | `keyword` trim；`isActive` 支持 `true/false` 字符串转换 | 无 | `{ keyword: "项目", isActive: "true" }` | `GET /admin/project-import-field-mappings` | 返回所有固定标准字段的配置视图，不分页 |
+| `UpsertProjectImportFieldMappingDto` | project-imports | 创建或覆盖某个标准字段的自定义别名配置 | `aliases`、`isActive`、`description` | `aliases` 必填；其他可选 | string array / boolean / string | DTO 要求 aliases 数组且至少 1 项；description 最长 500；业务层 trim、压缩空白、归一化、校验空别名/重复/冲突 | `isActive=true`；description 未传保存为空字符串 | `{ aliases: ["项目唯一编号"], isActive: true }` | `PUT /admin/project-import-field-mappings/:standardField` | `standardField` 只来自 path 且必须是后端固定枚举；管理员不能自定义标准字段 |
+| `UpdateProjectImportFieldMappingDto` | project-imports | 更新已有字段映射配置 | `aliases`、`isActive`、`description` | 全可选；配置必须已存在 | string array / boolean / string | aliases 如传入至少 1 项；description 最长 500；业务层校验同 upsert | 无 | `{ isActive: false }` | `PATCH /admin/project-import-field-mappings/:standardField` | 配置不存在返回 `404`；`isActive=false` 表示停用自定义配置并回退默认别名 |
 | `QueryProjectImportJobsDto` | project-imports | 导入任务列表查询 | `page/pageSize/status/batchId/keyword` | 全可选 | number / string / ObjectId | status 枚举、`batchId` ObjectId、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, batchId, pageSize: 1000 }` | `GET /admin/project-imports` | 返回分页对象 |
 | `QueryProjectImportRowsDto` | project-imports | 导入行列表查询 | `page/pageSize/status/keyword` | 全可选 | number / string | status 枚举、分页最大 `1000` | `page=1`、`pageSize=100` | `{ status, keyword, pageSize: 1000 }` | `GET /admin/project-imports/:id/rows` | 返回分页对象 |
 | `UpdateProjectImportRowDto` | project-imports | 导入行人工修正 | `normalized`、`resolved`、`createOrganization`、`createOwnerUser` | 全可选；按修正场景传入 | nested object | ObjectId 校验、数组去重、资金 `>=0`、创建单位/用户字段 trim | 无 | `{ resolved: { leadOrganizationId }, createOwnerUser: { name, phone } }` | `PATCH /admin/project-imports/:id/rows/:rowId` | 可选择既有主数据；可创建单位和项目负责人用户；不可创建字典/树形字典 |
@@ -70,6 +73,8 @@
 | `ProjectImportJobStatus` | `parsing`、`pending_confirmation`、`completed`、`failed`、`canceled` | 导入任务状态 | 是 | 是 | 当前同步解析；正常上传后通常进入 `pending_confirmation`，全部处理后进入 `completed` |
 | `ProjectImportRowStatus` | `importable`、`pending_confirmation`、`confirmed`、`skipped`、`failed` | 导入行状态 | 是 | 是 | 只有 `importable` 可确认入库；`confirmed` 不可重复确认或跳过 |
 | `ProjectImportIssueCode` | `required_field_missing`、`invalid_number`、`funding_inconsistent`、`project_type_not_found`、`project_type_ambiguous`、`status_not_found`、`status_ambiguous`、`owner_not_found`、`owner_ambiguous`、`lead_organization_not_found`、`lead_organization_ambiguous`、`cooperation_organization_not_found`、`cooperation_organization_ambiguous`、`discipline_not_found`、`discipline_ambiguous`、`department_not_found`、`department_ambiguous`、`duplicate_project_no_in_file`、`existing_project_matched`、`lead_organization_duplicated_in_cooperation`、`unknown_error` | 导入行结构化问题编码 | 是 | 是 | `existing_project_matched` 和 `lead_organization_duplicated_in_cooperation` 当前为非阻断提示；其他 issue 阻断确认 |
+| `ProjectImportStandardField` | `projectNo`、`name`、`projectTypeName`、`ownerName`、`ownerPhone`、`leadOrganizationName`、`totalFunding`、`allocatedFunding`、`disciplineName`、`departmentName`、`cooperationOrganizationNames`、`statusName`、`organizationContactName`、`organizationContactPhone` | Excel 导入标准字段固定枚举 | 是 | 是 | 管理员只能维护别名配置，不能新增或改名标准字段 |
+| `ProjectImportFieldMappingResponse` | `id?`、`standardField`、`label`、`required`、`aliases`、`normalizedAliases`、`defaultAliases`、`effectiveAliases`、`isConfigured`、`isActive`、`description?`、`createdByUserId?`、`updatedByUserId?`、`createdAt?`、`updatedAt?` | Excel 字段映射配置视图 | 是 | 否 | 未配置字段 `aliases=[]`、`isConfigured=false`、`effectiveAliases=defaultAliases`；配置停用时 `effectiveAliases` 也回退默认别名 |
 | `ProjectExpertAssignmentSource` | `manual`、`batch` | 专家分配来源 | 是 | 是 | 单项目接口写 `manual`，批量接口写 `batch` |
 | `ProjectExpertAssignmentStatus` | `assigned`、`removed` | 专家分配关系状态 | 是 | 是 | 移除专家只标记 `removed`，不物理删除 |
 | `ExpertEligibilityReason` | `expert_not_found`、`expert_inactive`、`expert_role_missing`、`project_not_found`、`project_inactive`、`project_discipline_missing`、`expert_discipline_missing`、`discipline_mismatch`、`lead_organization_conflict`、`cooperation_organization_conflict`、`duplicate_expert`、`invalid_object_id` | 专家资格校验原因码 | 是 | 否 | 由 `ExpertEligibilityService` 输出；当前未使用 `duplicate_expert` 阻断重复添加，重复添加按幂等成功处理 |
@@ -98,6 +103,9 @@
 | `/admin/project-imports`、`/admin/project-imports/:id/rows` 列表 | `{ items: [], page: 1, pageSize: 100, total: 0 }` | 不返回用户密码哈希或 session token | 分页；`pageSize` 最大 `1000` |
 | `/admin/project-imports/upload` | `ProjectImportJobResponse` | 不返回用户密码哈希或原 Excel 文件 | `fieldMapping` 保存本次表头识别快照 |
 | `/admin/project-imports/:id/rows/:rowId` | `ProjectImportRowResponse` | `resolved` 仅返回 ID，不内联用户密码哈希 | 包含 `raw/normalized/resolved/issues/status/projectId/confirmedByUserId/confirmedAt` |
+| `/admin/project-import-field-mappings/standard-fields` | `{ items: ProjectImportStandardFieldResponse[] }` | 不返回用户密码哈希或 session token | 返回固定标准字段、label、required、defaultAliases |
+| `/admin/project-import-field-mappings` | `{ items: ProjectImportFieldMappingResponse[] }` | 不返回用户密码哈希或 session token | 列表覆盖所有固定标准字段；未配置字段没有持久化 id/timestamps，`effectiveAliases=defaultAliases` |
+| `/admin/project-import-field-mappings/:standardField` | `ProjectImportFieldMappingResponse` 或 `{ success: true }` | 不返回用户密码哈希或 session token | GET/PUT/PATCH/reset-defaults 返回配置视图；DELETE 只删除自定义配置并回退默认别名 |
 | 专家候选/专家列表 | `ExpertBasicResponse[]` 或分页对象 | 不返回 `passwordHash` | 字段含 `id/name/phone/organizationIds/disciplineIds`；候选额外含 `assigned` |
 | `GET /project-owner/projects`、`GET /expert/projects` | `{ items: ProjectPortalResponse[], page, pageSize, total }` | 不返回用户密码哈希、OSS AccessKey 或 session token | `ProjectPortalResponse` 含项目基础字段、评审安排、`followUpNeeds`、`materialCount` |
 | 单项目材料列表 | `ProjectMaterialResponse[]` | 不返回 OSS AccessKey、文件内容或持久化 URL | 字段含材料 ID、项目 ID、材料类型摘要、文件名、objectKey、bucket、storageDriver、mimeType、extension、sizeBytes、sha256、remark、status、createdAt、updatedAt |
@@ -117,8 +125,11 @@
 
 - 标准字段：`projectNo`、`name`、`projectTypeName`、`ownerName`、`ownerPhone`、`leadOrganizationName`、`totalFunding`、`allocatedFunding`、`disciplineName`、`departmentName`、`cooperationOrganizationNames`、`statusName`、`organizationContactName`、`organizationContactPhone`
 - 关键表头：`projectNo`、`name`、`leadOrganizationName`；缺失时上传接口直接返回 `400`
-- 常见别名按后端常量维护，支持项目编号/编号/项目代码/项目合同编号、项目名称/名称/课题名称、项目类型/类型/项目类别/类别、项目负责人/负责人/项目负责人姓名/负责人姓名、负责人手机/负责人电话/联系电话、项目承担单位/承担单位/牵头单位/依托单位/单位名称等
-- 表头匹配只做 trim 与全角/半角空格归一化后的精确匹配，不做复杂模糊匹配
+- 标准字段仍由后端固定枚举控制，管理员不能新增标准字段；管理员只能通过 `/admin/project-import-field-mappings*` 维护每个标准字段的自定义别名、启用状态和备注
+- `PROJECT_IMPORT_FIELD_ALIASES` 仍是内置默认别名；上传解析优先使用数据库中 `isActive=true` 的配置，未配置或 `isActive=false` 的字段回退默认内置别名，不会导致核心字段完全不可识别
+- 别名归一化口径：全角空格转半角、trim、连续空白压缩为一个空格、英文字母小写；中文保持原样；不激进删除标点或内部单空格
+- 保存配置时拦截空别名、同一标准字段下重复归一化别名、跨标准字段配置别名冲突，并拦截与其他标准字段保留默认别名的冲突
+- `ProjectImportJob.fieldMapping` 仍保存本次 Excel 表头到 standardField 的解析快照；不改变导入任务、导入行和确认入库响应结构
 
 ## 7. 维护规则
 

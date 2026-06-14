@@ -42,6 +42,10 @@ import {
   ProjectSchema,
 } from '../src/modules/projects/schemas/project.schema';
 import {
+  ProjectImportFieldMapping,
+  ProjectImportFieldMappingSchema,
+} from '../src/modules/project-imports/schemas/project-import-field-mapping.schema';
+import {
   ProjectImportJob,
   ProjectImportJobSchema,
 } from '../src/modules/project-imports/schemas/project-import-job.schema';
@@ -327,6 +331,14 @@ function registerModels(): RegisteredModel[] {
         ProjectExpertAssignment.name,
         ProjectExpertAssignmentSchema,
       );
+  const projectImportFieldMappingModel = mongoose.models[
+    ProjectImportFieldMapping.name
+  ]
+    ? mongoose.model<unknown>(ProjectImportFieldMapping.name)
+    : mongoose.model(
+        ProjectImportFieldMapping.name,
+        ProjectImportFieldMappingSchema,
+      );
   const projectImportJobModel = mongoose.models[ProjectImportJob.name]
     ? mongoose.model<unknown>(ProjectImportJob.name)
     : mongoose.model(ProjectImportJob.name, ProjectImportJobSchema);
@@ -367,6 +379,10 @@ function registerModels(): RegisteredModel[] {
     { name: ReviewScheme.name, model: reviewSchemeModel },
     { name: Project.name, model: projectModel },
     { name: ProjectExpertAssignment.name, model: projectExpertAssignmentModel },
+    {
+      name: ProjectImportFieldMapping.name,
+      model: projectImportFieldMappingModel,
+    },
     { name: ProjectImportJob.name, model: projectImportJobModel },
     { name: ProjectImportRow.name, model: projectImportRowModel },
     { name: ProjectMaterial.name, model: projectMaterialModel },

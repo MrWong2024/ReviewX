@@ -19,7 +19,12 @@ import {
 } from '../tree-dictionaries/schemas/tree-dictionary.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { UsersModule } from '../users/users.module';
+import { ProjectImportFieldMappingsController } from './controllers/project-import-field-mappings.controller';
 import { ProjectImportsController } from './controllers/project-imports.controller';
+import {
+  ProjectImportFieldMapping,
+  ProjectImportFieldMappingSchema,
+} from './schemas/project-import-field-mapping.schema';
 import {
   ProjectImportJob,
   ProjectImportJobSchema,
@@ -28,6 +33,7 @@ import {
   ProjectImportRow,
   ProjectImportRowSchema,
 } from './schemas/project-import-row.schema';
+import { ProjectImportFieldMappingsService } from './services/project-import-field-mappings.service';
 import { ProjectImportsService } from './services/project-imports.service';
 
 @Module({
@@ -38,6 +44,10 @@ import { ProjectImportsService } from './services/project-imports.service';
     ProjectsModule,
     UsersModule,
     MongooseModule.forFeature([
+      {
+        name: ProjectImportFieldMapping.name,
+        schema: ProjectImportFieldMappingSchema,
+      },
       { name: ProjectImportJob.name, schema: ProjectImportJobSchema },
       { name: ProjectImportRow.name, schema: ProjectImportRowSchema },
       { name: Dictionary.name, schema: DictionarySchema },
@@ -47,7 +57,7 @@ import { ProjectImportsService } from './services/project-imports.service';
       { name: Project.name, schema: ProjectSchema },
     ]),
   ],
-  controllers: [ProjectImportsController],
-  providers: [ProjectImportsService],
+  controllers: [ProjectImportFieldMappingsController, ProjectImportsController],
+  providers: [ProjectImportFieldMappingsService, ProjectImportsService],
 })
 export class ProjectImportsModule {}

@@ -28,6 +28,7 @@
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
+- 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
 - 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
@@ -174,6 +175,9 @@ backend/
   - `ProjectsModule`
 - 当前已有第二阶段导入模块：
   - `ProjectImportsModule`
+  - `ProjectImportFieldMappingsController`
+  - `ProjectImportFieldMappingsService`
+  - `ProjectImportFieldMapping` schema
 - 当前已有第三阶段评审专家分配模块：
   - `ProjectExpertAssignmentsModule`
   - `ProjectExpertAssignmentsController`
@@ -248,7 +252,7 @@ backend/
 - 当前已通过 `MongooseModule` 接入 MongoDB 连接基线
 - 当前 `MONGO_URI` 用于应用运行连接，`MONGO_ADMIN_URI` 预留给未来索引同步、迁移和运维脚本
 - 当前 `scripts/sync-indexes.ts` 使用 `MONGO_ADMIN_URI` 运维账号连接，不启动 Nest 应用，不使用 `MONGO_URI`
-- 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
+- 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportFieldMapping`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectExpertAssignment` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectMaterial` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment` 和 `ProjectLevelChangeLog` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
@@ -301,11 +305,15 @@ backend/
 - 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前已创建 `project_import_rows` 集合，用于记录每一行原始值、标准化值、自动/人工 resolved ID、issues、行状态和确认留痕
+- 当前已创建 `project_import_field_mappings` 集合，用于保存 Excel 字段映射自定义配置；一条 `standardField` 一条配置，字段包括 `standardField`、`aliases`、`normalizedAliases`、`isActive`、`description`、`createdByUserId`、`updatedByUserId` 和 timestamps
+- 当前 `project_import_field_mappings` 索引：`standardField` unique、`isActive`、`normalizedAliases`
+- 当前 Excel 字段映射标准字段仍由 `PROJECT_IMPORT_STANDARD_FIELDS` 固定枚举控制，管理员不能通过接口新增 standardField；`PROJECT_IMPORT_FIELD_ALIASES` 仍作为内置默认 fallback
+- 当前字段映射配置保存时校验空别名、同字段重复归一化别名、跨字段配置别名冲突，并拦截与其他标准字段保留默认别名冲突；`isActive=false` 或无配置时上传解析回退默认内置别名
 - 后续集合以真实模块实现为准
 
 ### 4.5 文件上传 / 对象存储
 
-- 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；字段映射表是后端常量，不是数据库配置
+- 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；表头字段映射优先读取 `project_import_field_mappings` 中启用配置，未配置或停用时回退 `PROJECT_IMPORT_FIELD_ALIASES` 内置默认别名
 - 当前不长期保存原 Excel 文件；只保存导入任务与导入行解析结果
 - 当前 `dca16ae` 基线已安装 `ali-oss`，并已在 `.env.development.example`、`.env.test.example`、`.env.production.example` 准备 Storage / OSS 配置样例
 - `STORAGE_DRIVER` 支持 `fake / oss`：development/test example 默认 `fake`，production example 默认 `oss`
@@ -342,6 +350,9 @@ backend/
 - 已包含 `test/admin-foundation.e2e-spec.ts`，用于验证 `/admin/*` 401/403、主数据 CRUD、唯一约束、树子节点约束和项目关联校验
 - `test/admin-foundation.e2e-spec.ts` 当前也覆盖普通字典、树形字典、评审方案列表返回数组，以及项目/单位 `pageSize=1000` 和超过上限返回 `400`
 - 已包含 `test/project-imports.e2e-spec.ts`，用于验证导入权限、上传校验、字段别名、自动匹配、待确认、人工修正、确认入库、批量确认、跳过和既有列表口径不回退
+- 已包含 `src/modules/project-imports/services/project-import-field-mappings.service.spec.ts`，用于验证 Excel 字段映射配置标准字段清单、完整配置视图、upsert/update/delete/reset-defaults、effective alias map、非法字段、空别名、同字段重复、跨字段冲突和停用 fallback
+- 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
+- `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析，以及删除配置后默认内置别名 fallback 仍可用
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性和既有接口轻量回归
