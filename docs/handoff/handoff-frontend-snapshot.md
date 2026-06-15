@@ -133,6 +133,7 @@ frontend/
 - `/admin/projects` 已接入评审负责人 active 用户、评审方案、批次、项目类型、项目状态、学科和单位映射；项目负责人优先使用用户列表映射，无法映射时保留 id 兜底
 - 项目评审组织 API 封装位于 `frontend/src/features/admin/api/project-review-organization.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 专家候选使用 `GET /admin/projects/:id/expert-candidates`；已分配、追加、替换、移除和批量设置专家使用 `/review-manager/projects*` 系列接口，admin 角色可访问
+- `/admin/projects` 批量设置专家完成后的逐项目结果标题优先显示项目编号和项目名称；失败明细优先显示专家姓名和手机号，专家或项目映射缺失时显示“未知专家 / 未知项目 + 短ID”兜底，避免把裸 ObjectId 作为主展示文案
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案

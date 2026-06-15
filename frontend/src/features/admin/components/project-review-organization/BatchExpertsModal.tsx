@@ -53,6 +53,17 @@ export function BatchExpertsModal({
     [projects],
   );
 
+  const expertLabelById = useMemo(
+    () =>
+      new Map(
+        experts.map((expert) => [
+          expert.id,
+          `${expert.name}（${expert.phone}）`,
+        ]),
+      ),
+    [experts],
+  );
+
   const expertOptions = useMemo<MultiSelectOption[]>(
     () =>
       experts.map((expert) => ({
@@ -65,6 +76,16 @@ export function BatchExpertsModal({
       })),
     [disciplineNameById, experts, organizationNameById],
   );
+
+  function formatProjectLabel(projectId: string): string {
+    return projectLabelById.get(projectId) ?? `未知项目（${shortId(projectId)}）`;
+  }
+
+  function formatExpertLabel(expertUserId: string): string {
+    return (
+      expertLabelById.get(expertUserId) ?? `未知专家（${shortId(expertUserId)}）`
+    );
+  }
 
   async function loadExperts() {
     setLoadingExperts(true);
@@ -210,8 +231,15 @@ export function BatchExpertsModal({
                       ].join(' ')}
                       key={item.projectId}
                     >
-                      <div className="font-semibold">
-                        {projectLabelById.get(item.projectId) ?? item.projectId}
+                      <div
+                        className="font-semibold"
+                        title={
+                          projectLabelById.has(item.projectId)
+                            ? undefined
+                            : item.projectId
+                        }
+                      >
+                        {formatProjectLabel(item.projectId)}
                       </div>
                       {item.success ? (
                         <div>
@@ -219,17 +247,25 @@ export function BatchExpertsModal({
                           {item.removedCount ?? 0} 名。
                         </div>
                       ) : (
-                        <div>
-                          {item.message ??
-                            item.failures
-                              ?.map(
-                                (failure) =>
-                                  `${failure.expertUserId}：${formatExpertFailureReasons(
-                                    failure.reasons,
-                                  )}`,
-                              )
-                              .join('；') ??
-                            '设置失败'}
+                        <div className="grid gap-1">
+                          {item.message ? <div>{item.message}</div> : null}
+                          {item.failures && item.failures.length > 0 ? (
+                            <div className="grid gap-1">
+                              {item.failures.map((failure, index) => (
+                                <div
+                                  key={`${item.projectId}-${failure.expertUserId}-${index}`}
+                                  title={failure.expertUserId}
+                                >
+                                  {formatExpertLabel(failure.expertUserId)}：
+                                  {formatExpertFailureReasons(failure.reasons)}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                          {!item.message &&
+                          (!item.failures || item.failures.length === 0) ? (
+                            <div>设置失败，后端未返回具体原因。</div>
+                          ) : null}
                         </div>
                       )}
                     </div>
@@ -263,4 +299,8 @@ function formatNames(
   }
 
   return `${fallbackLabel}：${ids.map((id) => nameById.get(id) ?? id).join('、')}`;
+}
+
+function shortId(id: string): string {
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id;
 }

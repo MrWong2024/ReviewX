@@ -70,6 +70,12 @@ npm run build
 - `npm run lint`：通过
 - `npm run build`：通过
 
+本次 ReviewX 小修：批量专家设置失败明细中的专家名称展示优化已执行：
+
+- `npm run lint`：通过
+- `npm run typecheck`：通过
+- `npm run build`：通过
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -191,7 +197,10 @@ npm run build
 4. 选择 active expert 用户和 append / replace 模式
 5. 二次确认后提交
 6. 页面展示 `successCount`、`failedCount` 和逐项目 results
-7. 学科不匹配或单位冲突项目显示失败原因
+7. 逐项目 result 标题优先显示项目编号和项目名称
+8. 学科不匹配或单位冲突项目显示失败原因
+9. 失败明细优先显示专家姓名和手机号，不应只显示专家 ObjectId
+10. 专家映射缺失时显示“未知专家（短ID）”，不应显示一长串裸 ObjectId
 
 ## 8. 用户管理人工验证
 
