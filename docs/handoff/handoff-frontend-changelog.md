@@ -2,6 +2,25 @@
 
 ## 2026-06-15
 
+### ReviewX 前端第三阶段：管理员项目分配与评审组织
+
+- `/admin/projects` 从项目只读列表升级为管理员项目评审组织列表，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选
+- 项目列表新增选择列、当前页全选、组织状态、评审时间、评审地点、会议链接、单项目“分配”和“评审组织”入口
+- 新增单项目分配弹窗，调用 `PATCH /admin/projects/:id/review-assignment` 设置评审负责人和 / 或评审方案，并提示后端会生成评审方案快照
+- 新增批量分配弹窗，调用 `PATCH /admin/projects/review-assignment/batch`，二次确认后展示 `successCount`、`failedCount` 和 failures 明细
+- 新增批量设置专家弹窗，使用 active expert 用户作为通用选择源，调用 `PUT /review-manager/projects/experts/batch`，并说明后端仍会逐项目校验学科匹配和单位回避
+- 新增 `/admin/projects/[projectId]/review-organization` 单项目评审组织详情页，展示基础信息、评审分配、评审安排、已分配专家和专家候选
+- 新增评审安排面板，调用 `PATCH /admin/projects/:id/schedule` 保存 `reviewTime/reviewLocation/meetingUrl`，并明确不接腾讯会议 API、直播、推流或回看
+- 新增专家候选面板，调用 `GET /admin/projects/:id/expert-candidates`，候选专家完全使用后端返回结果，支持 keyword 搜索、分页、追加和替换
+- 新增已分配专家面板，调用 `GET /review-manager/projects/:id/experts` 和 `DELETE /review-manager/projects/:id/experts/:expertUserId`，支持二次确认移除
+- 新增 `frontend/src/features/admin/api/project-review-organization.ts` 和 `frontend/src/features/admin/types/project-review-organization.ts`，显式定义项目评审组织、专家候选、专家分配和批量结果类型
+- 新增 `frontend/src/lib/labels/project-review-organization-labels.ts`，统一组织状态和专家失败原因中文展示
+- AdminShell 和 `/admin` 概览页入口文案由项目列表 / 只读改为项目评审组织
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未使用 mock 数据作为真实页面数据源，未在前端自行实现专家学科匹配或单位回避
+- 本阶段未实现项目负责人材料上传、专家评分、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：项目导入行号展示优化与导入任务删除能力
 
 - `/admin/project-imports` 任务列表新增删除按钮和二次确认，确认文案说明只删除导入任务与行级解析记录、不删除已入库项目、已有确认入库任务不能删除

@@ -23,7 +23,7 @@ const NAV_ITEMS = [
   { href: '/admin/review-schemes', icon: '05', label: '评审方案' },
   { href: '/admin/project-imports', icon: '06', label: '项目导入' },
   { href: '/admin/project-import-field-mappings', icon: '07', label: '字段映射' },
-  { href: '/admin/projects', icon: '08', label: '项目列表' },
+  { href: '/admin/projects', icon: '08', label: '项目评审组织' },
 ];
 
 export function AdminShell({ children }: AdminShellProps) {

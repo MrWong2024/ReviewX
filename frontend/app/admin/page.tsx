@@ -62,12 +62,12 @@ const SECTIONS = [
       {
         href: '/admin/projects',
         mark: '08',
-        status: '只读',
-        text: '查看项目基础信息、批次、状态和评审方案映射。',
-        title: '项目列表',
+        status: '已开放',
+        text: '分配评审负责人和评审方案，维护评审安排与专家组织。',
+        title: '项目评审组织',
       },
     ],
-    intro: '当前阶段开放方案维护、项目导入闭环、字段映射配置与项目只读视图，分配和排期在后续阶段建设。',
+    intro: '当前阶段开放方案维护、项目导入闭环、字段映射配置、项目分配、排期与专家组织。',
     title: '项目评审组织',
   },
   {
@@ -98,8 +98,8 @@ export default function AdminHomePage() {
 
       <section className="mb-5 grid gap-4 lg:grid-cols-3">
         {[
-          ['主数据域', '批次、字典、树形分类、单位'],
-          ['评审组织域', '方案维护、项目只读核验'],
+      ['主数据域', '批次、字典、树形分类、单位'],
+      ['评审组织域', '方案维护、项目分配、排期与专家组织'],
           ['监管留痕域', '状态、等级和后续闭环数据基础'],
         ].map(([title, text]) => (
           <div
@@ -139,7 +139,7 @@ export default function AdminHomePage() {
                     <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#eef2ff] to-[#ecfeff] text-xs font-black text-cyan-700 ring-1 ring-cyan-100">
                       {card.mark}
                     </span>
-                    <Badge tone={card.status === '只读' ? 'warning' : 'primary'}>
+                    <Badge tone="primary">
                       {card.status}
                     </Badge>
                   </div>

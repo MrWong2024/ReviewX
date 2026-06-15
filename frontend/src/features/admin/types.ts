@@ -65,35 +65,6 @@ export type ReviewScheme = {
   updatedAt: string;
 };
 
-export type Project = {
-  allocatedFunding?: number | null;
-  batchId: string;
-  cooperationOrganizationIds: string[];
-  createdAt: string;
-  departmentId?: string | null;
-  disciplineIds: string[];
-  finalLevel?: string;
-  followUpNeeds?: string;
-  id: string;
-  importedFromJobId?: string;
-  isActive: boolean;
-  leadOrganizationId?: string | null;
-  meetingUrl?: string;
-  name: string;
-  originalLevel?: string;
-  ownerUserId?: string | null;
-  projectNo: string;
-  projectTypeId?: string | null;
-  reviewLocation?: string;
-  reviewManagerId?: string | null;
-  reviewSchemeId?: string | null;
-  reviewSchemeSnapshot?: Record<string, unknown> | null;
-  reviewTime?: string | null;
-  statusId?: string | null;
-  totalFunding?: number | null;
-  updatedAt: string;
-};
-
 export type BatchFormInput = {
   description?: string;
   isActive?: boolean;
@@ -136,5 +107,6 @@ export type ReviewSchemeFormInput = {
 };
 
 export * from './types/users';
+export * from './types/project-review-organization';
 export * from './types/project-imports';
 export * from './types/project-import-field-mappings';

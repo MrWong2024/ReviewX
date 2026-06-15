@@ -7,7 +7,6 @@ import type {
   DictionaryFormInput,
   Organization,
   OrganizationFormInput,
-  Project,
   ReviewScheme,
   ReviewSchemeFormInput,
   TreeDictionary,
@@ -161,13 +160,7 @@ export function deleteReviewScheme(id: string) {
   });
 }
 
-export function listProjects(params: QueryParams = {}) {
-  return apiRequest<PaginatedResponse<Project>>('/admin/projects', {
-    method: 'GET',
-    params: { pageSize: 100, ...params },
-  });
-}
-
 export * from './api/users';
+export * from './api/project-review-organization';
 export * from './api/project-imports';
 export * from './api/project-import-field-mappings';

@@ -44,8 +44,15 @@
 | `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
-| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 项目只读列表 |
+| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口 |
 | `UsersPage` | `frontend/src/features/admin/pages/UsersPage.tsx` | 管理员用户管理，支持列表、筛选、分页、新增、编辑、启停和重置密码 |
+| `ProjectReviewOrganizationPage` | `frontend/src/features/admin/pages/ProjectReviewOrganizationPage.tsx` | 单项目评审组织详情，展示基础信息、评审分配、评审安排、已分配专家和专家候选 |
+| `ReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/ReviewAssignmentModal.tsx` | 单项目设置评审负责人和评审方案 |
+| `BatchReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/BatchReviewAssignmentModal.tsx` | 多项目批量设置评审负责人和评审方案，并展示成功 / 失败明细 |
+| `ProjectSchedulePanel` | `frontend/src/features/admin/components/project-review-organization/ProjectSchedulePanel.tsx` | 设置单项目评审时间、地点和会议链接；明确仅保存会议链接字段 |
+| `AssignedExpertsPanel` | `frontend/src/features/admin/components/project-review-organization/AssignedExpertsPanel.tsx` | 查看已分配专家并支持二次确认移除 |
+| `ExpertCandidatesPanel` | `frontend/src/features/admin/components/project-review-organization/ExpertCandidatesPanel.tsx` | 查看后端候选专家，按 keyword 搜索分页，从候选追加或替换专家 |
+| `BatchExpertsModal` | `frontend/src/features/admin/components/project-review-organization/BatchExpertsModal.tsx` | 多项目批量追加或替换专家，提交后展示逐项目结果 |
 | `ProjectImportsPage` | `frontend/src/features/admin/pages/ProjectImportsPage.tsx` | 管理员 Excel 项目导入上传、任务筛选、任务列表、分页和未确认导入任务删除 |
 | `ProjectImportDetailPage` | `frontend/src/features/admin/pages/ProjectImportDetailPage.tsx` | 项目导入任务详情、行筛选、Excel 行号列表、人工修正、单行确认/跳过和批量确认 |
 | `ProjectImportJobStats` | `frontend/src/features/admin/components/project-imports/ProjectImportJobStats.tsx` | 导入任务统计卡片 |
@@ -69,6 +76,7 @@
 | role labels | `frontend/src/lib/labels/role-labels.ts` | 用户角色中文显示映射、角色选项和格式化工具；请求仍使用英文角色值 |
 | project import labels | `frontend/src/lib/labels/project-import-labels.ts` | 项目导入任务状态、行状态、issue code 和字段名中文显示映射 |
 | project import field mapping labels | `frontend/src/lib/labels/project-import-field-mapping-labels.ts` | Excel 字段映射配置页必填、配置状态、启用状态、标准字段 fallback 和别名展示辅助 |
+| project review organization labels | `frontend/src/lib/labels/project-review-organization-labels.ts` | 项目组织状态和专家失败原因中文展示辅助 |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
 
 ## 6. 当前 UI 基线
