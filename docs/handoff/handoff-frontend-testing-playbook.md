@@ -82,7 +82,13 @@ npm run build
 - `npm run typecheck`：通过
 - `npm run build`：通过
 
-注意：当前后端缺少 project_owner 可访问的 `material_type` 字典读取接口，材料上传入口应显示“材料类型接口暂不可用”并禁用；不得通过 admin-only 字典接口绕过权限。
+本次 ReviewX 第四阶段补丁二：项目负责人材料上传闭环启用与名称映射优化已执行：
+
+- `npm run lint`：通过
+- `npm run typecheck`：通过
+- `npm run build`：通过
+
+注意：项目负责人材料上传已通过 `/portal/reference-data/dictionaries?dictTypes=material_type,project_status` 启用；`material_type` 为空或 reference-data 加载失败时上传入口应禁用。不得通过 admin-only 字典接口绕过权限。
 
 ## 3. 登录与会话人工验证
 
@@ -220,7 +226,7 @@ npm run build
 2. 前端运行在 `http://localhost:3001`
 3. 使用具有 `project_owner` 角色的用户登录
 4. 当前用户至少是一个项目的 `ownerUserId`
-5. 当前后端尚未提供 project_owner 可访问的 `material_type` 字典读取接口，因此上传入口预期禁用
+5. 数据库中存在 active `material_type`、`project_status`、`project_type`、`discipline`、`department`、批次、单位、评审负责人和评审方案
 
 角色守卫：
 
@@ -243,41 +249,57 @@ Workspace 入口：
 1. 进入 `/project-owner/projects`
 2. 能看到当前用户负责的项目
 3. 不显示其他项目负责人的项目
-4. 批次 ID、项目类型 ID、项目状态 ID、评审负责人 ID、评审方案 ID 筛选提交后端支持字段
-5. 不出现 keyword 搜索框，不提交 keyword
-6. 分页可用
-7. 空态提示联系管理员确认项目负责人绑定关系
-8. 项目基础信息中的主数据名称缺失时以 ID 兜底展示
-9. 点击“查看详情”进入项目详情页
+4. 间接成功加载 `/portal/reference-data/dictionaries?dictTypes=material_type,project_status`
+5. 间接成功加载 `/portal/reference-data/tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`
+6. 间接成功加载 `/portal/reference-data/batches`、`/portal/reference-data/organizations`、`/portal/reference-data/review-schemes`、`/portal/reference-data/users?role=review_manager`
+7. 批次、项目类型、项目状态、评审负责人、评审方案筛选均为 select，第一项为“全部”
+8. 筛选提交后端支持的对应 ID，不提交 keyword
+9. 表格中批次、项目类型、项目状态、学科、承担单位、评审负责人、评审方案显示名称
+10. 名称映射缺失时显示“未知项（短ID）”类兜底，不直接展示长 ObjectId
+11. 分页可用
+12. 空态提示联系管理员确认项目负责人绑定关系
+13. reference-data 加载失败时显示错误和重试入口，不白屏
+14. 点击“查看详情”进入项目详情页
 
 项目详情与后续推进需求：
 
 1. 进入 `/project-owner/projects/[projectId]`
-2. 显示项目编号、名称、批次、项目类型、项目状态、承担单位、合作单位、学科、受理处室、拨款总额、已拨款和材料数量
-3. 显示评审负责人、评审方案、评审时间、评审地点和会议链接
-4. meetingUrl 有值时可打开
-5. 页面说明当前仅展示会议链接，不接腾讯会议 API
-6. 显示当前 followUpNeeds
-7. 输入后续推进需求，字数计数正确
-8. 超过 5000 字前端提示或禁止提交
-9. 点击保存后调用 `PATCH /project-owner/projects/:id/follow-up-needs`
-10. 保存成功后提示“后续推进需求已保存”
-11. 清空内容并保存，如后端允许应成功
+2. 并发加载项目详情、材料列表和 portal reference-data
+3. 显示项目编号、名称、批次名称、项目类型名称、项目状态名称、承担单位名称、合作单位名称、学科名称、受理处室名称、拨款总额、已拨款和材料数量
+4. 显示评审负责人名称、评审方案名称、评审时间、评审地点和会议链接
+5. meetingUrl 有值时可打开
+6. 页面说明当前仅展示会议链接，不接腾讯会议 API
+7. 显示当前 followUpNeeds
+8. 输入后续推进需求，字数计数正确
+9. 超过 5000 字前端提示或禁止提交
+10. 点击保存后调用 `PATCH /project-owner/projects/:id/follow-up-needs`
+11. 保存成功后提示“后续推进需求已保存”
+12. 清空内容并保存，如后端允许应成功
+13. reference-data 加载失败时基础信息可用短 ID 兜底展示，上传区禁用并显示错误
 
 材料管理：
 
-1. 材料管理区显示材料类型接口缺失提示
-2. 上传按钮禁用，不调用 `/admin/dictionaries`
-3. 不写死“汇报 PPT、评价报告、证明材料、财务资料、其他”等材料类型 ID
-4. 已上传材料列表展示材料类型、文件名、大小、扩展名、上传时间和备注
-5. 材料类型 tabs 只来自材料响应中的 `materialType` 摘要
-6. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
-7. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
-8. 点击删除材料出现二次确认
-9. 确认后调用 DELETE，成功后刷新项目详情和材料列表
-10. 删除已删除材料如返回 `alreadyDeleted`，显示友好提示
-11. 不提供材料恢复、硬删除或文件预览
-12. 后端停止、401、403、404、400、500 等错误态应显示友好错误，不应白屏
+1. 材料管理区能加载 active `material_type`
+2. 上传区域材料类型 select 显示数据库实际维护的材料类型名称
+3. 上传按钮在选择材料类型和合法文件后可用
+4. 上传调用 `POST /project-owner/projects/:id/materials`，FormData 字段名为 `files/materialTypeId/remark`
+5. 上传请求不手动设置 multipart `Content-Type`
+6. 上传成功后显示 successCount / failedCount，部分失败时显示 failures 的 originalFilename 和 message
+7. 上传成功后材料列表刷新，项目详情 materialCount 刷新
+8. material_type 字典为空时提示尚未维护材料类型，上传按钮禁用
+9. reference-data 加载失败时上传按钮禁用并显示具体错误
+10. 不调用 `/admin/dictionaries`
+11. 不写死“汇报 PPT、评价报告、证明材料、财务资料、其他”等材料类型 ID
+12. 已上传材料列表展示材料类型名称、文件名、大小、扩展名、上传时间和备注
+13. 材料类型筛选项来自 portal `material_type`，显示名称
+14. 材料响应内联 `materialType.name` 存在时优先展示；否则使用 portal material_type 映射；仍未命中时显示“未知材料类型（短ID）”
+15. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
+16. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
+17. 点击删除材料出现二次确认
+18. 确认后调用 DELETE，成功后刷新项目详情和材料列表
+19. 删除已删除材料如返回 `alreadyDeleted`，显示友好提示
+20. 不提供材料恢复、硬删除或文件预览
+21. 后端停止、401、403、404、400、500 等错误态应显示友好错误，不应白屏
 
 文件校验实现口径：
 
@@ -285,7 +307,12 @@ Workspace 入口：
 2. 已实现单文件 500MB 限制
 3. 已实现允许扩展名校验：pdf、ppt、pptx、doc、docx、xls、xlsx、jpg、jpeg、png、zip、rar、7z、txt、csv
 4. 已实现禁止扩展名提示：exe、bat、cmd、sh、js、mjs、cjs、php、jsp、asp、aspx、dll、so、ps1
-5. 当前因材料类型接口缺失，上传操作不可进入提交态；补齐后端接口并启用类型选项后需复测多文件上传和部分失败展示
+5. 不选择材料类型时提示
+6. 不选择文件时提示
+7. 超过 20 个文件时提示
+8. 单文件超过 500MB 时提示
+9. exe/js/bat 等禁止扩展名被前端拦截
+10. pdf/pptx/docx/xlsx/jpg/zip 等允许扩展名可提交后端
 
 ## 9. 用户管理人工验证
 
@@ -375,7 +402,6 @@ Workspace 入口：
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 项目负责人材料上传真实提交闭环，需后端补充 project_owner 可访问的 `material_type` 字典读取接口后复测
 - 专家评分
 - 合议
 - 申诉

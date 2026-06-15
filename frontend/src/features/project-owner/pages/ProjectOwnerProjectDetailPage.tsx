@@ -7,9 +7,9 @@ import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { ProjectOwnerShell } from '@/src/components/layout/ProjectOwnerShell';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import {
-  MATERIAL_TYPE_CONTRACT_GAP_MESSAGE,
   getProjectOwnerProject,
   listProjectOwnerMaterials,
+  loadProjectOwnerReferenceData,
 } from '../api';
 import { FollowUpNeedsPanel } from '../components/FollowUpNeedsPanel';
 import { MaterialListPanel } from '../components/MaterialListPanel';
@@ -17,9 +17,13 @@ import { MaterialUploadPanel } from '../components/MaterialUploadPanel';
 import { ProjectOwnerProjectInfoPanel } from '../components/ProjectOwnerProjectInfoPanel';
 import type {
   ProjectMaterial,
-  ProjectOwnerLookupMaps,
+  ProjectOwnerReferenceData,
   ProjectOwnerProject,
 } from '../types';
+import {
+  buildProjectOwnerLookupMaps,
+  createEmptyProjectOwnerLookupMaps,
+} from '../utils';
 
 type ProjectOwnerProjectDetailPageProps = {
   projectId: string;
@@ -35,18 +39,23 @@ export function ProjectOwnerProjectDetailPage({
   const [materialsError, setMaterialsError] = useState<string | null>(null);
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [project, setProject] = useState<ProjectOwnerProject | null>(null);
-
-  const lookupMaps = useMemo<ProjectOwnerLookupMaps>(
-    () => ({
-      batchNameById: new Map<string, string>(),
-      dictionaryNameById: new Map<string, string>(),
-      organizationNameById: new Map<string, string>(),
-      reviewSchemeNameById: new Map<string, string>(),
-      treeNameById: new Map<string, string>(),
-      userNameById: new Map<string, string>(),
-    }),
-    [],
+  const [referenceData, setReferenceData] =
+    useState<ProjectOwnerReferenceData | null>(null);
+  const [referenceDataError, setReferenceDataError] = useState<string | null>(
+    null,
   );
+
+  const lookupMaps = useMemo(
+    () =>
+      referenceData
+        ? buildProjectOwnerLookupMaps(referenceData)
+        : createEmptyProjectOwnerLookupMaps(),
+    [referenceData],
+  );
+  const materialTypes = referenceData?.materialTypes ?? [];
+  const materialTypesError = referenceDataError
+    ? `基础数据加载失败：${referenceDataError}`
+    : null;
 
   async function loadProject() {
     setLoading(true);
@@ -74,13 +83,51 @@ export function ProjectOwnerProjectDetailPage({
     }
   }
 
+  async function loadInitialData() {
+    setLoading(true);
+    setMaterialsLoading(true);
+    setError(null);
+    setMaterialsError(null);
+    setReferenceData(null);
+    setReferenceDataError(null);
+
+    const [projectResult, materialsResult, referenceResult] =
+      await Promise.allSettled([
+        getProjectOwnerProject(projectId),
+        listProjectOwnerMaterials(projectId),
+        loadProjectOwnerReferenceData(),
+      ]);
+
+    if (projectResult.status === 'fulfilled') {
+      setProject(projectResult.value);
+    } else {
+      setProject(null);
+      setError(getErrorMessage(projectResult.reason));
+    }
+
+    if (materialsResult.status === 'fulfilled') {
+      setMaterials(materialsResult.value);
+    } else {
+      setMaterials([]);
+      setMaterialsError(getErrorMessage(materialsResult.reason));
+    }
+
+    if (referenceResult.status === 'fulfilled') {
+      setReferenceData(referenceResult.value);
+    } else {
+      setReferenceDataError(getErrorMessage(referenceResult.reason));
+    }
+
+    setLoading(false);
+    setMaterialsLoading(false);
+  }
+
   async function refreshAfterMaterialChange() {
     await Promise.all([loadProject(), loadMaterials()]);
   }
 
   useEffect(() => {
-    loadProject();
-    loadMaterials();
+    loadInitialData();
   }, [projectId]);
 
   return (
@@ -109,9 +156,11 @@ export function ProjectOwnerProjectDetailPage({
         </section>
       ) : project ? (
         <div className="grid gap-5">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800 shadow-sm">
-            当前后端未提供 project_owner 可访问的批次、字典、树形字典、单位、用户和评审方案名称映射接口；项目基础信息中的相关字段暂以 ID 兜底展示。
-          </div>
+          {referenceDataError ? (
+            <ErrorAlert
+              message={`基础数据加载失败，部分名称将使用短 ID 兜底：${referenceDataError}`}
+            />
+          ) : null}
 
           <ProjectOwnerProjectInfoPanel
             lookupMaps={lookupMaps}
@@ -127,14 +176,16 @@ export function ProjectOwnerProjectDetailPage({
                   材料管理
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  按材料类型查看、下载和删除已上传材料；上传依赖 project_owner 可用的 material_type 字典接口。
+                  按材料类型查看、下载和删除已上传材料。
                 </p>
               </div>
 
               <MaterialUploadPanel
-                materialTypes={[]}
-                materialTypesError={MATERIAL_TYPE_CONTRACT_GAP_MESSAGE}
-                onUploaded={refreshAfterMaterialChange}
+                materialTypes={materialTypes}
+                materialTypesError={materialTypesError}
+                onUploaded={() => {
+                  void refreshAfterMaterialChange();
+                }}
                 projectId={project.id}
               />
 
@@ -142,6 +193,8 @@ export function ProjectOwnerProjectDetailPage({
                 <ErrorAlert message={materialsError} />
                 <MaterialListPanel
                   loading={materialsLoading}
+                  materialTypeNameById={lookupMaps.materialTypeNameById}
+                  materialTypes={materialTypes}
                   materials={materials}
                   onChanged={refreshAfterMaterialChange}
                   onFilterChange={setMaterialFilter}

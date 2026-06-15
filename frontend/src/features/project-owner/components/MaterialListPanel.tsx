@@ -15,11 +15,13 @@ import {
   getProjectOwnerMaterialDownloadUrl,
   resolveProjectMaterialDownloadUrl,
 } from '../api';
-import type { ProjectMaterial } from '../types';
-import { collectMaterialTypesFromMaterials, formatFileSize } from '../utils';
+import type { MaterialTypeSummary, ProjectMaterial } from '../types';
+import { formatFileSize, formatLookupName } from '../utils';
 
 type MaterialListPanelProps = {
   loading: boolean;
+  materialTypeNameById: Map<string, string>;
+  materialTypes: MaterialTypeSummary[];
   materials: ProjectMaterial[];
   onChanged: () => void;
   onFilterChange: (materialTypeId: string) => void;
@@ -29,6 +31,8 @@ type MaterialListPanelProps = {
 
 export function MaterialListPanel({
   loading,
+  materialTypeNameById,
+  materialTypes,
   materials,
   onChanged,
   onFilterChange,
@@ -40,10 +44,6 @@ export function MaterialListPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const materialTypes = useMemo(
-    () => collectMaterialTypesFromMaterials(materials),
-    [materials],
-  );
   const displayedMaterials = useMemo(
     () =>
       selectedMaterialTypeId
@@ -100,7 +100,7 @@ export function MaterialListPanel({
   const columns: DataColumn<ProjectMaterial>[] = [
     {
       key: 'type',
-      render: (item) => item.materialType?.name ?? item.materialTypeId,
+      render: (item) => formatMaterialTypeName(item, materialTypeNameById),
       title: '材料类型',
     },
     {
@@ -237,5 +237,20 @@ export function MaterialListPanel({
         title="删除材料"
       />
     </section>
+  );
+}
+
+function formatMaterialTypeName(
+  material: ProjectMaterial,
+  materialTypeNameById: Map<string, string>,
+): string {
+  if (material.materialType?.name) {
+    return material.materialType.name;
+  }
+
+  return formatLookupName(
+    material.materialTypeId,
+    materialTypeNameById,
+    '未知材料类型',
   );
 }

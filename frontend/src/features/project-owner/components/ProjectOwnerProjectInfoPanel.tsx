@@ -7,6 +7,7 @@ import type {
   ProjectOwnerProject,
 } from '../types';
 import {
+  formatLookupName,
   formatMoney,
   formatNames,
   formatOptionalName,
@@ -31,17 +32,26 @@ export function ProjectOwnerProjectInfoPanel({
     { label: '项目名称', value: project.name },
     {
       label: '批次',
-      value: lookupMaps.batchNameById.get(project.batchId) ?? project.batchId,
+      value: formatLookupName(
+        project.batchId,
+        lookupMaps.batchNameById,
+        '未知批次',
+      ),
     },
     {
       label: '项目类型',
-      value: formatOptionalName(project.projectTypeId, lookupMaps.treeNameById),
+      value: formatOptionalName(
+        project.projectTypeId,
+        lookupMaps.treeNameById,
+        '未知项目类型',
+      ),
     },
     {
       label: '项目状态',
       value: formatOptionalName(
         project.statusId,
         lookupMaps.dictionaryNameById,
+        '未知项目状态',
       ),
     },
     {
@@ -49,6 +59,7 @@ export function ProjectOwnerProjectInfoPanel({
       value: formatOptionalName(
         project.leadOrganizationId,
         lookupMaps.organizationNameById,
+        '未知单位',
       ),
     },
     {
@@ -56,15 +67,24 @@ export function ProjectOwnerProjectInfoPanel({
       value: formatNames(
         project.cooperationOrganizationIds,
         lookupMaps.organizationNameById,
+        '未知单位',
       ),
     },
     {
       label: '学科',
-      value: formatNames(project.disciplineIds, lookupMaps.treeNameById),
+      value: formatNames(
+        project.disciplineIds,
+        lookupMaps.treeNameById,
+        '未知学科',
+      ),
     },
     {
       label: '受理处室',
-      value: formatOptionalName(project.departmentId, lookupMaps.treeNameById),
+      value: formatOptionalName(
+        project.departmentId,
+        lookupMaps.treeNameById,
+        '未知受理处室',
+      ),
     },
     { label: '拨款总额', value: formatMoney(project.totalFunding) },
     { label: '已拨款', value: formatMoney(project.allocatedFunding) },
@@ -77,6 +97,7 @@ export function ProjectOwnerProjectInfoPanel({
       value: formatOptionalName(
         project.reviewManagerId,
         lookupMaps.userNameById,
+        '未知评审负责人',
       ),
     },
     {
@@ -84,6 +105,7 @@ export function ProjectOwnerProjectInfoPanel({
       value: formatOptionalName(
         project.reviewSchemeId,
         lookupMaps.reviewSchemeNameById,
+        '未知评审方案',
       ),
     },
     { label: '评审时间', value: formatDateTime(project.reviewTime) },

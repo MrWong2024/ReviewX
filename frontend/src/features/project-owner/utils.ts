@@ -1,4 +1,9 @@
-import type { MaterialTypeSummary, ProjectMaterial } from './types';
+import type {
+  MaterialTypeSummary,
+  ProjectMaterial,
+  ProjectOwnerLookupMaps,
+  ProjectOwnerReferenceData,
+} from './types';
 
 export const MAX_PROJECT_MATERIAL_FILES = 20;
 export const MAX_PROJECT_MATERIAL_FILE_SIZE_BYTES = 500 * 1024 * 1024;
@@ -139,24 +144,84 @@ export function collectMaterialTypesFromMaterials(
   return [...byId.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
-export function formatOptionalName(
+export function createEmptyProjectOwnerLookupMaps(): ProjectOwnerLookupMaps {
+  return {
+    batchNameById: new Map<string, string>(),
+    dictionaryNameById: new Map<string, string>(),
+    materialTypeNameById: new Map<string, string>(),
+    organizationNameById: new Map<string, string>(),
+    reviewSchemeNameById: new Map<string, string>(),
+    treeNameById: new Map<string, string>(),
+    userNameById: new Map<string, string>(),
+  };
+}
+
+export function buildProjectOwnerLookupMaps(
+  referenceData: ProjectOwnerReferenceData,
+): ProjectOwnerLookupMaps {
+  return {
+    batchNameById: new Map(
+      referenceData.batches.map((item) => [item.id, item.name]),
+    ),
+    dictionaryNameById: new Map(
+      referenceData.dictionaries.map((item) => [item.id, item.name]),
+    ),
+    materialTypeNameById: new Map(
+      referenceData.materialTypes.map((item) => [item.id, item.name]),
+    ),
+    organizationNameById: new Map(
+      referenceData.organizations.map((item) => [item.id, item.name]),
+    ),
+    reviewSchemeNameById: new Map(
+      referenceData.reviewSchemes.map((item) => [item.id, item.name]),
+    ),
+    treeNameById: new Map(
+      referenceData.treeDictionaries.map((item) => [item.id, item.name]),
+    ),
+    userNameById: new Map(
+      referenceData.reviewManagers.map((item) => [item.id, item.name]),
+    ),
+  };
+}
+
+export function shortId(id: string): string {
+  const trimmed = id.trim();
+
+  if (trimmed.length <= 8) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}`;
+}
+
+export function formatLookupName(
   id: string | null | undefined,
   nameById: Map<string, string>,
+  unknownLabel = '未知项',
 ): string {
   if (!id) {
     return '-';
   }
 
-  return nameById.get(id) ?? id;
+  return nameById.get(id) ?? `${unknownLabel}（${shortId(id)}）`;
+}
+
+export function formatOptionalName(
+  id: string | null | undefined,
+  nameById: Map<string, string>,
+  unknownLabel = '未知项',
+): string {
+  return formatLookupName(id, nameById, unknownLabel);
 }
 
 export function formatNames(
   ids: string[],
   nameById: Map<string, string>,
+  unknownLabel = '未知项',
 ): string {
   if (ids.length === 0) {
     return '-';
   }
 
-  return ids.map((id) => nameById.get(id) ?? id).join('、');
+  return ids.map((id) => formatLookupName(id, nameById, unknownLabel)).join('、');
 }

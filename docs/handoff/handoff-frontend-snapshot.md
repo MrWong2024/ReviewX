@@ -95,16 +95,14 @@ frontend/
 - `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
-- `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口，支持分页和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` ID 筛选，不提交 `ownerUserId` 或 `keyword`
-- `/project-owner/projects/[projectId]`：项目负责人项目详情页，展示基础信息、评审安排、会议链接、后续推进需求和材料管理
+- `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，不提交 `ownerUserId` 或 `keyword`
+- `/project-owner/projects/[projectId]`：项目负责人项目详情页，并发加载项目、材料和 portal reference-data，展示名称映射后的基础信息、评审安排、会议链接、后续推进需求和材料管理
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
-- 项目负责人材料列表 / 下载 / 删除：调用 project_owner 材料接口，下载使用后端签名 URL，删除为软删除且有二次确认
-- 项目负责人材料上传前端逻辑：已实现 FormData 字段 `files/materialTypeId/remark` 和文件数量 / 大小 / 扩展名校验；当前因后端缺少 project_owner 可用 `material_type` 读取接口而禁用上传入口
+- 项目负责人材料列表 / 下载 / 删除：调用 project_owner 材料接口，材料类型显示名称，下载使用后端签名 URL，删除为软删除且有二次确认
+- 项目负责人材料上传闭环：使用 portal active `material_type` 启用上传；FormData 字段为 `files/materialTypeId/remark`，不手动设置 `Content-Type`；保留文件数量 / 大小 / 扩展名校验和 failures 明细展示
 
 ## 7. 当前未实现
 
-- 项目负责人材料上传真实提交闭环：需后端补充 project_owner 可访问的 `material_type` 字典读取接口后启用并复测
-- 项目负责人主数据名称映射：需后端补充 project_owner 可访问的批次、普通字典、树形字典、单位、用户和评审方案只读接口；当前以 ID 兜底展示
 - 专家评分页面
 - 合议确认页面
 - 申诉页面
@@ -148,9 +146,10 @@ frontend/
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
 - 项目负责人前端 API 封装位于 `frontend/src/features/project-owner/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 项目负责人项目列表 / 详情 / follow-up-needs / 材料列表 / 上传 / 下载 URL / 删除接口已封装；上传封装使用 FormData 且不手动设置 `Content-Type`
-- 当前后端普通字典读取接口只有 `/admin/dictionaries` 且 `@Roles('admin')`，project_owner 无法读取 `dictType=material_type`；前端不调用 admin-only 字典接口，不写死材料类型 ID，不使用 mock 类型作为真实数据源
-- 已上传材料列表可以展示后端材料响应内联的 `materialType` 摘要，并基于该摘要生成筛选 tabs；上传选择仍需完整材料类型读取接口
-- 项目负责人列表和详情中的批次、项目状态、项目类型、学科、受理处室、单位、评审负责人和评审方案暂无 project_owner 可用名称映射接口，当前以 ID 兜底展示并在页面提示
+- 项目负责人页面已封装 `/portal/reference-data/*` 只读接口：普通字典、树形字典、批次、单位、评审方案和 `role=review_manager` 用户摘要；不调用 `/admin/*` 绕过权限
+- 项目负责人列表和详情通过 portal reference-data 构造批次、项目状态、项目类型、学科、受理处室、单位、评审负责人、评审方案和材料类型名称映射；未命中时使用“未知项（短ID）”类兜底
+- 材料上传选择使用 active `material_type`，`material_type` 为空或 reference-data 加载失败时上传禁用；前端不写死材料类型 ID，不使用 mock 类型作为真实数据源
+- 已上传材料列表的材料类型展示优先使用后端材料响应内联的 `materialType.name`，其次使用 portal `material_type` 映射；筛选项来自 portal `material_type`
 - 项目负责人详情页 meetingUrl 仅打开管理员录入链接，不接腾讯会议 API
 - 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
 - 项目负责人材料删除只调用软删除接口；当前不实现恢复、硬删除或文件预览

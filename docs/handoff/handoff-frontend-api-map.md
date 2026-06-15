@@ -87,19 +87,27 @@
 | `listProjectOwnerProjects` | `GET /project-owner/projects` | 分页对象；只提交 `page/pageSize/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId`，不提交 `ownerUserId`，不提交 `keyword` | `/project-owner`、`/project-owner/projects` |
 | `getProjectOwnerProject` | `GET /project-owner/projects/:id` | `ProjectOwnerProject`；后端按当前登录用户校验 owner 权限 | `/project-owner/projects/[projectId]` |
 | `updateProjectOwnerFollowUpNeeds` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只提交 `{ followUpNeeds }`，最大长度 5000 由前后端共同校验 | `/project-owner/projects/[projectId]` |
-| `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；当前详情页读取项目 active 材料，前端只用材料响应中的 `materialType` 摘要生成 tabs | `/project-owner/projects/[projectId]` |
-| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；当前因材料类型读取接口缺失而禁用入口 | `/project-owner/projects/[projectId]` |
+| `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；当前详情页读取项目 active 材料，材料类型名称优先使用响应内联 `materialType.name`，否则使用 portal `material_type` 映射 | `/project-owner/projects/[projectId]` |
+| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；材料类型来自 portal active `material_type` 字典 | `/project-owner/projects/[projectId]` |
 | `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
 | `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted }`；软删除，删除前二次确认 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
+| `listPortalDictionaries` | `GET /portal/reference-data/dictionaries` | `{ items }`；读取 `dictTypes=material_type,project_status`，用于材料类型、项目状态和普通字典名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `listPortalTreeDictionaries` | `GET /portal/reference-data/tree-dictionaries` | `{ items }`；读取 `treeTypes=project_type,discipline,department,administrative_division`，用于项目类型、学科、受理处室和行政区划名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `listPortalBatches` | `GET /portal/reference-data/batches` | `{ items }`；用于批次筛选和名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `listPortalOrganizations` | `GET /portal/reference-data/organizations` | `{ items }`；只使用单位名称和 `regionId` 摘要，不期待联系人字段 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `listPortalReviewSchemes` | `GET /portal/reference-data/review-schemes` | `{ items }`；用于评审方案筛选和名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `listPortalUsers` | `GET /portal/reference-data/users` | `{ items }`；项目负责人页面只调用 `role=review_manager`，不查询 admin | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `loadProjectOwnerReferenceData` | 前端聚合辅助 | 并发读取 `/portal/reference-data/*`，构造材料类型、项目状态和名称映射数据源；失败时页面展示错误，详情页上传禁用 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
 
 材料类型读取口径：
 
-- 当前未新增 `listMaterialTypes`。
-- 原因：后端当前只有 `GET /admin/dictionaries?dictType=material_type`，controller 使用 `@Roles('admin')`，project_owner 无权读取。
-- 项目负责人页面不得调用 admin-only 字典接口，不得写死材料类型 ID，不得使用 mock 材料类型作为真实数据源。
-- 现状：上传区域显示“材料类型接口暂不可用”并禁用；已上传材料列表仍可使用材料响应中的 `materialType` 摘要展示类型名。
-- 后续建议：后端补充公共或 project_owner 可访问的 `material_type` 只读接口后，再在 project-owner API 中封装 `listMaterialTypes` 并启用上传选择。
+- 项目负责人页面通过 `GET /portal/reference-data/dictionaries?dictTypes=material_type,project_status` 读取材料类型和项目状态。
+- 上传区域只使用 active `material_type` 选项；为空时提示维护普通字典 `material_type` 并禁用上传。
+- reference-data 加载失败时详情页仍可展示项目原始信息兜底，但上传禁用并显示错误。
+- 项目负责人页面不调用 admin-only 字典接口，不写死材料类型 ID，不使用 mock 材料类型作为真实数据源。
+- 材料上传仍使用 `POST /project-owner/projects/:id/materials`，FormData 字段名固定为 `files/materialTypeId/remark`，不手动设置 multipart `Content-Type`。
+- 材料下载只使用后端 download-url 返回的签名 URL，不前端拼接 `objectKey`。
 
 ## 4. 错误处理
 
@@ -133,6 +141,9 @@
 - 专家分配操作使用 `/review-manager/projects*` 系列接口，admin 角色按后端权限允许访问；前端不新增 `/admin/projects/:id/experts` 假接口
 - 专家候选和分配不在前端自行实现学科匹配或单位回避；页面只展示后端返回候选、assigned 标记和失败原因
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
+- 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；未命中时显示“未知项（短ID）”类兜底，不默认展示裸 ID
+- 项目负责人项目列表筛选使用批次、项目类型、项目状态、评审负责人、评审方案 select；提交给后端的仍是对应 ID，不新增 keyword
+- 项目负责人材料列表类型展示优先使用 `ProjectMaterial.materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”
 
 ## 5. 当前未对接的后端接口
 
@@ -146,5 +157,3 @@
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`
 - `/admin/projects/:id/appeals*`
-- project_owner 可访问的 `material_type` 字典读取接口尚未提供；当前不能完整启用项目负责人材料上传
-- project_owner 可访问的批次、普通字典、树形字典、单位、用户和评审方案名称映射接口尚未提供；项目负责人项目列表 / 详情相关字段以 ID 兜底展示

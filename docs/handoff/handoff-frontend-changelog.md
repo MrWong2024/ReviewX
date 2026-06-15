@@ -1,5 +1,21 @@
 # ReviewX 前端变更记录
 
+## 2026-06-16
+
+### ReviewX 第四阶段补丁二：项目负责人材料上传闭环启用与名称映射优化
+
+- `/project-owner/projects` 接入 `/portal/reference-data/*`，批次、项目类型、项目状态、评审负责人、评审方案筛选从手填 ID 改为 select，筛选提交仍传后端 ID，不新增 keyword
+- 项目负责人项目列表使用门户参考数据展示批次、项目类型、项目状态、学科、承担单位、评审负责人和评审方案名称；未命中时显示“未知项（短ID）”类兜底
+- `/project-owner/projects/[projectId]` 并发加载项目详情、材料列表和门户参考数据，基础信息卡和评审安排卡改为名称展示
+- 新增 project-owner portal reference-data API 封装：`listPortalDictionaries`、`listPortalTreeDictionaries`、`listPortalBatches`、`listPortalOrganizations`、`listPortalReviewSchemes`、`listPortalUsers`、`loadProjectOwnerReferenceData`
+- `MaterialUploadPanel` 使用 active `material_type` 字典启用真实材料上传；`material_type` 为空或 reference-data 加载失败时禁用上传并显示明确错误
+- 材料上传继续使用 `POST /project-owner/projects/:id/materials` 和 FormData 字段 `files/materialTypeId/remark`，不手动设置 multipart `Content-Type`
+- 上传结果继续展示 successCount / failedCount，并补充 failures 明细中的 originalFilename 和 message
+- `MaterialListPanel` 材料类型名称优先使用材料响应内联 `materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”；筛选项来自 portal `material_type`
+- 下载仍调用后端 download-url 并使用返回的签名 URL，不前端拼接 OSS objectKey；删除仍为软删除并保留二次确认
+- 本补丁未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本补丁未实现专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复或硬删除
+
 ## 2026-06-15
 
 ### ReviewX 前端第四阶段：项目负责人工作台与材料管理前端接入

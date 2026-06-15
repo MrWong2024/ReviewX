@@ -19,9 +19,9 @@
 | `/admin/project-import-field-mappings` | `frontend/app/admin/project-import-field-mappings/page.tsx` | 需要登录 + admin 角色 | implemented | Excel 字段映射配置，维护标准字段自定义别名、启停、删除和 reset-defaults fallback |
 | `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目评审组织列表，支持筛选、单项目分配、批量分配和批量设置专家 |
 | `/admin/projects/[projectId]/review-organization` | `frontend/app/admin/projects/[projectId]/review-organization/page.tsx` | 需要登录 + admin 角色 | implemented | 单项目评审组织详情，维护评审安排、查看候选专家和管理已分配专家 |
-| `/project-owner` | `frontend/app/project-owner/page.tsx` | 需要登录 + project_owner 角色 | partially implemented | 项目负责人概览，基于第一页项目做轻量展示并提供“我的项目”入口 |
-| `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | partially implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页和后端支持的 ID 筛选；名称映射暂以 ID 兜底 |
-| `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | partially implemented | 项目详情、评审安排、后续推进需求、材料列表、下载和删除；材料上传因缺少 project_owner 可用 material_type 读取接口而禁用 |
+| `/project-owner` | `frontend/app/project-owner/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人概览，基于第一页项目做轻量展示并提供“我的项目”入口 |
+| `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页、portal reference-data 名称映射和批次 / 项目类型 / 项目状态 / 评审负责人 / 评审方案 select 筛选 |
+| `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目详情、评审安排、后续推进需求、portal reference-data 名称映射，以及材料上传 / 列表 / 下载 / 删除闭环 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
 ## 2. 管理员 layout
@@ -47,4 +47,4 @@
 
 - 不包含用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置
 - 不包含专家评分、合议、申诉、甲方看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面
-- 不包含完整材料上传闭环：当前后端只有 admin-only 普通字典接口，project_owner 无法读取 `dictType=material_type`，上传入口禁用并显示契约缺口
+- 不包含文件预览、材料恢复或材料硬删除；项目负责人材料上传闭环已通过 portal `material_type` 启用

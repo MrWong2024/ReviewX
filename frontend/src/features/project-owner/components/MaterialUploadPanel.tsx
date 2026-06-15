@@ -29,6 +29,9 @@ export function MaterialUploadPanel({
   projectId,
 }: MaterialUploadPanelProps) {
   const [error, setError] = useState<string | null>(null);
+  const [failures, setFailures] = useState<
+    UploadProjectMaterialsResult['failures']
+  >([]);
   const [fileInputKey, setFileInputKey] = useState(0);
   const [files, setFiles] = useState<File[]>([]);
   const [materialTypeId, setMaterialTypeId] = useState('');
@@ -50,6 +53,7 @@ export function MaterialUploadPanel({
 
   async function handleUpload() {
     setError(null);
+    setFailures([]);
     setNotice(null);
 
     if (disabledReason) {
@@ -90,6 +94,7 @@ export function MaterialUploadPanel({
       setNotice(
         `材料上传完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个。`,
       );
+      setFailures(result.failures);
       onUploaded(result);
     } catch (uploadError) {
       setError(getErrorMessage(uploadError));
@@ -111,6 +116,21 @@ export function MaterialUploadPanel({
       {notice ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
           {notice}
+        </div>
+      ) : null}
+      {failures.length > 0 ? (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 shadow-sm">
+          <div className="font-bold">失败明细</div>
+          <ul className="mt-2 grid gap-1">
+            {failures.map((failure) => (
+              <li key={`${failure.originalFilename}-${failure.message}`}>
+                <span className="font-semibold">
+                  {failure.originalFilename}
+                </span>
+                ：{failure.message}
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
       {disabledReason ? (
