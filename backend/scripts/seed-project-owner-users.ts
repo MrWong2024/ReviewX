@@ -17,6 +17,8 @@ type ParsedArgs = {
   updateName: boolean;
   allowMissingOrganization: boolean;
   strictOrganization: boolean;
+  allowProduction: boolean;
+  confirmDb?: string;
   help: boolean;
 };
 
@@ -123,7 +125,7 @@ const ALLOWED_DATABASE_NAMES = ['reviewx_dev', 'reviewx_test'] as const;
 
 const SCRIPT_USAGE = [
   'Usage:',
-  '  npm run seed:project-owner-users -- --file <csv-path> [--dry-run] [--env-file .env.development|.env.test] [--reset-password] [--update-name] [--allow-missing-organization|--strict-organization]',
+  '  npm run seed:project-owner-users -- --file <csv-path> [--dry-run] [--env-file .env.development|.env.test] [--reset-password] [--update-name] [--allow-missing-organization|--strict-organization] [--allow-production --confirm-db <databaseName>]',
   '',
   'Options:',
   '  --file <path>                    Required CSV file path.',
@@ -133,7 +135,20 @@ const SCRIPT_USAGE = [
   '  --update-name                    Overwrite existing user names from CSV.',
   '  --allow-missing-organization     Allow unmatched organizations and print them. Default.',
   '  --strict-organization            Fail when any organizationName cannot be matched.',
+  '  --allow-production               Allow production or non-dev/test database targets. Requires --confirm-db.',
+  '  --confirm-db <databaseName>       Confirm the exact target database name. Requires --allow-production.',
   '  --help                           Print this help without connecting to MongoDB.',
+  '',
+  'Examples:',
+  '  npm run seed:project-owner-users -- --file ./scripts/data/project-owner-users.csv --dry-run',
+  '  npm run seed:project-owner-users -- \\',
+  '    --file ./scripts/data/project-owner-users.csv \\',
+  '    --env-file .env.production \\',
+  '    --allow-production \\',
+  '    --confirm-db reviewx_prod \\',
+  '    --dry-run',
+  '',
+  'Production or non-dev/test database targets require both --allow-production and --confirm-db <databaseName>.',
 ].join('\n');
 
 async function main(): Promise<void> {
@@ -152,7 +167,6 @@ async function main(): Promise<void> {
   const dataset = readImportedDataset(filePath);
 
   loadEnvFile(args.envFile);
-  assertSafeRuntime(args.envFile);
 
   const mongoUri = process.env.MONGO_URI?.trim();
   if (!mongoUri) {
@@ -162,13 +176,13 @@ async function main(): Promise<void> {
   }
 
   const databaseName = getDatabaseNameFromMongoUri(mongoUri);
-  assertAllowedDatabase(databaseName);
+  assertDatabaseSafetyBeforeConnect(args, databaseName);
 
   await mongoose.connect(mongoUri);
 
   try {
     const connectedDatabaseName = mongoose.connection.db?.databaseName;
-    assertAllowedDatabase(connectedDatabaseName);
+    assertDatabaseSafetyAfterConnect(args, connectedDatabaseName);
 
     const userModel = getUserModel();
     const organizationModel = getOrganizationModel();
@@ -210,6 +224,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     updateName: false,
     allowMissingOrganization: true,
     strictOrganization: false,
+    allowProduction: false,
     help: false,
   };
 
@@ -246,6 +261,11 @@ function parseArgs(argv: string[]): ParsedArgs {
       continue;
     }
 
+    if (current === '--allow-production') {
+      args.allowProduction = true;
+      continue;
+    }
+
     if (!current.startsWith('--')) {
       throw new CliError(`${SCRIPT_USAGE}\n\nUnexpected argument: ${current}`);
     }
@@ -265,6 +285,10 @@ function parseArgs(argv: string[]): ParsedArgs {
     args.allowMissingOrganization = false;
   }
 
+  if (!args.help) {
+    assertProductionConfirmationPair(args);
+  }
+
   return args;
 }
 
@@ -279,7 +303,32 @@ function assignArg(args: ParsedArgs, key: string, value: string): void {
     return;
   }
 
+  if (key === 'confirm-db') {
+    const confirmDb = value.trim();
+
+    if (!confirmDb) {
+      throw new CliError(`${SCRIPT_USAGE}\n\nMissing value for --confirm-db.`);
+    }
+
+    args.confirmDb = confirmDb;
+    return;
+  }
+
   throw new CliError(`${SCRIPT_USAGE}\n\nUnknown argument: --${key}`);
+}
+
+function assertProductionConfirmationPair(args: ParsedArgs): void {
+  if (args.confirmDb && !args.allowProduction) {
+    throw new CliError(
+      'Missing --allow-production. --confirm-db can only be used with --allow-production.',
+    );
+  }
+
+  if (args.allowProduction && !args.confirmDb) {
+    throw new CliError(
+      'Missing --confirm-db <databaseName>. --allow-production requires explicit database confirmation.',
+    );
+  }
 }
 
 function resolveFilePath(filePath: string): string {
@@ -780,6 +829,14 @@ function printSummary(
           updateName: args.updateName,
           allowMissingOrganization: args.allowMissingOrganization,
           strictOrganization: args.strictOrganization,
+          allowProduction: args.allowProduction,
+          confirmDb: args.confirmDb ?? null,
+          productionLikeTarget: isProductionLikeRuntime(
+            args.envFile,
+            databaseName,
+          ),
+          productionAllowedByExplicitConfirmation:
+            isProductionAllowedByExplicitConfirmation(args, databaseName),
         },
         csv: {
           dataRows: dataset.csvDataRows,
@@ -880,18 +937,6 @@ function stripMatchingQuotes(value: string): string {
   return value;
 }
 
-function assertSafeRuntime(envFile: string): void {
-  const normalizedEnvFile = envFile.toLowerCase();
-
-  if (normalizedEnvFile.includes('production')) {
-    throw new CliError('Refusing to run against a production env file.');
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    throw new CliError('Refusing to run when NODE_ENV=production.');
-  }
-}
-
 function getDatabaseNameFromMongoUri(uri: string): string | undefined {
   const uriWithoutScheme = uri.replace(/^mongodb(\+srv)?:\/\//, '');
   const slashIndex = uriWithoutScheme.indexOf('/');
@@ -906,17 +951,80 @@ function getDatabaseNameFromMongoUri(uri: string): string | undefined {
   return databaseName ? decodeURIComponent(databaseName) : undefined;
 }
 
-function assertAllowedDatabase(databaseName: string | undefined): void {
-  if (
-    !databaseName ||
-    !ALLOWED_DATABASE_NAMES.includes(
-      databaseName as (typeof ALLOWED_DATABASE_NAMES)[number],
-    )
-  ) {
+function isDefaultAllowedDatabase(databaseName: string | undefined): boolean {
+  return ALLOWED_DATABASE_NAMES.includes(
+    databaseName as (typeof ALLOWED_DATABASE_NAMES)[number],
+  );
+}
+
+function isProductionLikeRuntime(
+  envFile: string,
+  databaseName: string | undefined,
+): boolean {
+  return (
+    envFile.toLowerCase().includes('production') ||
+    process.env.NODE_ENV === 'production' ||
+    !isDefaultAllowedDatabase(databaseName)
+  );
+}
+
+function assertDatabaseSafetyBeforeConnect(
+  args: ParsedArgs,
+  databaseName: string | undefined,
+): void {
+  assertDatabaseSafety(args, databaseName, 'MONGO_URI database');
+}
+
+function assertDatabaseSafetyAfterConnect(
+  args: ParsedArgs,
+  databaseName: string | undefined,
+): void {
+  assertDatabaseSafety(args, databaseName, 'Connected database');
+}
+
+function assertDatabaseSafety(
+  args: ParsedArgs,
+  databaseName: string | undefined,
+  databaseLabel: string,
+): void {
+  const productionLikeTarget = isProductionLikeRuntime(
+    args.envFile,
+    databaseName,
+  );
+
+  if (!productionLikeTarget && !args.allowProduction) {
+    return;
+  }
+
+  if (!args.allowProduction) {
     throw new CliError(
-      'Refusing to run. Target database must be reviewx_dev or reviewx_test.',
+      'Refusing to run against a production or non-dev/test database. Missing --allow-production and --confirm-db <databaseName>.',
     );
   }
+
+  if (!args.confirmDb) {
+    throw new CliError(
+      'Missing --confirm-db <databaseName>. Production or non-dev/test database operations require explicit database confirmation.',
+    );
+  }
+
+  if (!databaseName || args.confirmDb !== databaseName) {
+    throw new CliError(
+      `${databaseLabel} confirmation mismatch. ${databaseLabel} is "${databaseName ?? '(none)'}", but --confirm-db is "${args.confirmDb}".`,
+    );
+  }
+}
+
+function isProductionAllowedByExplicitConfirmation(
+  args: ParsedArgs,
+  databaseName: string | undefined,
+): boolean {
+  return (
+    isProductionLikeRuntime(args.envFile, databaseName) &&
+    args.allowProduction &&
+    Boolean(args.confirmDb) &&
+    args.confirmDb === databaseName
+  );
 }
 
 function getUserModel(): Model<User> {

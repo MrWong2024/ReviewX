@@ -15,7 +15,7 @@
     "lint:file": "eslint",
     "lint:file:fix": "eslint --fix",
     "create-local-user": "node -r ts-node/register -r tsconfig-paths/register ./scripts/create-local-user.ts",
-    "seed:project-owner-users": "node -r ts-node/register -r tsconfig-paths/register ./scripts/seed-project-owner-users.ts",
+    "seed:project-owner-users": "node -r ts-node/register -r tsconfig-paths/register -- ./scripts/seed-project-owner-users.ts",
     "sync-indexes": "node -r ts-node/register -r tsconfig-paths/register ./scripts/sync-indexes.ts",
     "test": "jest",
     "test:watch": "jest --watch",
