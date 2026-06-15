@@ -17,6 +17,7 @@ import {
   TimestampFields,
   toObjectId,
 } from '../../../common/utils/mongo-query';
+import { normalizeUploadedFilename } from '../../../common/utils/uploaded-filename.util';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { Dictionary } from '../../dictionaries/schemas/dictionary.schema';
 import { ProjectExpertAssignment } from '../../project-expert-assignments/schemas/project-expert-assignment.schema';
@@ -185,6 +186,7 @@ type AssignmentProjectIdLean = {
 
 type ValidatedFile = {
   file: UploadedProjectMaterialFile;
+  originalFilename: string;
   safeFilename: string;
   extension: string;
   mimeType: string;
@@ -356,7 +358,7 @@ export class ProjectMaterialsService {
         }
 
         failures.push({
-          originalFilename: file.originalname,
+          originalFilename: normalizeUploadedFilename(file.originalname),
           message,
         });
       }
@@ -489,7 +491,7 @@ export class ProjectMaterialsService {
         projectId: input.project._id,
         materialTypeId: input.materialType._id,
         uploadedByUserId: toObjectId(input.uploadedByUserId, 'userId'),
-        originalFilename: input.validatedFile.file.originalname,
+        originalFilename: input.validatedFile.originalFilename,
         safeFilename: input.validatedFile.safeFilename,
         objectKey: uploaded.objectKey,
         bucket: uploaded.bucket,
@@ -526,7 +528,8 @@ export class ProjectMaterialsService {
       throw new BadRequestException('File is too large');
     }
 
-    const safeFilename = sanitizeFilename(file.originalname);
+    const originalFilename = normalizeUploadedFilename(file.originalname);
+    const safeFilename = sanitizeFilename(originalFilename);
     const extension = getLowercaseExtension(safeFilename);
 
     if (!extension) {
@@ -543,6 +546,7 @@ export class ProjectMaterialsService {
 
     return {
       file,
+      originalFilename,
       safeFilename,
       extension,
       mimeType: file.mimetype?.trim() || 'application/octet-stream',

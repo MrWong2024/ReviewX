@@ -23,12 +23,13 @@
 - 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`
 - 当前已实现 `ProjectMaterial` 项目材料模型，数据库只保存 OSS/fake storage 引用和文件元数据，不保存文件内容
 - 当前已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL 和软删除
+- 当前项目材料上传已复用通用上传文件名规范化工具，保存 `originalFilename` 和生成 `safeFilename` 前会保守修正常见 multipart 中文文件名 mojibake；该修复只影响新上传材料，历史乱码材料不自动迁移
 - 当前已实现评审负责人、已分配专家和管理员查看项目材料及获取短期下载 URL 的后端接口
 - 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
-- 当前项目导入上传创建任务时，会在入库前对 multipart 场景下 latin1 误解码的中文 Excel 文件名做保守修正；正常 UTF-8 中文、英文和常见空格/括号/短横线/下划线文件名保持原样
+- 当前项目导入上传创建任务时，会通过通用上传文件名规范化工具在入库前对 multipart 场景下 latin1 误解码的中文 Excel 文件名做保守修正；正常 UTF-8 中文、英文和常见空格/括号/短横线/下划线文件名保持原样
 - 当前项目导入支持管理员删除未确认入库的导入任务；删除只清理 `ProjectImportJob` 和对应 `ProjectImportRow`，不删除正式项目；`parsing` 或已有 confirmed 行的任务禁止删除
 - 当前项目导入学科字段使用专用多值拆分规则：英文逗号、中文逗号、分号和换行可分隔多个学科，学科名称内部顿号 `、` 不再被拆分；合作单位等通用多值字段仍保留顿号拆分。该修复只影响后续新上传或重新保存触发重新标准化的导入行，历史已解析 `ProjectImportRow.normalized.disciplineNames` 不自动迁移
 - 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
@@ -342,6 +343,7 @@ backend/
 - 不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续可替换为 RAM Role
 - E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`，自动化测试使用 fake storage
 - 当前已实现项目材料上传、列表、短期下载 URL 和软删除；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
+- 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
 - 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage
 - 当前仍未实现真实 AI 合议、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
@@ -370,12 +372,14 @@ backend/
 - 已包含 `src/modules/project-imports/services/project-imports.service.spec.ts`，用于验证导入任务删除规则：非法 ID、任务不存在、`parsing`、`confirmedRows`、confirmed 行兜底检查、删除成功清理 rows 且不调用项目入库能力
 - 已包含 `src/modules/project-imports/services/project-import-field-mappings.service.spec.ts`，用于验证 Excel 字段映射配置标准字段清单、完整配置视图、upsert/update/delete/reset-defaults、effective alias map、非法字段、空别名、同字段重复、跨字段冲突和停用 fallback
 - 已包含 `src/modules/project-imports/utils/import-normalizer.spec.ts`，用于验证项目导入标准化：通用多值字段仍按顿号拆分，学科字段不按顿号拆分但仍按逗号、分号和换行拆分，重复学科去重，空值返回空数组
-- 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底和非乱码边界不误改
+- 已包含 `src/common/utils/uploaded-filename.util.spec.ts`，用于验证通用上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底和非乱码边界不误改
+- 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名兼容转发仍可用
 - 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
 - `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析、删除配置后默认内置别名 fallback 仍可用，以及包含顿号的完整学科名称在上传解析后按完整名称匹配 `treeType=discipline` 节点
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
-- 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性和既有接口轻量回归
+- 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成，以及多文件 failures 返回规范化后的 `originalFilename`
+- 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性、multipart 中文文件名 mojibake 修复和既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖

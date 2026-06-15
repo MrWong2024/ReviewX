@@ -334,6 +334,55 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     expect(deletedMaterial?.deletedAt).toBeTruthy();
   });
 
+  it('normalizes mojibake Chinese material filenames on upload and list', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+    const boundary = '----reviewx-material-filename-test';
+
+    const uploadResponse = await request(httpServer)
+      .post(`/project-owner/projects/${data.project.id}/materials`)
+      .set('Cookie', ownerCookie)
+      .set('Content-Type', `multipart/form-data; boundary=${boundary}`)
+      .send(
+        buildMultipartUploadBody({
+          boundary,
+          materialTypeId: data.materialTypeId,
+          filename: '结题材料.pdf',
+          contentType: 'application/pdf',
+          content: 'pdf-content',
+        }),
+      )
+      .expect(201);
+    const uploadBody = getJsonBody(uploadResponse);
+    const material = getRecordArray(uploadBody, 'materials')[0];
+
+    if (!material) {
+      throw new Error('uploaded material is required');
+    }
+
+    expect(material).toMatchObject({
+      originalFilename: '结题材料.pdf',
+      safeFilename: 'file.pdf',
+    });
+    expect(getString(material, 'objectKey')).toContain('-file.pdf');
+    expect(getString(material, 'objectKey')).not.toContain('ç');
+
+    const listResponse = await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}/materials`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    const listedMaterial = getJsonArray(listResponse)[0];
+
+    if (!listedMaterial) {
+      throw new Error('listed material is required');
+    }
+
+    expect(listedMaterial).toMatchObject({
+      originalFilename: '结题材料.pdf',
+      safeFilename: 'file.pdf',
+    });
+  });
+
   it('exposes materials to project review managers, assigned experts, and admins only', async () => {
     const data = await seedData();
     const ownerCookie = await login(data.owner.phone);
@@ -704,4 +753,30 @@ function getString(record: Record<string, unknown>, key: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function buildMultipartUploadBody(input: {
+  boundary: string;
+  materialTypeId: string;
+  filename: string;
+  contentType: string;
+  content: string;
+}): Buffer {
+  return Buffer.concat([
+    Buffer.from(
+      `--${input.boundary}\r\n` +
+        'Content-Disposition: form-data; name="materialTypeId"\r\n\r\n' +
+        `${input.materialTypeId}\r\n` +
+        `--${input.boundary}\r\n` +
+        'Content-Disposition: form-data; name="files"; filename="',
+      'utf8',
+    ),
+    Buffer.from(input.filename, 'utf8'),
+    Buffer.from(
+      `"\r\nContent-Type: ${input.contentType}\r\n\r\n` +
+        `${input.content}\r\n` +
+        `--${input.boundary}--\r\n`,
+      'utf8',
+    ),
+  ]);
 }
