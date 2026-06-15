@@ -420,6 +420,65 @@ describe('Project import admin APIs (e2e)', () => {
     await assertMasterDataListContracts(adminCookie);
   });
 
+  it('matches discipline names containing ideographic commas as complete names', async () => {
+    await createUser({
+      phone: '+8613810000025',
+      name: 'Admin User',
+      roles: ['admin'],
+    });
+    const adminCookie = await login('+8613810000025');
+    const seed = await seedMasterData();
+    const aerospaceDisciplineName = '航空、航天科学技术';
+    const electronicsDisciplineName = '电子、通信与自动控制技术';
+    const aerospaceDisciplineId = await createTreeNode(
+      'discipline',
+      aerospaceDisciplineName,
+    );
+    const electronicsDisciplineId = await createTreeNode(
+      'discipline',
+      electronicsDisciplineName,
+    );
+
+    const upload = await uploadWorkbook(adminCookie, seed.batchId, [
+      [
+        '项目编号',
+        '项目名称',
+        '项目类型',
+        '项目负责人',
+        '项目负责人手机',
+        '项目承担单位',
+        '学科',
+        '受理处室',
+      ],
+      [
+        'P-DISCIPLINE-COMMA-001',
+        '顿号学科项目',
+        '自然科学基金',
+        '张三',
+        '13810000001',
+        '重庆测试单位',
+        `${aerospaceDisciplineName}，${electronicsDisciplineName}`,
+        '高新处',
+      ],
+    ]);
+
+    expect(upload).toMatchObject({
+      totalRows: 1,
+      importableRows: 1,
+      pendingRows: 0,
+    });
+
+    const row = await getFirstImportRow(adminCookie, getString(upload, 'id'));
+
+    expect(row).toMatchObject({ status: 'importable', issues: [] });
+    expect(
+      getStringArray(getRecord(row, 'normalized'), 'disciplineNames'),
+    ).toEqual([aerospaceDisciplineName, electronicsDisciplineName]);
+    expect(getStringArray(getRecord(row, 'resolved'), 'disciplineIds')).toEqual(
+      [aerospaceDisciplineId, electronicsDisciplineId],
+    );
+  });
+
   it('keeps pending rows blocked until admin creates missing organization and owner user', async () => {
     await createUser({
       phone: '+8613810000030',

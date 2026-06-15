@@ -1,6 +1,7 @@
 import { ProjectImportNormalizedRecord } from '../types/project-import-records';
 
 const MULTI_VALUE_SEPARATOR = /[,，、;；\r\n]+/;
+const DISCIPLINE_NAME_SEPARATOR = /[,，;；\r\n]+/;
 
 export function normalizeCell(value: unknown): string {
   if (value === undefined || value === null) {
@@ -26,6 +27,17 @@ export function normalizeCell(value: unknown): string {
 }
 
 export function splitNameList(value: string | undefined): string[] {
+  return splitUniqueNames(value, MULTI_VALUE_SEPARATOR);
+}
+
+export function splitDisciplineNameList(value: string | undefined): string[] {
+  return splitUniqueNames(value, DISCIPLINE_NAME_SEPARATOR);
+}
+
+function splitUniqueNames(
+  value: string | undefined,
+  separator: RegExp,
+): string[] {
   if (!value) {
     return [];
   }
@@ -33,7 +45,7 @@ export function splitNameList(value: string | undefined): string[] {
   return [
     ...new Set(
       value
-        .split(MULTI_VALUE_SEPARATOR)
+        .split(separator)
         .map((item) => item.trim())
         .filter(Boolean),
     ),
@@ -84,7 +96,7 @@ export function normalizeRawRecord(
     leadOrganizationName: raw.leadOrganizationName,
     totalFunding: totalFunding.value,
     allocatedFunding: allocatedFunding.value,
-    disciplineNames: splitNameList(raw.disciplineName),
+    disciplineNames: splitDisciplineNameList(raw.disciplineName),
     departmentName: raw.departmentName,
     cooperationOrganizationNames: splitNameList(
       raw.cooperationOrganizationNames,

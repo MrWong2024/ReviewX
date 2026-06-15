@@ -30,6 +30,7 @@
 - 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
 - 当前项目导入上传创建任务时，会在入库前对 multipart 场景下 latin1 误解码的中文 Excel 文件名做保守修正；正常 UTF-8 中文、英文和常见空格/括号/短横线/下划线文件名保持原样
 - 当前项目导入支持管理员删除未确认入库的导入任务；删除只清理 `ProjectImportJob` 和对应 `ProjectImportRow`，不删除正式项目；`parsing` 或已有 confirmed 行的任务禁止删除
+- 当前项目导入学科字段使用专用多值拆分规则：英文逗号、中文逗号、分号和换行可分隔多个学科，学科名称内部顿号 `、` 不再被拆分；合作单位等通用多值字段仍保留顿号拆分。该修复只影响后续新上传或重新保存触发重新标准化的导入行，历史已解析 `ProjectImportRow.normalized.disciplineNames` 不自动迁移
 - 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
@@ -357,9 +358,10 @@ backend/
 - 已包含 `test/project-imports.e2e-spec.ts`，用于验证导入权限、上传校验、字段别名、自动匹配、待确认、人工修正、确认入库、批量确认、跳过、未确认导入任务删除、已确认任务删除拦截和既有列表口径不回退
 - 已包含 `src/modules/project-imports/services/project-imports.service.spec.ts`，用于验证导入任务删除规则：非法 ID、任务不存在、`parsing`、`confirmedRows`、confirmed 行兜底检查、删除成功清理 rows 且不调用项目入库能力
 - 已包含 `src/modules/project-imports/services/project-import-field-mappings.service.spec.ts`，用于验证 Excel 字段映射配置标准字段清单、完整配置视图、upsert/update/delete/reset-defaults、effective alias map、非法字段、空别名、同字段重复、跨字段冲突和停用 fallback
+- 已包含 `src/modules/project-imports/utils/import-normalizer.spec.ts`，用于验证项目导入标准化：通用多值字段仍按顿号拆分，学科字段不按顿号拆分但仍按逗号、分号和换行拆分，重复学科去重，空值返回空数组
 - 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底和非乱码边界不误改
 - 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
-- `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析，以及删除配置后默认内置别名 fallback 仍可用
+- `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析、删除配置后默认内置别名 fallback 仍可用，以及包含顿号的完整学科名称在上传解析后按完整名称匹配 `treeType=discipline` 节点
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性和既有接口轻量回归
