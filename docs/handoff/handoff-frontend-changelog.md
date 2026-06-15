@@ -2,6 +2,25 @@
 
 ## 2026-06-15
 
+### ReviewX 前端第四阶段：项目负责人工作台与材料管理前端接入
+
+- `/workspace` 放开 `project_owner` 角色入口，点击进入 `/project-owner`；admin 入口保持原样，其他角色仍显示“后续建设”
+- 新增 `ProjectOwnerShell`，提供 project_owner 登录态 / 角色守卫、概览 / 我的项目导航、返回工作台和退出登录
+- 新增 `/project-owner` 概览页，读取本人第一页项目，展示我的项目数量、基于第一页的轻量统计和最近项目入口
+- 新增 `/project-owner/projects` 我的项目列表，调用 `GET /project-owner/projects`，支持后端分页和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` ID 筛选，不提交 `ownerUserId` 或 `keyword`
+- 新增 `/project-owner/projects/[projectId]` 详情页，调用 `GET /project-owner/projects/:id`，展示项目基础信息、评审负责人、评审方案、评审时间、地点和会议链接，并明确不接腾讯会议 API
+- 新增后续推进需求面板，调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字，允许清空后保存
+- 新增材料 API 封装：`listProjectOwnerMaterials`、`uploadProjectOwnerMaterials`、`getProjectOwnerMaterialDownloadUrl`、`deleteProjectOwnerMaterial` 和下载 URL 解析辅助
+- 材料上传封装使用 FormData，字段名固定为 `files/materialTypeId/remark`，不手动设置 `Content-Type`
+- 新增材料列表面板，调用 project_owner 材料列表 / 下载 URL / 软删除接口，按已上传材料响应中的 `materialType` 摘要生成 tabs，删除前二次确认
+- 新增材料文件校验工具，覆盖一次最多 20 个文件、单文件最大 500MB、允许扩展名和禁止扩展名提示
+- 已核对后端契约：项目负责人项目列表、详情、follow-up-needs、材料列表、上传、下载 URL、删除接口存在；但 project_owner 可用的 `material_type` 读取接口缺失
+- 因后端普通字典 controller 当前仅为 `/admin/dictionaries` 且 `@Roles('admin')`，本次未新增 `listMaterialTypes`，未调用 admin-only 字典接口，未写死材料类型 ID；上传入口显示“材料类型接口暂不可用”并禁用
+- 项目负责人项目基础信息名称映射当前无 project_owner 可用主数据只读接口，批次、状态、项目类型、单位、用户、评审方案等字段以 ID 兜底展示
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未实现专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复或硬删除
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：批量专家设置失败明细中的专家名称展示优化
 
 - `/admin/projects` 批量设置专家结果区不再把 `failure.expertUserId` 作为专家失败明细主文案

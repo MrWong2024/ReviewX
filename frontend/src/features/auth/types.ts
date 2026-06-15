@@ -40,6 +40,6 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   admin: '维护基础数据，查看项目列表。',
   client: '甲方工作台将在后续阶段建设。',
   expert: '专家评分工作台将在后续阶段建设。',
-  project_owner: '材料与申诉工作台将在后续阶段建设。',
+  project_owner: '查看本人负责项目、评审安排和材料提交情况。',
   review_manager: '评审组织工作台将在后续阶段建设。',
 };

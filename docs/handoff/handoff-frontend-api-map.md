@@ -78,6 +78,29 @@
 | `deleteProjectImportFieldMapping` | `DELETE /admin/project-import-field-mappings/:standardField` | `{ success: boolean }`；admin 权限；删除自定义配置后标准字段仍保留并回退默认别名 | `/admin/project-import-field-mappings` |
 | `resetProjectImportFieldMappingDefaults` | `POST /admin/project-import-field-mappings/:standardField/reset-defaults` | 单个 `ProjectImportFieldMappingView`；admin 权限；创建或覆盖配置，使自定义别名等于默认别名并启用 | `/admin/project-import-field-mappings` |
 
+## 3.1 Project Owner API
+
+文件：`frontend/src/features/project-owner/api.ts`
+
+| 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
+| --- | --- | --- | --- |
+| `listProjectOwnerProjects` | `GET /project-owner/projects` | 分页对象；只提交 `page/pageSize/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId`，不提交 `ownerUserId`，不提交 `keyword` | `/project-owner`、`/project-owner/projects` |
+| `getProjectOwnerProject` | `GET /project-owner/projects/:id` | `ProjectOwnerProject`；后端按当前登录用户校验 owner 权限 | `/project-owner/projects/[projectId]` |
+| `updateProjectOwnerFollowUpNeeds` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只提交 `{ followUpNeeds }`，最大长度 5000 由前后端共同校验 | `/project-owner/projects/[projectId]` |
+| `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；当前详情页读取项目 active 材料，前端只用材料响应中的 `materialType` 摘要生成 tabs | `/project-owner/projects/[projectId]` |
+| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；当前因材料类型读取接口缺失而禁用入口 | `/project-owner/projects/[projectId]` |
+| `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
+| `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted }`；软删除，删除前二次确认 | `/project-owner/projects/[projectId]` |
+| `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
+
+材料类型读取口径：
+
+- 当前未新增 `listMaterialTypes`。
+- 原因：后端当前只有 `GET /admin/dictionaries?dictType=material_type`，controller 使用 `@Roles('admin')`，project_owner 无权读取。
+- 项目负责人页面不得调用 admin-only 字典接口，不得写死材料类型 ID，不得使用 mock 材料类型作为真实数据源。
+- 现状：上传区域显示“材料类型接口暂不可用”并禁用；已上传材料列表仍可使用材料响应中的 `materialType` 摘要展示类型名。
+- 后续建议：后端补充公共或 project_owner 可访问的 `material_type` 只读接口后，再在 project-owner API 中封装 `listMaterialTypes` 并启用上传选择。
+
 ## 4. 错误处理
 
 - `401`：未登录，守卫跳转登录页
@@ -118,9 +141,10 @@
 - `/review-manager/projects/:id/expert-reviews*`
 - `/review-manager/projects/:id/consensus*`
 - `/review-manager/projects/:id/appeals*`
-- `/project-owner/*`
 - `/expert/*`
 - `/admin/projects/:id/materials*`
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`
 - `/admin/projects/:id/appeals*`
+- project_owner 可访问的 `material_type` 字典读取接口尚未提供；当前不能完整启用项目负责人材料上传
+- project_owner 可访问的批次、普通字典、树形字典、单位、用户和评审方案名称映射接口尚未提供；项目负责人项目列表 / 详情相关字段以 ID 兜底展示

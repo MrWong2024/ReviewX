@@ -34,6 +34,11 @@ export function WorkspacePage() {
 
     if (role === 'admin') {
       router.push('/admin');
+      return;
+    }
+
+    if (role === 'project_owner') {
+      router.push('/project-owner');
     }
   }
 
@@ -63,7 +68,12 @@ export function WorkspacePage() {
       <section className="role-grid">
         {USER_ROLES.map((role) => {
           const assigned = user.roles.includes(role);
-          const enabled = assigned && role === 'admin';
+          const enabled =
+            assigned && (role === 'admin' || role === 'project_owner');
+          const enabledActionLabel =
+            role === 'project_owner'
+              ? '进入项目负责人工作台'
+              : '进入管理员后台';
           const statusLabel = !assigned
             ? '未开通'
             : enabled
@@ -100,7 +110,7 @@ export function WorkspacePage() {
                 </Badge>
                 <span className="text-xs font-semibold text-slate-400">
                   {enabled
-                    ? '进入管理员后台'
+                    ? enabledActionLabel
                     : assigned
                       ? '能力规划中'
                       : '联系管理员开通'}

@@ -5,6 +5,7 @@
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
 | `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、退出登录 |
+| `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、返回工作台和退出登录 |
 
 ## 2. UI 组件
 
@@ -61,6 +62,13 @@
 | `ProjectImportFieldMappingsPage` | `frontend/src/features/admin/pages/ProjectImportFieldMappingsPage.tsx` | 管理员 Excel 字段映射配置页，支持标准字段配置视图、keyword / isActive 筛选、编辑、启停、删除配置和重置默认 |
 | `FieldMappingEditorModal` | `frontend/src/features/admin/components/project-import-field-mappings/FieldMappingEditorModal.tsx` | 字段映射编辑弹窗，展示标准字段、默认别名，编辑自定义别名、启用状态和备注 |
 | `AliasChips` | `frontend/src/features/admin/components/project-import-field-mappings/AliasChips.tsx` | 字段映射别名 chips 展示，限制表格宽度并显示剩余数量 |
+| `ProjectOwnerDashboardPage` | `frontend/src/features/project-owner/pages/ProjectOwnerDashboardPage.tsx` | 项目负责人概览，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口 |
+| `ProjectOwnerProjectsPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectsPage.tsx` | 项目负责人我的项目列表，支持后端分页和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` ID 筛选 |
+| `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，串联项目基础信息、评审安排、后续推进需求和材料管理 |
+| `ProjectOwnerProjectInfoPanel` | `frontend/src/features/project-owner/components/ProjectOwnerProjectInfoPanel.tsx` | 展示项目基础信息、评审负责人、评审方案、评审时间、地点和会议链接 |
+| `FollowUpNeedsPanel` | `frontend/src/features/project-owner/components/FollowUpNeedsPanel.tsx` | 填写和保存项目后续推进需求，前端限制 5000 字，调用 project_owner follow-up-needs 接口 |
+| `MaterialUploadPanel` | `frontend/src/features/project-owner/components/MaterialUploadPanel.tsx` | 材料上传表单、文件数量 / 大小 / 扩展名校验和 FormData 上传逻辑；当前因缺少 project_owner 可用 material_type 读取接口而禁用 |
+| `MaterialListPanel` | `frontend/src/features/project-owner/components/MaterialListPanel.tsx` | 展示项目材料列表，按材料响应中的 materialType 摘要生成 tabs，支持签名 URL 下载和软删除二次确认 |
 
 ## 5. 工具
 
@@ -78,6 +86,9 @@
 | project import field mapping labels | `frontend/src/lib/labels/project-import-field-mapping-labels.ts` | Excel 字段映射配置页必填、配置状态、启用状态、标准字段 fallback 和别名展示辅助 |
 | project review organization labels | `frontend/src/lib/labels/project-review-organization-labels.ts` | 项目组织状态和专家失败原因中文展示辅助 |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
+| project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 下载 URL / 删除 API 封装；不调用 admin-only 字典接口 |
+| project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、材料、上传结果、删除结果、下载 URL 和查询参数类型 |
+| project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化和 ID 名称兜底展示辅助 |
 
 ## 6. 当前 UI 基线
 

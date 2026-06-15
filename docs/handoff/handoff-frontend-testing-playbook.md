@@ -76,6 +76,14 @@ npm run build
 - `npm run typecheck`：通过
 - `npm run build`：通过
 
+本次 ReviewX 前端第四阶段：项目负责人工作台与材料管理前端接入已执行：
+
+- `npm run lint`：通过
+- `npm run typecheck`：通过
+- `npm run build`：通过
+
+注意：当前后端缺少 project_owner 可访问的 `material_type` 字典读取接口，材料上传入口应显示“材料类型接口暂不可用”并禁用；不得通过 admin-only 字典接口绕过权限。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -91,9 +99,11 @@ npm run build
 
 1. admin、client、review_manager、expert、project_owner 角色卡片均显示中文
 2. 点击管理员入口进入 `/admin`
-3. 已开通但未实现角色卡片显示“后续建设”
-4. 未开通角色显示“未开通”
-5. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
+3. 点击项目负责人入口进入 `/project-owner`
+4. 已开通但未实现角色卡片显示“后续建设”
+5. 未开通角色显示“未开通”
+6. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
+7. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
 
 ## 5. 管理员后台人工验证
 
@@ -202,7 +212,82 @@ npm run build
 9. 失败明细优先显示专家姓名和手机号，不应只显示专家 ObjectId
 10. 专家映射缺失时显示“未知专家（短ID）”，不应显示一长串裸 ObjectId
 
-## 8. 用户管理人工验证
+## 8. 项目负责人工作台人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 使用具有 `project_owner` 角色的用户登录
+4. 当前用户至少是一个项目的 `ownerUserId`
+5. 当前后端尚未提供 project_owner 可访问的 `material_type` 字典读取接口，因此上传入口预期禁用
+
+角色守卫：
+
+1. 未登录访问 `/project-owner` 应跳转 `/login`
+2. 无 project_owner 角色访问 `/project-owner` 应显示 403
+3. project_owner 用户可访问 `/project-owner`
+4. 项目负责人页面不显示 AdminShell 侧边栏
+
+Workspace 入口：
+
+1. 登录 project_owner 用户，进入 `/workspace`
+2. 项目负责人卡片显示“可进入”
+3. 项目负责人卡片动作显示“进入项目负责人工作台”
+4. 点击进入 `/project-owner`
+5. admin 入口仍只对 admin 可进入
+6. client、review_manager、expert 仍显示“后续建设”
+
+项目列表：
+
+1. 进入 `/project-owner/projects`
+2. 能看到当前用户负责的项目
+3. 不显示其他项目负责人的项目
+4. 批次 ID、项目类型 ID、项目状态 ID、评审负责人 ID、评审方案 ID 筛选提交后端支持字段
+5. 不出现 keyword 搜索框，不提交 keyword
+6. 分页可用
+7. 空态提示联系管理员确认项目负责人绑定关系
+8. 项目基础信息中的主数据名称缺失时以 ID 兜底展示
+9. 点击“查看详情”进入项目详情页
+
+项目详情与后续推进需求：
+
+1. 进入 `/project-owner/projects/[projectId]`
+2. 显示项目编号、名称、批次、项目类型、项目状态、承担单位、合作单位、学科、受理处室、拨款总额、已拨款和材料数量
+3. 显示评审负责人、评审方案、评审时间、评审地点和会议链接
+4. meetingUrl 有值时可打开
+5. 页面说明当前仅展示会议链接，不接腾讯会议 API
+6. 显示当前 followUpNeeds
+7. 输入后续推进需求，字数计数正确
+8. 超过 5000 字前端提示或禁止提交
+9. 点击保存后调用 `PATCH /project-owner/projects/:id/follow-up-needs`
+10. 保存成功后提示“后续推进需求已保存”
+11. 清空内容并保存，如后端允许应成功
+
+材料管理：
+
+1. 材料管理区显示材料类型接口缺失提示
+2. 上传按钮禁用，不调用 `/admin/dictionaries`
+3. 不写死“汇报 PPT、评价报告、证明材料、财务资料、其他”等材料类型 ID
+4. 已上传材料列表展示材料类型、文件名、大小、扩展名、上传时间和备注
+5. 材料类型 tabs 只来自材料响应中的 `materialType` 摘要
+6. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
+7. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
+8. 点击删除材料出现二次确认
+9. 确认后调用 DELETE，成功后刷新项目详情和材料列表
+10. 删除已删除材料如返回 `alreadyDeleted`，显示友好提示
+11. 不提供材料恢复、硬删除或文件预览
+12. 后端停止、401、403、404、400、500 等错误态应显示友好错误，不应白屏
+
+文件校验实现口径：
+
+1. 上传面板已实现 20 个文件数量限制
+2. 已实现单文件 500MB 限制
+3. 已实现允许扩展名校验：pdf、ppt、pptx、doc、docx、xls、xlsx、jpg、jpeg、png、zip、rar、7z、txt、csv
+4. 已实现禁止扩展名提示：exe、bat、cmd、sh、js、mjs、cjs、php、jsp、asp、aspx、dll、so、ps1
+5. 当前因材料类型接口缺失，上传操作不可进入提交态；补齐后端接口并启用类型选项后需复测多文件上传和部分失败展示
+
+## 9. 用户管理人工验证
 
 - `/admin/users` 可访问，侧边栏“用户管理”入口正常显示并可选中
 - 用户列表加载成功，不显示 `passwordHash`
@@ -219,7 +304,7 @@ npm run build
 - 使用重置后的密码登录成功
 - 原有 `/admin/dictionaries`、`/admin/tree-dictionaries`、`/admin/organizations`、`/admin/review-schemes`、`/admin/projects` 仍正常
 
-## 9. 项目导入人工验证
+## 10. 项目导入人工验证
 
 前提：
 
@@ -254,7 +339,7 @@ npm run build
 21. 删除未确认导入任务后，到 `/admin/projects` 确认正式项目没有被误删
 22. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
-## 10. Excel 字段映射配置人工验证
+## 11. Excel 字段映射配置人工验证
 
 前提：
 
@@ -283,14 +368,14 @@ npm run build
 16. 与项目导入页面联动验证：给 `projectNo` 配置新别名后上传对应表头 Excel，导入任务详情 `fieldMapping` 应映射到 `projectNo`；删除配置后默认表头仍能识别
 17. 后端停止、401、403、400、404、409、500 等错误态应显示友好错误，不应白屏
 
-## 11. 当前不验证
+## 12. 当前不验证
 
 - 用户自助改密
 - 忘记密码
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 项目负责人材料上传
+- 项目负责人材料上传真实提交闭环，需后端补充 project_owner 可访问的 `material_type` 字典读取接口后复测
 - 专家评分
 - 合议
 - 申诉

@@ -37,6 +37,7 @@ frontend/
 ├─ app/
 │  ├─ admin/
 │  ├─ login/
+│  ├─ project-owner/
 │  ├─ workspace/
 │  ├─ layout.tsx
 │  ├─ not-found.tsx
@@ -48,7 +49,8 @@ frontend/
 │  │  └─ ui/
 │  ├─ features/
 │  │  ├─ admin/
-│  │  └─ auth/
+│  │  ├─ auth/
+│  │  └─ project-owner/
 │  ├─ lib/
 │  │  ├─ api/
 │  │  └─ format/
@@ -72,13 +74,14 @@ frontend/
 - 前端不把 Cookie、密码或敏感信息写入 localStorage/sessionStorage
 - fetch 默认 `credentials: 'include'`
 - `401` 视为未登录，前端跳转 `/login`
-- `403` 视为无权限，管理员守卫显示无权限状态
+- `403` 视为无权限，管理员守卫和项目负责人守卫显示无权限状态
 - 角色选择可写入 `localStorage.reviewx_selected_role`，仅用于体验，不作为权限依据
 
 ## 6. 已实现能力
 
 - `/login`：品牌化登录页，手机号 + 密码登录，已登录访问自动回 `/workspace`
 - `/workspace`：现代化角色入口，展示 admin、client、review_manager、expert、project_owner 中文角色状态
+- `/workspace` 当前放开 admin 和 project_owner；client、review_manager、expert 仍显示“后续建设”
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、字典类型中文过滤、新增、编辑、停用；支持自定义 dictType 保存
@@ -91,10 +94,17 @@ frontend/
 - `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
 - `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
+- `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
+- `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口，支持分页和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` ID 筛选，不提交 `ownerUserId` 或 `keyword`
+- `/project-owner/projects/[projectId]`：项目负责人项目详情页，展示基础信息、评审安排、会议链接、后续推进需求和材料管理
+- 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
+- 项目负责人材料列表 / 下载 / 删除：调用 project_owner 材料接口，下载使用后端签名 URL，删除为软删除且有二次确认
+- 项目负责人材料上传前端逻辑：已实现 FormData 字段 `files/materialTypeId/remark` 和文件数量 / 大小 / 扩展名校验；当前因后端缺少 project_owner 可用 `material_type` 读取接口而禁用上传入口
 
 ## 7. 当前未实现
 
-- 项目负责人材料上传页面
+- 项目负责人材料上传真实提交闭环：需后端补充 project_owner 可访问的 `material_type` 字典读取接口后启用并复测
+- 项目负责人主数据名称映射：需后端补充 project_owner 可访问的批次、普通字典、树形字典、单位、用户和评审方案只读接口；当前以 ID 兜底展示
 - 专家评分页面
 - 合议确认页面
 - 申诉页面
@@ -136,5 +146,13 @@ frontend/
 - `/admin/projects` 批量设置专家完成后的逐项目结果标题优先显示项目编号和项目名称；失败明细优先显示专家姓名和手机号，专家或项目映射缺失时显示“未知专家 / 未知项目 + 短ID”兜底，避免把裸 ObjectId 作为主展示文案
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
+- 项目负责人前端 API 封装位于 `frontend/src/features/project-owner/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
+- 项目负责人项目列表 / 详情 / follow-up-needs / 材料列表 / 上传 / 下载 URL / 删除接口已封装；上传封装使用 FormData 且不手动设置 `Content-Type`
+- 当前后端普通字典读取接口只有 `/admin/dictionaries` 且 `@Roles('admin')`，project_owner 无法读取 `dictType=material_type`；前端不调用 admin-only 字典接口，不写死材料类型 ID，不使用 mock 类型作为真实数据源
+- 已上传材料列表可以展示后端材料响应内联的 `materialType` 摘要，并基于该摘要生成筛选 tabs；上传选择仍需完整材料类型读取接口
+- 项目负责人列表和详情中的批次、项目状态、项目类型、学科、受理处室、单位、评审负责人和评审方案暂无 project_owner 可用名称映射接口，当前以 ID 兜底展示并在页面提示
+- 项目负责人详情页 meetingUrl 仅打开管理员录入链接，不接腾讯会议 API
+- 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
+- 项目负责人材料删除只调用软删除接口；当前不实现恢复、硬删除或文件预览
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
-- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、材料、评分、合议、申诉、甲方看板、腾讯会议 API 或真实 AI
+- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览或真实 AI
