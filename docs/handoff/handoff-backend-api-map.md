@@ -68,6 +68,12 @@
 | project-imports | `POST` | `/admin/project-imports/:id/rows/:rowId/confirm` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `ProjectImportRowResponse` | implemented | 仅 `importable` 可确认；创建或更新 Project，记录 `projectId/confirmedByUserId/confirmedAt` |
 | project-imports | `POST` | `/admin/project-imports/:id/confirm` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `{ successCount, failedCount, skippedCount }` | implemented | 批量处理所有 `importable` 行；`pending_confirmation/skipped/confirmed` 行跳过 |
 | project-imports | `POST` | `/admin/project-imports/:id/rows/:rowId/skip` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `ProjectImportRowResponse` | implemented | `importable/pending_confirmation/failed` 可跳过；`confirmed` 返回 `409` |
+| portal-reference-data | `GET` | `/portal/reference-data/dictionaries` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalDictionariesDto` | `{ items: PortalDictionarySummary[] }` | implemented | 门户端普通字典只读摘要；支持 `dictType/dictTypes/keyword/isActive`，默认 `isActive=true`；返回 `id/dictType/code/name/sortOrder/isActive`；不替代 `/admin/dictionaries` CRUD |
+| portal-reference-data | `GET` | `/portal/reference-data/tree-dictionaries` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalTreeDictionariesDto` | `{ items: PortalTreeDictionarySummary[] }` | implemented | 门户端树形字典平铺只读摘要；支持 `treeType/treeTypes/keyword/isActive`，默认 `isActive=true`；返回 `id/treeType/parentId/code/name/sortOrder/isActive` |
+| portal-reference-data | `GET` | `/portal/reference-data/batches` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalCommonDto` | `{ items: PortalBatchSummary[] }` | implemented | 门户端批次只读摘要；支持 `keyword/isActive`，默认 `isActive=true`；按 `name` 倒序；返回 `id/name/isActive/createdAt/updatedAt` |
+| portal-reference-data | `GET` | `/portal/reference-data/organizations` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalCommonDto` | `{ items: PortalOrganizationSummary[] }` | implemented | 门户端单位只读摘要；支持 `keyword/isActive`，默认 `isActive=true`；keyword 可匹配 `name/contactName/contactPhone`，响应只返回 `id/name/regionId/isActive` |
+| portal-reference-data | `GET` | `/portal/reference-data/review-schemes` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalCommonDto` | `{ items: PortalReviewSchemeSummary[] }` | implemented | 门户端评审方案只读摘要；支持 `keyword/isActive`，默认 `isActive=true`；返回 `id/name/totalScore/isActive`，不返回完整评分项 |
+| portal-reference-data | `GET` | `/portal/reference-data/users` | `PortalReferenceDataController` | `PortalReferenceDataService` | `SessionAuthGuard` + `RolesGuard(project_owner/expert/review_manager/client/admin)` | `QueryPortalUsersDto` | `{ items: PortalUserSummary[] }` | implemented | 门户端业务用户摘要；必须提供 `role` 或 `roles`，仅允许 `review_manager/expert/project_owner`；`role=admin` 返回 `400`；查询结果排除含 `admin` 角色用户；不返回 `passwordHash/mustChangePassword/session/token` |
 | project-owner-projects | `GET` | `/project-owner/projects` | `ProjectOwnerProjectsController` | `ProjectMaterialsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | `QueryProjectOwnerProjectsDto` | `{ items, page, pageSize, total }` | implemented | 只返回当前用户 `ownerUserId` 对应的启用项目；分页默认 `page=1/pageSize=100`，最大 `1000`；返回评审安排、`followUpNeeds` 和 `materialCount` |
 | project-owner-projects | `GET` | `/project-owner/projects/:id` | `ProjectOwnerProjectsController` | `ProjectMaterialsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectPortalResponse` | implemented | 当前用户必须是项目负责人；返回项目基础信息、评审负责人/方案摘要、评审安排、`followUpNeeds` 和 `materialCount` |
 | project-owner-projects | `PATCH` | `/project-owner/projects/:id/follow-up-needs` | `ProjectOwnerProjectsController` | `ProjectMaterialsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | `UpdateFollowUpNeedsDto` | `ProjectPortalResponse` | implemented | 仅更新 `Project.followUpNeeds`；字符串 trim，最长 5000，允许空字符串清空 |
@@ -127,6 +133,7 @@
 - 非分页材料数组：`GET /project-owner/projects/:id/materials`、`GET /review-manager/projects/:id/materials`、`GET /expert/projects/:id/materials`、`GET /admin/projects/:id/materials`
 - 非分页申诉数组：单项目 `appeals` 列表最多 3 条，返回数组；单个申诉 `attachments` 列表返回 active 附件数组；`level-history` 返回等级变更日志数组
 - 非分页字段映射配置对象：`GET /admin/project-import-field-mappings/standard-fields` 和 `GET /admin/project-import-field-mappings` 返回 `{ items }`；配置列表始终覆盖所有固定标准字段
+- 门户端只读基础数据对象：`GET /portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users` 均返回 `{ items }`；不分页；只返回展示所需最小字段；不提供 POST/PATCH/DELETE
 - 管理员用户列表已实现分页对象，`pageSize` 最大 `1000`；当前只返回单位/学科 ID，不 populate 名称
 - 后续审计类或跨项目长列表仍建议分页；当前单项目申诉列表和附件列表按本阶段小数据量返回数组
 
@@ -135,6 +142,7 @@
 - 未登录访问 `/admin/*`：`SessionAuthGuard` 返回 `401`
 - 已登录但无 `admin` 角色访问 `/admin/*`：`RolesGuard` 返回 `403`
 - 已登录且具备 `admin` 角色：允许访问本阶段管理接口
+- 门户参考数据 `/portal/reference-data/*`：要求 `SessionAuthGuard` 登录，允许 `project_owner/expert/review_manager/client/admin` 读取；无角色或非允许角色返回 `403`；`users` 摘要接口禁止查询 `admin` 角色且不返回含 `admin` 角色用户
 
 ## 6. 状态建议
 

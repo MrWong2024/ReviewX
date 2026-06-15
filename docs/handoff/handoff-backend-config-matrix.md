@@ -17,7 +17,7 @@
 - 当前 `scripts/sync-indexes.ts` 覆盖 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectExpertAssignment`、`ProjectMaterial`、`ProjectImportFieldMapping`、`ProjectImportJob`、`ProjectImportRow`、`ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment`、`ProjectLevelChangeLog`
 - 当前已新增 session / Cookie 配置基线，用于 auth 第一阶段登录态
 - 当前 `dca16ae` 基线已安装 `ali-oss`
-- 当前已实现 Storage 抽象层并消费 Storage / OSS 环境变量；第五阶段专家评分与合议评审未新增环境变量；第六阶段项目申诉与等级变更留痕未新增环境变量；管理员用户维护 API 也未新增环境变量；Excel 字段映射配置后端化未新增环境变量
+- 当前已实现 Storage 抽象层并消费 Storage / OSS 环境变量；第五阶段专家评分与合议评审未新增环境变量；第六阶段项目申诉与等级变更留痕未新增环境变量；管理员用户维护 API 也未新增环境变量；Excel 字段映射配置后端化未新增环境变量；第四阶段补丁一门户端只读基础数据接口未新增环境变量
 
 ## 3. 当前配置项
 
@@ -87,3 +87,4 @@
 - 第六阶段未新增环境变量、第三方依赖或 OSS 配置；申诉附件继续复用既有 `STORAGE_DRIVER` 与 `OSS_*`，E2E 使用 fake storage，不依赖真实 OSS
 - 管理员用户维护 API 未新增环境变量、第三方依赖、OSS 配置或 `sync-indexes.ts` 模型/索引注册；继续沿用 `users.phone` unique 索引和受控索引同步流程
 - Excel 字段映射配置后端化未新增环境变量、第三方依赖、OSS 配置或正式产品配置项；production 索引不得依赖 `autoIndex`，新增 `project_import_field_mappings` 索引需按既有 `sync-indexes` 受控流程同步
+- 第四阶段补丁一门户端只读基础数据接口未新增环境变量、第三方依赖、OSS 配置、数据库集合或 `sync-indexes.ts` 模型/索引注册；仅复用既有主数据和用户集合做只读摘要查询

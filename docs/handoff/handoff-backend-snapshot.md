@@ -34,6 +34,7 @@
 - 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
+- 当前已实现第四阶段补丁一门户端只读基础数据接口：`/portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users`，供 `project_owner/expert/review_manager/client/admin` 登录后读取展示型最小摘要；不提供写接口，不替代 `/admin/*` 主数据 CRUD
 - 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
 - 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志
 - 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
@@ -200,6 +201,15 @@ backend/
   - `ReviewManagerMaterialsController`
   - `ExpertMaterialsController`
   - `AdminMaterialsController`
+- 当前已有第四阶段补丁一门户参考数据模块：
+  - `PortalReferenceDataModule`
+  - `PortalReferenceDataController`
+  - `PortalReferenceDataService`
+  - `QueryPortalCommonDto`
+  - `QueryPortalDictionariesDto`
+  - `QueryPortalTreeDictionariesDto`
+  - `QueryPortalUsersDto`
+  - `Portal*Summary` 响应类型
 - 当前已有第五阶段专家评分模块：
   - `ExpertReviewsModule`
   - `ExpertReviewsService`
@@ -240,6 +250,7 @@ backend/
 - `scripts/create-local-user.ts` 只允许 development/test 数据库，使用 `MONGO_URI` 应用账号连接，不使用 `MONGO_ADMIN_URI`
 - 当前用户模型支持多角色数组 `roles`
 - 当前角色枚举：`admin`、`client`、`review_manager`、`expert`、`project_owner`
+- 当前 `/portal/reference-data/*` 统一要求 Session 登录和业务门户角色 `project_owner/expert/review_manager/client/admin`；其中 `/portal/reference-data/users` 只允许查询 `review_manager/expert/project_owner` 摘要，禁止 `admin` 角色查询且结果排除含 `admin` 角色用户
 - 当前用户模型新增 `organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`
 - 当前 `/admin/users` 可由 admin 分页查看、搜索、创建、编辑、启用/停用用户，维护多角色、关联单位和学科，并重置密码；创建用户未传 `password` 时默认使用手机号，重置密码未传 `password` 时默认重置为手机号，`mustChangePassword` 默认 `true`
 - 当前 `/admin/users` 响应只返回安全字段：`id`、`phone`、`name`、`roles`、`organizationIds`、`disciplineIds`、`mustChangePassword`、`isActive`、`createdAt`、`updatedAt`；不 populate 单位/学科名称，不返回 `passwordHash`
@@ -369,6 +380,8 @@ backend/
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
+- 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回
+- 已包含 `test/portal-reference-data.e2e-spec.ts`，用于验证 `/portal/reference-data/*` 401/403、project_owner 读取 `material_type/project_status/discipline/batches/organizations/review-schemes/users?role=review_manager`、`users?role=admin` 返回 `400`、admin 复用门户接口以及 POST/PATCH/DELETE 不存在
 - 当前 E2E 启动会装配数据库连接，测试环境应使用 `reviewx_test`
 - 当前 `test:e2e` 脚本使用 `--runInBand`，避免多个 Nest/Mongoose E2E worker 并发耗尽本地内存
 - 当前本地可执行构建、lint、单元测试和最小 E2E；如本地未启动 MongoDB，E2E 可能因无法连接 `reviewx_test` 而失败
@@ -378,7 +391,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、专家评分、规则化合议评审、项目申诉和等级变更留痕后端能力；仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、门户端只读基础数据接口、专家评分、规则化合议评审、项目申诉和等级变更留痕后端能力；仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务；合议草稿为 `rule_based`，不调用外部大模型
 - 后续业务模块仍需按架构文档逐步扩展，不得绕过当前 auth、角色和数据隔离口径
