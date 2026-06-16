@@ -43,10 +43,10 @@
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
 | `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型 / 评审等级，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
-| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；新增 / 编辑弹窗父节点下拉默认仅列一级节点，可勾选显示全部层级，空父节点文案明确为作为一级节点；列表行内展示编码、排序和全称，不重复显示树类型 |
-| `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
+| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；新增 / 编辑弹窗父节点下拉默认仅列一级节点，可勾选显示全部层级，空父节点文案明确为作为一级节点，父节点 option 使用统一 `treeOptionLabel` 缩进；列表行内展示编码、排序和全称，不重复显示树类型 |
+| `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理，行政区划筛选和新增 / 编辑弹窗行政区划 select 使用统一 `treeOptionLabel` 缩进 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
-| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口 |
+| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口；项目类型 select 使用统一 `treeOptionLabel` 缩进 |
 | `UsersPage` | `frontend/src/features/admin/pages/UsersPage.tsx` | 管理员用户管理，支持列表、筛选、分页、新增、编辑、启停和重置密码 |
 | `ProjectReviewOrganizationPage` | `frontend/src/features/admin/pages/ProjectReviewOrganizationPage.tsx` | 单项目评审组织详情，展示基础信息、评审分配、评审安排、项目材料、已分配专家和专家候选 |
 | `ReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/ReviewAssignmentModal.tsx` | 单项目设置评审负责人和评审方案 |
@@ -62,12 +62,12 @@
 | `ProjectImportDetailPage` | `frontend/src/features/admin/pages/ProjectImportDetailPage.tsx` | 项目导入任务详情、行筛选、Excel 行号列表、人工修正、单行确认/跳过和批量确认 |
 | `ProjectImportJobStats` | `frontend/src/features/admin/components/project-imports/ProjectImportJobStats.tsx` | 导入任务统计卡片 |
 | `ProjectImportIssueList` | `frontend/src/features/admin/components/project-imports/ProjectImportIssueList.tsx` | 导入行 issue 中文展示和候选项采用按钮 |
-| `ProjectImportRowModal` | `frontend/src/features/admin/components/project-imports/ProjectImportRowModal.tsx` | 导入行 raw / normalized / resolved / issues 展示与人工修正表单；标题使用 Excel 原始行号 |
+| `ProjectImportRowModal` | `frontend/src/features/admin/components/project-imports/ProjectImportRowModal.tsx` | 导入行 raw / normalized / resolved / issues 展示与人工修正表单；项目类型、受理处室和创建新单位行政区划 select 使用统一 `treeOptionLabel` 缩进；标题使用 Excel 原始行号 |
 | `ProjectImportFieldMappingsPage` | `frontend/src/features/admin/pages/ProjectImportFieldMappingsPage.tsx` | 管理员 Excel 字段映射配置页，支持标准字段配置视图、keyword / isActive 筛选、编辑、启停、删除配置和重置默认 |
 | `FieldMappingEditorModal` | `frontend/src/features/admin/components/project-import-field-mappings/FieldMappingEditorModal.tsx` | 字段映射编辑弹窗，展示标准字段、默认别名，编辑自定义别名、启用状态和备注 |
 | `AliasChips` | `frontend/src/features/admin/components/project-import-field-mappings/AliasChips.tsx` | 字段映射别名 chips 展示，限制表格宽度并显示剩余数量 |
 | `ProjectOwnerDashboardPage` | `frontend/src/features/project-owner/pages/ProjectOwnerDashboardPage.tsx` | 项目负责人概览，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口 |
-| `ProjectOwnerProjectsPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectsPage.tsx` | 项目负责人我的项目列表，加载 portal reference-data，支持后端分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选 |
+| `ProjectOwnerProjectsPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectsPage.tsx` | 项目负责人我的项目列表，加载 portal reference-data，支持后端分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选；项目类型 select 使用统一 `treeOptionLabel` 缩进 |
 | `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，并发加载项目、材料和 portal reference-data，串联基础信息、评审安排、后续推进需求、材料上传、草稿统计、提交全部草稿材料和提交后刷新 |
 | `ProjectOwnerProjectInfoPanel` | `frontend/src/features/project-owner/components/ProjectOwnerProjectInfoPanel.tsx` | 使用 lookup maps 展示批次、项目类型、项目状态、单位、学科、受理处室、评审负责人、评审方案、评审时间、地点和会议链接 |
 | `FollowUpNeedsPanel` | `frontend/src/features/project-owner/components/FollowUpNeedsPanel.tsx` | 填写和保存项目后续推进需求，前端限制 5000 字，调用 project_owner follow-up-needs 接口 |
@@ -97,7 +97,7 @@
 | project import labels | `frontend/src/lib/labels/project-import-labels.ts` | 项目导入任务状态、行状态、issue code 和字段名中文显示映射 |
 | project import field mapping labels | `frontend/src/lib/labels/project-import-field-mapping-labels.ts` | Excel 字段映射配置页必填、配置状态、启用状态、标准字段 fallback 和别名展示辅助 |
 | project review organization labels | `frontend/src/lib/labels/project-review-organization-labels.ts` | 项目组织状态和专家失败原因中文展示辅助 |
-| tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平、列表缩进标签和 select option 专用树形缩进标签 |
+| tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平、列表缩进标签和 select option 专用 `treeOptionLabel`；原生 select/option 树形层级统一用全角空格、层级符号和空名称兜底 |
 | project review organization API | `frontend/src/features/admin/api/project-review-organization.ts` | 管理员项目评审组织详情、专家候选 / 分配，以及项目材料列表 / 下载 URL / 带原因删除 API 封装；材料删除只调用 admin 材料接口 |
 | project review organization types | `frontend/src/features/admin/types/project-review-organization.ts` | 管理员项目评审组织、专家候选 / 分配，以及 admin 项目材料状态、材料、下载 URL 和删除结果类型 |
 | project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 提交 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口或 admin 材料删除接口 |

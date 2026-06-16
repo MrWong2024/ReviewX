@@ -134,11 +134,12 @@ export function treeOptionLabel(
   depth: number,
   hasChildren = false,
 ): string {
+  const safeName = name.trim() || '未命名节点';
   const suffix = hasChildren ? ' ›' : '';
 
   if (depth <= 0) {
-    return `${name}${suffix}`;
+    return `${safeName}${suffix}`;
   }
 
-  return `${'　'.repeat(depth)}└─ ${name}${suffix}`;
+  return `${'　'.repeat(depth)}└─ ${safeName}${suffix}`;
 }

@@ -19,7 +19,7 @@ import {
   getProjectImportRowStatusLabel,
   getProjectImportRowStatusTone,
 } from '@/src/lib/labels/project-import-labels';
-import { indentedTreeLabel } from '@/src/lib/tree/build-tree';
+import { treeOptionLabel } from '@/src/lib/tree/build-tree';
 import type {
   ProjectImportIssue,
   ProjectImportIssueCandidate,
@@ -487,7 +487,7 @@ export function ProjectImportRowModal({
                   key={option.value}
                   value={option.value}
                 >
-                  {indentedTreeLabel(
+                  {treeOptionLabel(
                     option.label,
                     option.depth,
                     option.hasChildren,
@@ -683,7 +683,7 @@ export function ProjectImportRowModal({
                   key={option.value}
                   value={option.value}
                 >
-                  {indentedTreeLabel(
+                  {treeOptionLabel(
                     option.label,
                     option.depth,
                     option.hasChildren,
@@ -802,7 +802,7 @@ export function ProjectImportRowModal({
                     key={option.value}
                     value={option.value}
                   >
-                    {indentedTreeLabel(
+                    {treeOptionLabel(
                       option.label,
                       option.depth,
                       option.hasChildren,

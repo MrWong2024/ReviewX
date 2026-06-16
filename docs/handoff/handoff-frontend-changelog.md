@@ -2,6 +2,19 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：统一增强原生 Select 中树形选项缩进显示
+
+- `treeOptionLabel` 增加空名称兜底，继续使用全角空格、`└─` 和 `›` 作为原生 select/option 树形层级的统一纯文本格式
+- `/admin/tree-dictionaries` 新增 / 编辑弹窗父节点下拉继续使用 `treeOptionLabel`，未改动默认仅一级、显示全部层级、空父节点文案和防止选择自己或后代的逻辑
+- `/admin/organizations` 主页面行政区划筛选和新增 / 编辑单位弹窗行政区划下拉改用 `treeOptionLabel`
+- `/admin/project-imports/[jobId]` 查看 / 修正弹窗中的项目类型、受理处室和创建新承担单位行政区划下拉改用 `treeOptionLabel`
+- 搜索补漏后，`/admin/projects` 和 `/project-owner/projects` 的项目类型原生树形筛选也改用 `treeOptionLabel`
+- `indentedTreeLabel` 保留导出兼容；自定义 `TreeMultiSelect`、`TreeList` 和仅构造选项数据的代码未改
+- 本小修只改变 option 展示文本，未改变 option value、key、disabled、selected value、表单 state、payload、查询参数或接口路径
+- 本小修未修改普通字典、backend、依赖或环境变量，未修改 `package.json` 或锁文件
+- 本小修未实现第六阶段合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：树形字典新增编辑弹窗父节点选择体验优化
 
 - `/admin/tree-dictionaries` 新增 / 编辑树节点弹窗新增“显示全部层级”开关，默认关闭时父节点下拉仅展示当前树类型一级节点

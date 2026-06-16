@@ -11,16 +11,16 @@
 | `/admin/users` | `frontend/app/admin/users/page.tsx` | 需要登录 + admin 角色 | implemented | 用户管理，支持列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码 |
 | `/admin/batches` | `frontend/app/admin/batches/page.tsx` | 需要登录 + admin 角色 | implemented | 批次管理 |
 | `/admin/dictionaries` | `frontend/app/admin/dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 普通字典管理，类型筛选固定为项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType |
-| `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，顶部树类型筛选、默认仅展示第一层、按需展开 / 收起、缩进树展示和子节点新增；新增 / 编辑弹窗父节点默认仅列一级节点，可切换显示全部层级，空父节点表示作为一级节点；列表行内不重复显示树类型 |
-| `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理，树形缩进行政区划选择 |
+| `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，顶部树类型筛选、默认仅展示第一层、按需展开 / 收起、缩进树展示和子节点新增；新增 / 编辑弹窗父节点默认仅列一级节点，可切换显示全部层级，空父节点表示作为一级节点；父节点原生下拉使用统一树形 option 缩进；列表行内不重复显示树类型 |
+| `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理，行政区划筛选和新增 / 编辑单位弹窗均使用统一树形 option 缩进 |
 | `/admin/review-schemes` | `frontend/app/admin/review-schemes/page.tsx` | 需要登录 + admin 角色 | implemented | 评审方案管理，评分项稳定 clientId 防失焦 |
 | `/admin/project-imports` | `frontend/app/admin/project-imports/page.tsx` | 需要登录 + admin 角色 | implemented | 项目 Excel 导入任务列表、上传入口和未确认导入任务删除入口 |
-| `/admin/project-imports/[jobId]` | `frontend/app/admin/project-imports/[jobId]/page.tsx` | 需要登录 + admin 角色 | implemented | 项目导入任务详情、Excel 行号展示、行列表、人工修正、确认和跳过 |
+| `/admin/project-imports/[jobId]` | `frontend/app/admin/project-imports/[jobId]/page.tsx` | 需要登录 + admin 角色 | implemented | 项目导入任务详情、Excel 行号展示、行列表、人工修正、确认和跳过；查看 / 修正弹窗中的项目类型、受理处室和行政区划原生下拉使用统一树形 option 缩进 |
 | `/admin/project-import-field-mappings` | `frontend/app/admin/project-import-field-mappings/page.tsx` | 需要登录 + admin 角色 | implemented | Excel 字段映射配置，维护标准字段自定义别名、启停、删除和 reset-defaults fallback |
-| `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目评审组织列表，支持筛选、单项目分配、批量分配和批量设置专家 |
+| `/admin/projects` | `frontend/app/admin/projects/page.tsx` | 需要登录 + admin 角色 | implemented | 项目评审组织列表，支持筛选、单项目分配、批量分配和批量设置专家；项目类型筛选使用统一树形 option 缩进 |
 | `/admin/projects/[projectId]/review-organization` | `frontend/app/admin/projects/[projectId]/review-organization/page.tsx` | 需要登录 + admin 角色 | implemented | 单项目评审组织详情，维护评审安排、查看候选专家、管理已分配专家，并查看、下载、带原因删除项目材料 |
 | `/project-owner` | `frontend/app/project-owner/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人概览，基于第一页项目做轻量展示并提供“我的项目”入口 |
-| `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页、portal reference-data 名称映射和批次 / 项目类型 / 项目状态 / 评审负责人 / 评审方案 select 筛选 |
+| `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页、portal reference-data 名称映射和批次 / 项目类型 / 项目状态 / 评审负责人 / 评审方案 select 筛选；项目类型筛选使用统一树形 option 缩进 |
 | `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目详情、评审安排、后续推进需求、portal reference-data 名称映射，以及材料上传草稿、状态展示、提交评审、下载、草稿物理删除和 submitted 删除禁用闭环 |
 | `/expert` | `frontend/app/expert/page.tsx` | 需要登录 + expert 角色 | implemented | 专家工作台首页，说明任务 / 材料 / 评分流程，并提供“我的评审任务”入口 |
 | `/expert/review-tasks` | `frontend/app/expert/review-tasks/page.tsx` | 需要登录 + expert 角色 | implemented | 专家评审任务列表，调用 `/expert/review-tasks`；支持状态、批次、评审负责人、评审方案筛选和分页 |

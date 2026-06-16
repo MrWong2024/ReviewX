@@ -87,17 +87,17 @@ frontend/
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息；AdminShell 正常顶部栏显示当前用户、手机号、管理员 Badge、“返回工作台”和“退出登录”
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、固定字典类型筛选、新增、编辑、停用；筛选仅支持项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType
-- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、默认仅展示第一层、按需展开 / 收起、新增根节点、新增子节点、编辑、停用；新增 / 编辑弹窗父节点下拉默认仅展示一级节点，可勾选显示全部层级，空父节点表示作为一级节点；列表行内不重复展示树类型
-- `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用
+- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、默认仅展示第一层、按需展开 / 收起、新增根节点、新增子节点、编辑、停用；新增 / 编辑弹窗父节点下拉默认仅展示一级节点，可勾选显示全部层级，空父节点表示作为一级节点，父节点原生下拉使用统一树形 option 缩进；列表行内不重复展示树类型
+- `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用；行政区划筛选和新增 / 编辑弹窗行政区划原生下拉使用统一树形 option 缩进
 - `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
 - `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选、分页和未确认导入任务删除
-- `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、Excel 行号行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认
+- `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、Excel 行号行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认；查看 / 修正弹窗里的项目类型、受理处室和行政区划原生下拉使用统一树形 option 缩进
 - `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
-- `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
+- `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，项目类型原生下拉使用统一树形 option 缩进，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
 - `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看项目材料、下载项目材料、填写原因删除项目材料、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
-- `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，不提交 `ownerUserId` 或 `keyword`
+- `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，项目类型原生下拉使用统一树形 option 缩进，不提交 `ownerUserId` 或 `keyword`
 - `/project-owner/projects/[projectId]`：项目负责人项目详情页，并发加载项目、材料和 portal reference-data，展示名称映射后的基础信息、评审安排、会议链接、后续推进需求和材料管理
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
 - 项目负责人材料列表 / 下载 / 提交 / 删除：调用 project_owner 材料接口，材料类型显示名称，显示 `draft/submitted/legacy active` 状态，下载使用后端签名 URL，支持提交全部草稿材料，`draft/active` 可物理删除，`submitted` 禁用删除
@@ -132,7 +132,7 @@ frontend/
 - 树形字典页面顶部树类型筛选控制当前维护范围；列表行内只展示编码、排序和全称 / 路径等节点信息，不逐行重复显示树类型
 - 树形字典列表默认只显示第一层节点，展开状态由前端 `expandedNodeIds` 维护；有子节点的节点可逐层展开 / 收起，收起时隐藏所有后代，切换树类型时重置展开状态
 - 树形字典新增 / 编辑弹窗父节点下拉默认只显示当前树类型一级节点；空父节点选项为“不选择父节点（作为一级节点）”，提交仍转为 `parentId=null`；勾选“显示全部层级”后可选择深层父节点，添加子节点和编辑已有父节点时会自动显示全部层级以保证当前选中父节点可见
-- 树形字典父节点下拉使用 `treeOptionLabel` 专用纯文本标签，通过全角空格和树枝符号增强 select option 中的深层缩进；列表和其他页面仍可继续使用 `indentedTreeLabel`
+- 原生 select/option 中展示树形层级时统一使用 `treeOptionLabel` 专用纯文本标签，通过全角空格、树枝符号、子节点提示符和“未命名节点”兜底增强深层缩进；`indentedTreeLabel` 保留导出兼容，自定义 `TreeMultiSelect` 和 `TreeList` 不受本规则影响
 - 当前树形字典管理页没有 keyword 搜索入口或查询参数；本小修未新增搜索，也未改变 `listTreeDictionaries()` 调用方式
 - 单位行政区划选择只读取 `treeType=administrative_division`；不再兼容历史 `treeType=region`；底层仍提交 `regionId` ObjectId
 - `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
@@ -147,6 +147,7 @@ frontend/
 - 项目导入任务列表支持删除未确认导入任务；删除只调用 `DELETE /admin/project-imports/:id` 清理导入任务和行级解析记录，不删除正式项目，`confirmedRows > 0` 的任务在前端禁用删除
 - 项目导入详情页将后端 `rowNumber` 展示为“Excel 行号”；该值是 Excel 原始行号，第一条数据通常从 2 开始
 - 项目导入修正页读取批次、项目类型、学科、受理处室、行政区划、项目状态、单位和 `project_owner` 用户作为选择项；行政区划只读取 `treeType=administrative_division`
+- 项目导入修正页中的项目类型、受理处室和创建新承担单位行政区划 select 只改变树形 option 展示缩进，不改变 `projectTypeId`、`departmentId`、`regionId`、行修正 state 或提交 payload
 - 项目导入行修正支持选择已有主数据、已有单位、已有项目负责人；只允许通过 `createOrganization` 创建新单位，通过 `createOwnerUser` 创建新项目负责人用户
 - 项目导入页面不创建项目类型、学科、受理处室或项目状态；缺失时提示先到对应主数据页面维护
 - 字段映射配置页已对接 `/admin/project-import-field-mappings*` 系列接口；请求均为 JSON，不使用 FormData

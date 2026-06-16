@@ -15,7 +15,7 @@ import { formatDateTime } from '@/src/lib/format/date';
 import { displayValue } from '@/src/lib/format/value';
 import {
   flattenTree,
-  indentedTreeLabel,
+  treeOptionLabel,
 } from '@/src/lib/tree/build-tree';
 import {
   listProjectOwnerProjects,
@@ -293,7 +293,7 @@ export function ProjectOwnerProjectsPage() {
                 <option value="">全部</option>
                 {projectTypeOptions.map(({ depth, hasChildren, item }) => (
                   <option key={item.id} value={item.id}>
-                    {indentedTreeLabel(item.name, depth, hasChildren)}
+                    {treeOptionLabel(item.name, depth, hasChildren)}
                   </option>
                 ))}
               </Select>

@@ -15,7 +15,7 @@ import { getErrorMessage } from '@/src/lib/api/errors';
 import { displayValue, statusText } from '@/src/lib/format/value';
 import {
   flattenTree,
-  indentedTreeLabel,
+  treeOptionLabel,
 } from '@/src/lib/tree/build-tree';
 import {
   createOrganization,
@@ -266,7 +266,7 @@ export function OrganizationsPage() {
             <option value="">全部</option>
             {regionOptions.map(({ depth, hasChildren, item }) => (
               <option key={item.id} value={item.id}>
-                {indentedTreeLabel(item.name, depth, hasChildren)}
+                {treeOptionLabel(item.name, depth, hasChildren)}
               </option>
             ))}
           </Select>
@@ -355,7 +355,7 @@ export function OrganizationsPage() {
             <option value="">不选择</option>
             {regionOptions.map(({ depth, hasChildren, item }) => (
               <option key={item.id} value={item.id}>
-                {indentedTreeLabel(item.name, depth, hasChildren)}
+                {treeOptionLabel(item.name, depth, hasChildren)}
               </option>
             ))}
           </Select>
