@@ -122,6 +122,14 @@ npm run build
 
 注意：通用 `Modal` 通过 React Portal 挂载到 `document.body`，遮罩覆盖整个视口，面板 body 区滚动，footer 保持可见；管理员材料删除 reason 表单和接口语义不变。
 
+本次 ReviewX 前端第五阶段：专家工作台与评分已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：专家材料查看和下载只调用 `/expert/projects/:id/materials` 系列接口；专家评分只调用 `/expert/review-tasks` 系列接口；不得调用 admin / project_owner / review_manager 材料接口。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -138,10 +146,12 @@ npm run build
 1. admin、client、review_manager、expert、project_owner 角色卡片均显示中文
 2. 点击管理员入口进入 `/admin`
 3. 点击项目负责人入口进入 `/project-owner`
-4. 已开通但未实现角色卡片显示“后续建设”
-5. 未开通角色显示“未开通”
-6. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
-7. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
+4. 点击专家入口进入 `/expert`
+5. 已开通但未实现角色卡片显示“后续建设”
+6. 未开通角色显示“未开通”
+7. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
+8. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
+9. 无 expert 角色访问 `/expert` 应显示 403 状态或回工作台
 
 ## 5. 管理员后台人工验证
 
@@ -307,7 +317,8 @@ Workspace 入口：
 3. 项目负责人卡片动作显示“进入项目负责人工作台”
 4. 点击进入 `/project-owner`
 5. admin 入口仍只对 admin 可进入
-6. client、review_manager、expert 仍显示“后续建设”
+6. expert 入口单独显示“进入专家工作台”
+7. client、review_manager 仍显示“后续建设”
 
 项目列表：
 
@@ -390,7 +401,112 @@ Workspace 入口：
 9. exe/js/bat 等禁止扩展名被前端拦截
 10. pdf/pptx/docx/xlsx/jpg/zip 等允许扩展名可提交后端
 
-## 9. 用户管理人工验证
+## 9. 专家工作台人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 使用具有 `expert` 角色的用户登录
+4. 管理员已为某项目分配该专家
+5. 项目已设置评审负责人、评审方案和 `reviewSchemeSnapshot`
+6. 项目负责人已提交至少一个 submitted 材料用于下载验证
+7. 数据库中存在 active 批次、`material_type`、`project_status`、评审负责人和评审方案基础数据
+
+Workspace 和守卫：
+
+1. expert 登录后进入 `/workspace`
+2. 专家卡片显示“可进入”和“进入专家工作台”
+3. 点击进入 `/expert`
+4. `/expert` 显示专家工作台标题、说明和“进入我的评审任务”入口
+5. 无 expert 角色访问 `/expert` 或 `/expert/review-tasks` 应显示 403，不白屏
+6. 专家页面不显示 AdminShell 或 ProjectOwnerShell 菜单
+
+任务列表：
+
+1. 进入 `/expert/review-tasks`
+2. 能看到分配给当前专家的评审任务
+3. Network 使用 `GET /expert/review-tasks`
+4. 状态显示为未开始、草稿、已提交、已退回
+5. 状态筛选支持 `not_started/draft/submitted/returned`
+6. 批次、评审负责人、评审方案筛选可用，提交的是对应 ID
+7. 批次、项目状态、评审负责人、评审方案尽量显示名称；映射缺失时显示“未知项（短ID）”
+8. 分页可用
+9. 点击“开始评分 / 继续评分 / 查看评分 / 修改重提”进入详情
+10. 任务列表加载失败时显示“评审任务加载失败。”，不白屏
+11. reference-data 加载失败时主列表仍可用，并提示部分名称将使用短 ID 兜底
+
+详情和材料：
+
+1. 进入 `/expert/review-tasks/[projectId]`
+2. Network 使用 `GET /expert/review-tasks/:projectId`
+3. 页面展示项目编号、项目名称、批次、项目状态、评审负责人、评审方案、评审时间、地点、会议链接和后续推进需求
+4. meetingUrl 有值时点击“打开会议链接”新窗口打开，不调用腾讯会议 API
+5. 材料区域 Network 使用 `GET /expert/projects/:id/materials`
+6. 材料列表只显示项目负责人已 submitted 材料
+7. 如果项目负责人只有 draft 材料，专家材料列表为空，并显示“项目负责人提交评审后，专家才能看到材料。”
+8. 点击材料下载只调用 `GET /expert/projects/:id/materials/:materialId/download-url`
+9. 下载只打开后端返回的 `string/url/downloadUrl`，不拼接 objectKey
+10. Network 中不得出现 admin / project_owner / review_manager 材料接口
+11. 材料加载失败只影响材料卡片，不阻断评分表单
+
+保存草稿：
+
+1. not_started 任务进入详情时，评分项按评审方案快照初始化为空
+2. 填写部分分数、评价描述、改进建议和重大问题标记
+3. 点击“保存草稿”
+4. 调用 `PUT /expert/review-tasks/:projectId`
+5. 保存草稿允许 score、评价描述、改进建议为空
+6. 已填写 score 小于 0 或大于 maxScore 时前端阻止保存并提示
+7. 保存成功提示“评分草稿已保存”
+8. 保存成功后刷新详情，任务状态可从未开始变为草稿
+9. 保存失败显示后端错误，不清空表单
+
+提交评分：
+
+1. 填写所有评分项 score
+2. 填写所有评价描述
+3. 对低于 `maxScore * suggestionRequiredThresholdRatio` 的评分项填写改进建议
+4. 勾选“存在重大问题”的评分项必须填写改进建议
+5. 点击“提交评分”
+6. 出现二次确认，文案为“提交后评分将进入评审流程，除非评审负责人退回，否则不能再修改。确认提交评分吗？”
+7. 确认后调用 `POST /expert/review-tasks/:projectId/submit`
+8. 提交成功提示“评分已提交”，刷新详情，表单变为只读
+9. 返回列表后任务状态显示已提交，总分显示
+10. 后端返回 400 时显示后端具体 message，不清空表单
+11. 后端返回 409 时显示“评分已提交，不能修改。”
+
+提交校验：
+
+1. score 为空提交，提示“分数为必填项。”
+2. score 非数字、负数或超过 maxScore，前端提示并阻止提交
+3. evaluationDescription 为空提交，提示“评价描述为必填项。”
+4. score 低于阈值且 improvementSuggestion 为空，提示“该项得分低于阈值，请填写改进建议。”
+5. hasMajorIssue 勾选且 improvementSuggestion 为空，提示“已标记重大问题，请填写改进建议。”
+6. 满分且未勾选重大问题时 improvementSuggestion 可为空
+7. 非满分但未低于阈值时可提示建议填写，但不强制
+
+submitted 和 returned：
+
+1. submitted 详情页表单只读
+2. submitted 不显示“保存草稿”和“提交评分”按钮
+3. submitted 显示提交时间和最终提交分
+4. returned 详情页显示退回时间和退回原因
+5. returned 表单可编辑
+6. returned 可保存草稿
+7. returned 可点击“重新提交评分”
+8. 重新提交成功后状态变为 submitted
+
+回归边界：
+
+1. 不实现评审负责人合议
+2. 不实现评审负责人退回评分前端
+3. 不实现 admin 查看专家评分前端
+4. 不实现 AI 合议、申诉、甲方看板、腾讯会议 API 或文件预览
+5. admin 项目材料查看 / 删除仍正常
+6. project_owner 材料上传 / 提交 / 删除草稿仍正常
+
+## 10. 用户管理人工验证
 
 - `/admin/users` 可访问，侧边栏“用户管理”入口正常显示并可选中
 - 用户列表加载成功，不显示 `passwordHash`
@@ -407,7 +523,7 @@ Workspace 入口：
 - 使用重置后的密码登录成功
 - 原有 `/admin/dictionaries`、`/admin/tree-dictionaries`、`/admin/organizations`、`/admin/review-schemes`、`/admin/projects` 仍正常
 
-## 10. 项目导入人工验证
+## 11. 项目导入人工验证
 
 前提：
 
@@ -442,7 +558,7 @@ Workspace 入口：
 21. 删除未确认导入任务后，到 `/admin/projects` 确认正式项目没有被误删
 22. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
-## 11. Excel 字段映射配置人工验证
+## 12. Excel 字段映射配置人工验证
 
 前提：
 
@@ -471,14 +587,13 @@ Workspace 入口：
 16. 与项目导入页面联动验证：给 `projectNo` 配置新别名后上传对应表头 Excel，导入任务详情 `fieldMapping` 应映射到 `projectNo`；删除配置后默认表头仍能识别
 17. 后端停止、401、403、400、404、409、500 等错误态应显示友好错误，不应白屏
 
-## 12. 当前不验证
+## 13. 当前不验证
 
 - 用户自助改密
 - 忘记密码
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 专家评分
 - 合议
 - 申诉
 - 甲方看板

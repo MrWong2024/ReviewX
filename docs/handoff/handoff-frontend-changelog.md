@@ -2,6 +2,24 @@
 
 ## 2026-06-16
 
+### ReviewX 前端第五阶段：专家工作台与评分
+
+- `/workspace` 放开 `expert` 角色入口，点击进入 `/expert`；admin 和 project_owner 入口保持原有能力，多角色用户可见多个入口
+- 新增 `ExpertShell`，提供 expert 登录态 / 角色守卫、工作台首页 / 我的评审任务导航、返回工作台和退出登录，不显示管理员或项目负责人菜单
+- 新增 `/expert` 专家工作台首页，展示专家评审流程提示和“进入我的评审任务”入口
+- 新增 `/expert/review-tasks` 专家任务列表，调用 `GET /expert/review-tasks`，支持状态、批次、评审负责人、评审方案筛选、分页、刷新和状态中文 Badge
+- 新增 `/expert/review-tasks/[projectId]` 详情页，并发加载专家任务详情、专家 submitted 材料和 portal reference-data
+- 新增专家 API 封装：`listExpertReviewTasks`、`getExpertReviewTask`、`saveExpertReviewDraft`、`submitExpertReview`、`listExpertProjectMaterials`、`getExpertProjectMaterialDownloadUrl` 和下载 URL 解析辅助
+- 专家材料查看和下载只调用 `/expert/projects/:id/materials` 与 `/expert/projects/:id/materials/:materialId/download-url`，不调用 admin / project_owner / review_manager 材料接口，不拼接 OSS objectKey
+- 专家详情页材料展示以 `/expert/projects/:id/materials` 返回的 submitted 材料为准，不使用评分详情响应内联 materials 作为页面材料主数据源
+- 新增 expert 类型和工具函数，覆盖任务、详情、评分方案快照、评分项、材料、保存 / 提交输入、portal reference-data、状态文案、score 校验、低分 / 重大问题改进建议必填和实时总分
+- 新增 `ExpertProjectInfoPanel`、`ExpertMaterialsPanel`、`ExpertReviewForm`、`ExpertReviewItemEditor` 和 `ExpertTaskStatusBadge`
+- 评分表单支持保存草稿、提交评分、提交前二次确认、前端基础校验、submitted 只读和 returned 修改重提
+- 草稿保存允许空 score / 评价描述 / 改进建议，但已填写 score 必须在 `0..maxScore`；提交要求所有 score 和评价描述必填，低分或重大问题项改进建议必填
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未实现评审负责人合议、评审负责人退回评分前端、admin 查看专家评分、AI 合议、申诉、甲方看板、腾讯会议 API、文件预览、材料删除或专家分配
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：通用 Modal 改为视口级 Portal 弹窗
 
 - `Modal` 改为通过 React Portal 挂载到 `document.body`，避免被调用位置的父级布局、overflow、transform 或层叠上下文限制

@@ -39,6 +39,11 @@ export function WorkspacePage() {
 
     if (role === 'project_owner') {
       router.push('/project-owner');
+      return;
+    }
+
+    if (role === 'expert') {
+      router.push('/expert');
     }
   }
 
@@ -69,9 +74,14 @@ export function WorkspacePage() {
         {USER_ROLES.map((role) => {
           const assigned = user.roles.includes(role);
           const enabled =
-            assigned && (role === 'admin' || role === 'project_owner');
+            assigned &&
+            (role === 'admin' ||
+              role === 'project_owner' ||
+              role === 'expert');
           const enabledActionLabel =
-            role === 'project_owner'
+            role === 'expert'
+              ? '进入专家工作台'
+              : role === 'project_owner'
               ? '进入项目负责人工作台'
               : '进入管理员后台';
           const statusLabel = !assigned

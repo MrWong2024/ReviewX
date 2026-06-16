@@ -36,6 +36,7 @@
 frontend/
 ├─ app/
 │  ├─ admin/
+│  ├─ expert/
 │  ├─ login/
 │  ├─ project-owner/
 │  ├─ workspace/
@@ -50,6 +51,7 @@ frontend/
 │  ├─ features/
 │  │  ├─ admin/
 │  │  ├─ auth/
+│  │  ├─ expert/
 │  │  └─ project-owner/
 │  ├─ lib/
 │  │  ├─ api/
@@ -81,7 +83,7 @@ frontend/
 
 - `/login`：品牌化登录页，手机号 + 密码登录，已登录访问自动回 `/workspace`
 - `/workspace`：现代化角色入口，展示 admin、client、review_manager、expert、project_owner 中文角色状态
-- `/workspace` 当前放开 admin 和 project_owner；client、review_manager、expert 仍显示“后续建设”
+- `/workspace` 当前放开 admin、project_owner 和 expert；client、review_manager 仍显示“后续建设”
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、字典类型中文过滤、新增、编辑、停用；支持自定义 dictType 保存
@@ -100,10 +102,15 @@ frontend/
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
 - 项目负责人材料列表 / 下载 / 提交 / 删除：调用 project_owner 材料接口，材料类型显示名称，显示 `draft/submitted/legacy active` 状态，下载使用后端签名 URL，支持提交全部草稿材料，`draft/active` 可物理删除，`submitted` 禁用删除
 - 项目负责人材料上传闭环：使用 portal active `material_type` 启用上传；FormData 字段为 `files/materialTypeId/remark`，不手动设置 `Content-Type`；新上传材料提示草稿语义，提交前评审负责人和专家不可见；保留文件数量 / 大小 / 扩展名校验和 failures 明细展示
+- `/expert`：专家工作台首页，展示专家评审流程提示和“我的评审任务”入口
+- `/expert/review-tasks`：专家评审任务列表，调用 `/expert/review-tasks`，支持状态、批次、评审负责人、评审方案筛选、分页、刷新、portal reference-data 名称映射和评分状态 Badge
+- `/expert/review-tasks/[projectId]`：专家评审任务详情，并发加载任务详情、submitted 材料和 portal reference-data，展示项目基础信息、评审安排、会议链接、后续推进需求、材料下载、评审方案快照和评分表单
+- 专家评分：调用 `/expert/review-tasks/:projectId` 保存草稿，调用 `/expert/review-tasks/:projectId/submit` 提交评分；前端做 score 范围、评价描述、低分 / 重大问题改进建议必填和提交二次确认
+- 专家材料查看 / 下载：只调用 `/expert/projects/:id/materials` 和 `/expert/projects/:id/materials/:materialId/download-url`；仅展示 submitted 材料，不拼接 OSS objectKey，不提供删除、上传或预览
+- 专家评分状态：`not_started` 初始化空表单，`draft` 可继续编辑，`submitted` 只读，`returned` 显示退回原因并可修改重提
 
 ## 7. 当前未实现
 
-- 专家评分页面
 - 合议确认页面
 - 申诉页面
 - 甲方看板
@@ -162,5 +169,12 @@ frontend/
 - 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
 - 项目负责人材料删除只调用 `DELETE /project-owner/projects/:id/materials/:materialId`；`draft/legacy active` 为物理删除并提示不可恢复，`submitted` 删除按钮禁用，异常触发后端 `409` 时显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
 - 项目负责人材料删除不调用 `/admin/*` 接口，不展示 `deletionLogId`，不前端拼接 OSS objectKey
+- 专家前端 API 封装位于 `frontend/src/features/expert/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
+- 专家任务列表和详情只调用 `/expert/review-tasks*` 系列接口，保存草稿 / 提交评分不新增后端接口
+- 专家详情页材料展示以 `/expert/projects/:id/materials` 返回的 submitted 材料为准；即使 `/expert/review-tasks/:projectId` 返回 `materials/materialCount`，页面材料区域也不把它作为主数据源
+- 专家材料下载只使用 `/expert/projects/:id/materials/:materialId/download-url` 返回的 `string/url/downloadUrl`，无法解析时展示错误；不调用 admin / project_owner / review_manager 材料接口，不前端拼接 OSS objectKey
+- 专家页面通过 `/portal/reference-data/*` 构造批次、项目状态、评审负责人、评审方案和材料类型名称映射；未命中时使用“未知项（短ID）”类兜底，不调用 `/admin/*` 主数据接口
+- 专家评分保存草稿允许空 score、评价描述和改进建议，但已填写 score 必须在 `0..maxScore`；提交要求所有 score 和评价描述必填，低分或重大问题项改进建议必填
+- 专家评分 `submitted` 状态前端只读且不显示保存 / 提交按钮；`returned` 状态显示退回时间和原因，并允许保存草稿与重新提交
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
-- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI
+- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、评审负责人合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI

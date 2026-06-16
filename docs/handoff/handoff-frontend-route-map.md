@@ -6,7 +6,7 @@
 | --- | --- | --- | --- | --- |
 | `/` | `frontend/app/page.tsx` | 无 | implemented | 直接跳转 `/workspace` |
 | `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 品牌化登录页，手机号 + 密码登录 |
-| `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin 和 project_owner 可进入真实工作台，其他角色仍显示后续建设 |
+| `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin、project_owner 和 expert 可进入真实工作台，其他角色仍显示后续建设 |
 | `/admin` | `frontend/app/admin/page.tsx` | 需要登录 + admin 角色 | implemented | 管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织 |
 | `/admin/users` | `frontend/app/admin/users/page.tsx` | 需要登录 + admin 角色 | implemented | 用户管理，支持列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码 |
 | `/admin/batches` | `frontend/app/admin/batches/page.tsx` | 需要登录 + admin 角色 | implemented | 批次管理 |
@@ -22,6 +22,9 @@
 | `/project-owner` | `frontend/app/project-owner/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人概览，基于第一页项目做轻量展示并提供“我的项目”入口 |
 | `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页、portal reference-data 名称映射和批次 / 项目类型 / 项目状态 / 评审负责人 / 评审方案 select 筛选 |
 | `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目详情、评审安排、后续推进需求、portal reference-data 名称映射，以及材料上传草稿、状态展示、提交评审、下载、草稿物理删除和 submitted 删除禁用闭环 |
+| `/expert` | `frontend/app/expert/page.tsx` | 需要登录 + expert 角色 | implemented | 专家工作台首页，说明任务 / 材料 / 评分流程，并提供“我的评审任务”入口 |
+| `/expert/review-tasks` | `frontend/app/expert/review-tasks/page.tsx` | 需要登录 + expert 角色 | implemented | 专家评审任务列表，调用 `/expert/review-tasks`；支持状态、批次、评审负责人、评审方案筛选和分页 |
+| `/expert/review-tasks/[projectId]` | `frontend/app/expert/review-tasks/[projectId]/page.tsx` | 需要登录 + expert 角色 | implemented | 专家评审任务详情，展示项目、评审安排、submitted 材料、评审方案快照和评分表单；支持草稿、提交、submitted 只读和 returned 重提 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
 ## 2. 管理员 layout
@@ -43,8 +46,17 @@
   - 未登录访问 `/project-owner/*`：跳转 `/login`
   - 已登录但无 project_owner 角色：显示 403 状态并提供返回工作台入口
 
-## 4. 当前不包含的路由
+## 4. 专家 layout
+
+- 壳组件：`frontend/src/components/layout/ExpertShell.tsx`
+- 顶部栏显示平台名、当前用户、专家角色 Badge、返回工作台和退出登录
+- 侧边栏提供“工作台首页”和“我的评审任务”入口，视觉基线与 AdminShell / ProjectOwnerShell 保持同一产品气质，但不复用管理员或项目负责人导航
+- 守卫为 client component 守卫：
+  - 未登录访问 `/expert/*`：跳转 `/login`
+  - 已登录但无 expert 角色：显示 403 状态并提供返回工作台入口
+
+## 5. 当前不包含的路由
 
 - 不包含用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置
-- 不包含专家评分、合议、申诉、甲方看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面
+- 不包含评审负责人合议、申诉、甲方看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面
 - 不包含文件预览、材料恢复或删除日志查询页面；管理员项目材料查看 / 下载 / 带原因删除已接入项目评审组织详情页，项目负责人材料上传草稿、提交评审、下载和 draft/legacy active 物理删除闭环已通过 portal `material_type` 启用
