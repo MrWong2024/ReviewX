@@ -141,3 +141,62 @@ export type BatchProjectExpertsResult = {
     message?: string;
   }>;
 };
+
+export type AdminProjectMaterialStatus =
+  | 'draft'
+  | 'submitted'
+  | 'active'
+  | 'deleted';
+
+export type AdminProjectMaterialTypeSummary = {
+  code?: string;
+  id: string;
+  name: string;
+  sortOrder?: number;
+};
+
+export type AdminProjectMaterialUploadedBy = {
+  id: string;
+  name: string;
+  phone?: string;
+};
+
+export type AdminProjectMaterial = {
+  createdAt: string;
+  deletedAt?: string | null;
+  deletedByUserId?: string | null;
+  extension?: string;
+  id: string;
+  materialType?: AdminProjectMaterialTypeSummary | null;
+  materialTypeId: string;
+  mimeType?: string;
+  originalFilename?: string;
+  projectId: string;
+  remark?: string | null;
+  safeFilename?: string;
+  sizeBytes: number;
+  status: AdminProjectMaterialStatus;
+  submittedAt?: string | null;
+  submittedByUserId?: string | null;
+  updatedAt?: string;
+  uploadedByUser?: AdminProjectMaterialUploadedBy | null;
+  uploadedByUserId: string;
+};
+
+export type AdminProjectMaterialDownloadUrlResult =
+  | string
+  | {
+      downloadUrl?: string;
+      expiresAt?: string;
+      filename?: string;
+      url?: string;
+    };
+
+export type DeleteAdminProjectMaterialInput = {
+  reason: string;
+};
+
+export type AdminDeleteProjectMaterialResult = {
+  deleted: boolean;
+  deletionLogId: string;
+};

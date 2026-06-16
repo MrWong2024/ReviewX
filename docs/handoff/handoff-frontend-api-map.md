@@ -52,6 +52,9 @@
 | `deleteReviewScheme` | `DELETE /admin/review-schemes/:id` | 单对象，后端停用语义 | `/admin/review-schemes` |
 | `listProjects` | `GET /admin/projects` | 分页对象；支持 `page/pageSize/batchId/projectTypeId/statusId/departmentId/disciplineId/reviewManagerId/reviewSchemeId/hasReviewManager/hasReviewScheme/keyword/isActive` | `/admin/projects` |
 | `getProject` | `GET /admin/projects/:id` | `Project` | `/admin/projects/[projectId]/review-organization` |
+| `listAdminProjectMaterials` | `GET /admin/projects/:id/materials` | `AdminProjectMaterial[]`；管理员可见 `draft/submitted/legacy active`，`deleted` 仅作 legacy 兜底；不传臆造查询参数 | `/admin/projects/[projectId]/review-organization` |
+| `getAdminProjectMaterialDownloadUrl` | `GET /admin/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；只打开后端返回 URL，不在前端拼接 OSS objectKey | `/admin/projects/[projectId]/review-organization` |
+| `deleteAdminProjectMaterial` | `DELETE /admin/projects/:id/materials/:materialId` | 请求体 `{ reason: string }` 必填，trim 后不能为空且最长 1000；成功返回 `{ deleted, deletionLogId }`；前端不展示删除日志，不乐观移除 | `/admin/projects/[projectId]/review-organization` |
 | `updateProjectReviewAssignment` | `PATCH /admin/projects/:id/review-assignment` | `Project`；至少提交负责人或方案之一；设置方案时后端生成 `reviewSchemeSnapshot` | `/admin/projects`、`/admin/projects/[projectId]/review-organization` |
 | `batchUpdateProjectReviewAssignment` | `PATCH /admin/projects/review-assignment/batch` | `{ successCount, failedCount, failures }`；部分失败显示明细 | `/admin/projects` |
 | `updateProjectSchedule` | `PATCH /admin/projects/:id/schedule` | `Project`；只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API | `/admin/projects/[projectId]/review-organization` |
@@ -145,6 +148,8 @@
 - 专家分配操作使用 `/review-manager/projects*` 系列接口，admin 角色按后端权限允许访问；前端不新增 `/admin/projects/:id/experts` 假接口
 - 专家候选和分配不在前端自行实现学科匹配或单位回避；页面只展示后端返回候选、assigned 标记和失败原因
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
+- 管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials`、`/admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`；删除必须提交 `reason`，不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称。
+- 管理员材料删除成功后刷新列表；`400` reason 问题、`403` 权限、`404` 已删除和 `500`/storage 删除失败均在材料卡片或删除弹窗内展示，不在成功前从列表乐观移除。
 - 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；未命中时显示“未知项（短ID）”类兜底，不默认展示裸 ID
 - 项目负责人项目列表筛选使用批次、项目类型、项目状态、评审负责人、评审方案 select；提交给后端的仍是对应 ID，不新增 keyword
 - 项目负责人材料列表类型展示优先使用 `ProjectMaterial.materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”
@@ -158,7 +163,6 @@
 - `/review-manager/projects/:id/consensus*`
 - `/review-manager/projects/:id/appeals*`
 - `/expert/*`
-- `/admin/projects/:id/materials*`
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`
 - `/admin/projects/:id/appeals*`

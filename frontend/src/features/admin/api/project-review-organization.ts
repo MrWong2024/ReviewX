@@ -1,12 +1,16 @@
 import { apiRequest } from '@/src/lib/api/client';
 import type { PaginatedResponse } from '@/src/lib/api/types';
 import type {
+  AdminDeleteProjectMaterialResult,
+  AdminProjectMaterial,
+  AdminProjectMaterialDownloadUrlResult,
   AppendExpertsResult,
   AppendProjectExpertsInput,
   BatchProjectExpertsInput,
   BatchProjectExpertsResult,
   BatchReviewAssignmentResult,
   BatchUpdateReviewAssignmentInput,
+  DeleteAdminProjectMaterialInput,
   ExpertBasic,
   ExpertCandidatePage,
   ListProjectExpertCandidatesParams,
@@ -68,6 +72,57 @@ export function listProjectExpertCandidates(
       params,
     },
   );
+}
+
+export function listAdminProjectMaterials(projectId: string) {
+  return apiRequest<AdminProjectMaterial[]>(
+    `/admin/projects/${projectId}/materials`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function getAdminProjectMaterialDownloadUrl(
+  projectId: string,
+  materialId: string,
+) {
+  return apiRequest<AdminProjectMaterialDownloadUrlResult>(
+    `/admin/projects/${projectId}/materials/${materialId}/download-url`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function deleteAdminProjectMaterial(
+  projectId: string,
+  materialId: string,
+  input: DeleteAdminProjectMaterialInput,
+) {
+  return apiRequest<AdminDeleteProjectMaterialResult>(
+    `/admin/projects/${projectId}/materials/${materialId}`,
+    {
+      body: input,
+      method: 'DELETE',
+    },
+  );
+}
+
+export function resolveAdminProjectMaterialDownloadUrl(
+  response: AdminProjectMaterialDownloadUrlResult,
+): string | null {
+  if (typeof response === 'string') {
+    return response.trim() || null;
+  }
+
+  const url = response.url ?? response.downloadUrl;
+
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+
+  return url.trim() || null;
 }
 
 export function listAssignedProjectExperts(projectId: string) {

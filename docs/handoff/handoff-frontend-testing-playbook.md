@@ -98,6 +98,14 @@ npm run build
 
 注意：项目负责人材料提交只调用 `POST /project-owner/projects/:id/materials/submit`；项目负责人删除材料只调用 `DELETE /project-owner/projects/:id/materials/:materialId`，不得调用 `/admin/*` 删除接口。
 
+本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials` 系列接口；删除必须填写 `reason`，不得调用 project_owner / review_manager / expert 材料接口。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -199,6 +207,26 @@ npm run build
 4. 设置评审时间、地点和会议链接后保存成功
 5. meetingUrl 有值时可点击打开
 6. 页面明确当前仅保存会议链接，不做腾讯会议 API、直播、推流或回看
+
+项目材料：
+
+1. 使用 project_owner 上传并提交至少一个材料后，admin 进入 `/admin/projects/[projectId]/review-organization`
+2. 页面出现“项目材料”卡片
+3. 材料列表展示文件名、材料类型、状态、上传人、上传时间、文件大小和备注
+4. `submitted` 材料显示“已提交评审”，`draft` 材料显示“草稿”，legacy `active` 材料显示“历史草稿”
+5. 点击“下载”应调用 `GET /admin/projects/:id/materials/:materialId/download-url` 并打开后端返回 URL
+6. 下载失败时卡片内显示错误，不白屏，不拼接 OSS objectKey
+7. 点击“删除”打开删除项目材料弹窗，不得直接删除
+8. 弹窗说明物理删除文件和材料记录、删除后不可恢复，且系统会保留删除审计日志
+9. 删除原因为空或 trim 后为空时不能提交，并显示“请填写删除原因。”
+10. 删除原因超过 1000 字时不能提交
+11. 填写删除原因后提交，调用 `DELETE /admin/projects/:id/materials/:materialId` 且 body 包含 `{ reason }`
+12. 删除成功后提示“材料已删除，系统已保留删除审计。”并刷新材料列表
+13. 删除失败时弹窗保留并显示错误，不在成功前从列表乐观移除
+14. 404 显示“材料不存在或已被删除。”，403 显示“当前账号无权管理该材料。”，500 / storage 删除失败提示材料未删除并建议稍后重试或联系管理员
+15. Network 中不得出现 project_owner / review_manager / expert 材料接口
+16. 不调用 `/admin/users` 只为补上传人名称；上传人缺少 inline 信息时使用短 ID 兜底
+17. 不提供删除日志查询页面、材料恢复或文件预览
 
 专家候选与分配：
 

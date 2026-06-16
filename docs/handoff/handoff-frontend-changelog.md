@@ -2,6 +2,19 @@
 
 ## 2026-06-16
 
+### ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入
+
+- `/admin/projects/[projectId]/review-organization` 新增“项目材料”卡片，管理员可查看项目负责人上传材料的文件名、材料类型、状态、上传人、上传时间、大小和备注
+- 新增 admin 材料 API 封装：`listAdminProjectMaterials`、`getAdminProjectMaterialDownloadUrl`、`deleteAdminProjectMaterial`，均调用 `/admin/projects/:id/materials` 系列接口
+- 新增 admin 项目材料类型，覆盖 `draft/submitted/active/deleted` 状态、下载 URL 响应和带原因删除结果；不从 project-owner feature 反向导入类型
+- 新增 `AdminProjectMaterialStatusBadge`，统一显示草稿、已提交评审、历史草稿、已删除和未知状态
+- 新增 `AdminProjectMaterialDeleteModal`，删除前必须填写 1-1000 字原因，说明物理删除文件和材料记录、不可恢复，且后端保留删除审计
+- 新增 `AdminProjectMaterialsCard`，独立加载材料列表，支持刷新、下载、删除弹窗、删除成功刷新列表、删除失败不乐观移除，并处理 400/403/404/500 等错误提示
+- 材料下载只打开后端返回的签名 URL 或 fake storage URL，不前端拼接 OSS objectKey
+- 本补丁未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本补丁未调用 project_owner / review_manager / expert 材料接口冒充 admin，未调用 `/admin/users` 补上传人，未使用 mock 数据，未实现删除日志查询、材料恢复、文件预览、专家评分、合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 第四阶段补丁四：项目负责人材料提交与删除规则前端接入
 
 - 项目负责人材料类型扩展为 `draft/submitted/active/deleted`，新增提交材料请求与响应类型，并保留删除结果兼容字段 `alreadyDeleted?`、`deletionLogId?`

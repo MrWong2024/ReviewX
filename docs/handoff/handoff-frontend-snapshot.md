@@ -92,7 +92,7 @@ frontend/
 - `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、Excel 行号行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认
 - `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
 - `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
-- `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
+- `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看项目材料、下载项目材料、填写原因删除项目材料、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
 - `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，不提交 `ownerUserId` 或 `keyword`
@@ -141,6 +141,10 @@ frontend/
 - `/admin/projects` 已接入评审负责人 active 用户、评审方案、批次、项目类型、项目状态、学科和单位映射；项目负责人优先使用用户列表映射，无法映射时保留 id 兜底
 - 项目评审组织 API 封装位于 `frontend/src/features/admin/api/project-review-organization.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 专家候选使用 `GET /admin/projects/:id/expert-candidates`；已分配、追加、替换、移除和批量设置专家使用 `/review-manager/projects*` 系列接口，admin 角色可访问
+- 管理员项目材料查看、下载和删除位于 `/admin/projects/[projectId]/review-organization` 的“项目材料”卡片；只调用 `GET /admin/projects/:id/materials`、`GET /admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`
+- 管理员删除材料必须填写 1-1000 字 `reason`，前端在弹窗中校验；删除成功后刷新材料列表，失败时不乐观移除；后端保留删除审计，前端不实现删除日志查询
+- 管理员材料下载只打开后端返回的签名 URL 或 fake storage URL，不拼接 OSS objectKey；材料状态显示 `draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`
+- 管理员项目材料卡片不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称；上传人缺少 inline 信息时使用短 ID 兜底
 - `/admin/projects` 批量设置专家完成后的逐项目结果标题优先显示项目编号和项目名称；失败明细优先显示专家姓名和手机号，专家或项目映射缺失时显示“未知专家 / 未知项目 + 短ID”兜底，避免把裸 ObjectId 作为主展示文案
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
@@ -157,4 +161,4 @@ frontend/
 - 项目负责人材料删除只调用 `DELETE /project-owner/projects/:id/materials/:materialId`；`draft/legacy active` 为物理删除并提示不可恢复，`submitted` 删除按钮禁用，异常触发后端 `409` 时显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
 - 项目负责人材料删除不调用 `/admin/*` 接口，不展示 `deletionLogId`，不前端拼接 OSS objectKey
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
-- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览或真实 AI
+- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI

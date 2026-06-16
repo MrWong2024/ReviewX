@@ -8,6 +8,7 @@ import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { getProjectOrganizationStatus } from '@/src/lib/labels/project-review-organization-labels';
+import { AdminProjectMaterialsCard } from '../components/project-review-organization/AdminProjectMaterialsCard';
 import { AssignedExpertsPanel } from '../components/project-review-organization/AssignedExpertsPanel';
 import { ExpertCandidatesPanel } from '../components/project-review-organization/ExpertCandidatesPanel';
 import { ProjectSchedulePanel } from '../components/project-review-organization/ProjectSchedulePanel';
@@ -307,6 +308,8 @@ export function ProjectReviewOrganizationPage({
         </section>
 
         <ProjectSchedulePanel onSaved={setProject} project={project} />
+
+        <AdminProjectMaterialsCard projectId={project.id} />
 
         {expertsError ? <ErrorAlert message={expertsError} /> : null}
         <AssignedExpertsPanel
