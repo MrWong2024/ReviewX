@@ -86,8 +86,8 @@ frontend/
 - `/workspace` 当前放开 admin、project_owner 和 expert；client、review_manager 仍显示“后续建设”
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息；AdminShell 正常顶部栏显示当前用户、手机号、管理员 Badge、“返回工作台”和“退出登录”
 - `/admin/batches`：批次列表、新增、编辑、停用
-- `/admin/dictionaries`：普通字典列表、固定字典类型筛选、新增、编辑、停用；筛选仅支持项目状态和材料类型，默认项目状态，不支持全部浏览或自定义 dictType
-- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用
+- `/admin/dictionaries`：普通字典列表、固定字典类型筛选、新增、编辑、停用；筛选仅支持项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType
+- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用；列表行内不重复展示树类型
 - `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用
 - `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
 - `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选、分页和未确认导入任务删除
@@ -126,9 +126,10 @@ frontend/
 ## 8. 已知口径
 
 - 本阶段直接按 `NEXT_PUBLIC_API_BASE_URL` 调后端；未实现 BFF 代理
-- 普通字典页只维护平台内置普通字典类型，当前筛选固定为 `project_status=项目状态` 和 `material_type=材料类型`；页面默认加载 `project_status`，列表请求始终携带明确 `dictType`，不再拉取全部普通字典
+- 普通字典页只维护平台内置普通字典类型，当前筛选固定为 `project_status=项目状态`、`material_type=材料类型` 和 `review_level=评审等级`；页面默认加载 `project_status`，列表请求始终携带明确 `dictType`，不再拉取全部普通字典
 - 普通字典新增时 `dictType` 跟随当前选中类型，编辑时只读展示原类型且不可修改；页面不提供“全部”“自定义类型”或自定义 `dictType` 输入
 - 树形字典预设 `treeType` 前端显示中文：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
+- 树形字典页面顶部树类型筛选控制当前维护范围；列表行内只展示编码、排序和全称 / 路径等节点信息，不逐行重复显示树类型
 - 单位行政区划选择只读取 `treeType=administrative_division`；不再兼容历史 `treeType=region`；底层仍提交 `regionId` ObjectId
 - `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
 - 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别

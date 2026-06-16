@@ -42,8 +42,8 @@
 | `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页 |
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
-| `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
-| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理 |
+| `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型 / 评审等级，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
+| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，列表行内展示编码、排序和全称，不重复显示树类型 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
 | `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口 |

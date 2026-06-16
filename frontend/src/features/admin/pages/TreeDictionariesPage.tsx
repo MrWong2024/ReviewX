@@ -254,7 +254,6 @@ export function TreeDictionariesPage() {
                   编码：
                   <span className="code">{displayValue(item.code)}</span>
                 </span>
-                <span>树类型：{treeTypeLabel(item.treeType)}</span>
                 <span>排序：{item.sortOrder}</span>
                 {item.fullName ? <span>全称：{item.fullName}</span> : null}
               </div>

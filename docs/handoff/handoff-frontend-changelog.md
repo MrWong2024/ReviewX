@@ -2,13 +2,35 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：树形字典列表行内移除重复树类型展示
+
+- `/admin/tree-dictionaries` 列表行内中间信息列移除“树类型：xxx”重复展示
+- 顶部树类型筛选继续保留，仍用于控制当前维护的树类型范围
+- 行内继续展示编码、排序和全称 / 完整路径信息，缩进层级和操作按钮保持不变
+- 本小修未改变树形字典查询、新增、编辑、删除或启停逻辑
+- 本小修未修改普通字典、backend、接口、依赖或环境变量，未修改 `package.json` 或锁文件
+- 本小修未实现第六阶段合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
+### ReviewX 小修：普通字典固定类型恢复评审等级
+
+- `/admin/dictionaries` 固定普通字典类型恢复“评审等级 / review_level”
+- 字典类型筛选当前固定为“项目状态 / project_status”“材料类型 / material_type”“评审等级 / review_level”
+- 默认选中仍为“项目状态”，初次进入仍只加载 `project_status`
+- 切换到评审等级时调用 `GET /admin/dictionaries?dictType=review_level`，新增评审等级时提交 `dictType=review_level`
+- 编辑评审等级时继续只读展示字典类型，不允许修改 `dictType`
+- 本小修未恢复“全部”或“自定义类型”，未允许自由输入 `dictType`
+- 本小修未修改 backend，未新增接口、依赖或环境变量，未修改 `package.json` 或锁文件
+- 本小修未修改树形字典、合议、申诉、专家评分或其他业务页面
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：普通字典类型筛选固定化并默认选中项目状态
 
-- `/admin/dictionaries` 字典类型筛选固定为平台内置普通字典类型，仅保留“项目状态 / project_status”和“材料类型 / material_type”
+- `/admin/dictionaries` 字典类型筛选固定为平台内置普通字典类型
 - 页面默认选中“项目状态”，初次进入直接调用 `GET /admin/dictionaries?dictType=project_status`，不再先拉取全部普通字典
 - 移除筛选中的“全部”和“自定义类型”，不再提供跨类型全部浏览或自定义 `dictType` 入口
 - 新增字典项时 `dictType` 跟随当前选中的固定类型；编辑字典项时只读展示类型，不允许修改为其他或自定义类型
-- 空状态按当前类型显示“暂无项目状态字典项。”或“暂无材料类型字典项。”
+- 空状态按当前固定类型显示对应字典项为空
 - 本小修未修改 backend，未新增接口、依赖或环境变量，未修改 `package.json` 或锁文件
 - 本小修未修改树形字典、项目导入、字段映射、项目评审组织、专家工作台或第六阶段合议能力
 - 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过

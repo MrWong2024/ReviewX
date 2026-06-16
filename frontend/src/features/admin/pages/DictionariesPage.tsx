@@ -35,6 +35,7 @@ type DictionaryFormState = {
 const DICTIONARY_TYPE_OPTIONS = [
   { label: '项目状态', value: 'project_status' },
   { label: '材料类型', value: 'material_type' },
+  { label: '评审等级', value: 'review_level' },
 ] as const;
 
 type SupportedDictionaryType = (typeof DICTIONARY_TYPE_OPTIONS)[number]['value'];
@@ -213,7 +214,9 @@ export function DictionariesPage() {
       <div className="page-title">
         <div>
           <h1>普通字典管理</h1>
-          <p>普通字典类型由系统固定，管理员只维护对应类型下的字典项。</p>
+          <p>
+            普通字典类型由系统固定，管理员只维护对应类型下的字典项，包括项目状态、材料类型和评审等级。
+          </p>
         </div>
         <Button onClick={openCreate} variant="primary">
           新增{selectedDictTypeLabel}
