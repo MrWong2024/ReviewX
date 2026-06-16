@@ -207,6 +207,11 @@ describe('Portal reference data APIs (e2e)', () => {
         roles: ['review_manager'],
       }),
     ]);
+    expect(getItems(usersResponse)).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: '管理员兼负责人' }),
+      ]),
+    );
     expectResponseHasNoForbiddenFields(usersResponse.body);
   });
 

@@ -3,6 +3,7 @@ import type {
   ExpertLookupMaps,
   ExpertReferenceData,
   ExpertReviewItem,
+  ExpertReviewProjectSummary,
   ExpertReviewViewStatus,
   ReviewSchemeSnapshotItem,
 } from './types';
@@ -249,6 +250,31 @@ export function formatLookupName(
   }
 
   return nameById.get(id) ?? `${unknownLabel}（${shortId(id)}）`;
+}
+
+export function formatReviewManagerName(
+  project: Pick<
+    ExpertReviewProjectSummary,
+    'reviewManager' | 'reviewManagerId'
+  >,
+  userNameById: Map<string, string>,
+): string {
+  const inlineName = project.reviewManager?.name.trim();
+
+  if (inlineName) {
+    const phone = project.reviewManager?.phone?.trim();
+
+    return phone ? `${inlineName}（${phone}）` : inlineName;
+  }
+
+  if (!project.reviewManagerId) {
+    return '未指定评审负责人';
+  }
+
+  return (
+    userNameById.get(project.reviewManagerId) ??
+    `未知评审负责人（${shortId(project.reviewManagerId)}）`
+  );
 }
 
 export function formatExpertErrorMessage(error: unknown): string {

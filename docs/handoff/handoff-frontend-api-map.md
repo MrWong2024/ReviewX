@@ -122,8 +122,8 @@
 
 | 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
 | --- | --- | --- | --- |
-| `listExpertReviewTasks` | `GET /expert/review-tasks` | 分页对象；提交 `page/pageSize/batchId/status/reviewManagerId/reviewSchemeId`，状态支持 `not_started/draft/submitted/returned` | `/expert/review-tasks` |
-| `getExpertReviewTask` | `GET /expert/review-tasks/:projectId` | `ExpertReviewTaskDetail`；包含 `project/reviewSchemeSnapshot/review`；未开始时 `review.status=not_started` 且 `review.id` 可不存在 | `/expert/review-tasks/[projectId]` |
+| `listExpertReviewTasks` | `GET /expert/review-tasks` | 分页对象；提交 `page/pageSize/batchId/status/reviewManagerId/reviewSchemeId`，状态支持 `not_started/draft/submitted/returned`；`project.reviewManager` 兼容 `{ id, name, phone? }` 或 `null` | `/expert/review-tasks` |
+| `getExpertReviewTask` | `GET /expert/review-tasks/:projectId` | `ExpertReviewTaskDetail`；包含 `project/reviewSchemeSnapshot/review`；`project.reviewManager` 兼容 `{ id, name, phone? }` 或 `null`；未开始时 `review.status=not_started` 且 `review.id` 可不存在 | `/expert/review-tasks/[projectId]` |
 | `saveExpertReviewDraft` | `PUT /expert/review-tasks/:projectId` | 请求 `{ items?: [...] }`；保存草稿允许空分数、空评价描述和空改进建议，但前端仍校验已填写分数的范围 | `/expert/review-tasks/[projectId]` |
 | `submitExpertReview` | `POST /expert/review-tasks/:projectId/submit` | 请求 `{ items?: [...] }`；提交前前端校验所有分数、评价描述、低分 / 重大问题改进建议，并二次确认；后端仍最终校验 | `/expert/review-tasks/[projectId]` |
 | `listExpertProjectMaterials` | `GET /expert/projects/:id/materials` | `ExpertMaterial[]`；专家只可见 submitted 材料，支持后端 `materialTypeId` 查询参数但当前详情页默认不传 | `/expert/review-tasks/[projectId]` |
@@ -139,7 +139,7 @@
 
 专家评分和材料口径：
 
-- 专家任务列表和详情只调用 `/expert/review-tasks*`，不新增或修改后端接口。
+- 专家任务列表和详情只调用 `/expert/review-tasks*`，不新增专家任意用户查询接口或跨角色接口；评审负责人名称优先使用任务响应内联 `project.reviewManager.name`，其次使用 portal `review_manager` 用户映射，最后显示“未知评审负责人（短ID）”或“未指定评审负责人”。
 - 专家详情页材料展示以 `listExpertProjectMaterials(projectId)` 即 `GET /expert/projects/:id/materials` 为准；即使评分详情响应包含 `materials/materialCount`，也不作为页面材料展示主数据源。
 - 专家材料下载只调用 `GET /expert/projects/:id/materials/:materialId/download-url`，不调用 project_owner / review_manager / admin 材料接口，不前端拼接 `objectKey`。
 - 专家评分保存 / 提交请求只提交评分项 `name/score/evaluationDescription/improvementSuggestion/hasMajorIssue`，不在前端保存 token，不读取 HttpOnly Cookie。
@@ -183,7 +183,7 @@
 - 项目负责人项目列表筛选使用批次、项目类型、项目状态、评审负责人、评审方案 select；提交给后端的仍是对应 ID，不新增 keyword
 - 项目负责人材料列表类型展示优先使用 `ProjectMaterial.materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”
 - 项目负责人材料列表显示材料状态 Badge；`draft/active` 可提交或删除，`submitted` 禁用删除，`deleted/unknown` 禁用操作。
-- 专家任务列表和详情通过 `/portal/reference-data/*` 构造批次、项目状态、评审负责人、评审方案和材料类型名称映射；未命中时显示“未知项（短ID）”类兜底，不调用 `/admin/*` 主数据接口。
+- 专家任务列表和详情通过 `/portal/reference-data/*` 构造批次、项目状态、评审负责人、评审方案和材料类型名称映射；评审负责人优先使用 `/expert/review-tasks*` 响应内联 `project.reviewManager`，reference-data 只作 fallback；未命中时显示“未知项（短ID）”类兜底，不调用 `/admin/*` 主数据接口。
 - 专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；列表操作文案分别为“开始评分 / 继续评分 / 查看评分 / 修改重提”。
 - 专家提交评分前校验：score 必填且在 `0..maxScore`，评价描述必填，score 严格低于 `maxScore * suggestionRequiredThresholdRatio` 或存在重大问题时改进建议必填；草稿保存只校验已填写 score 范围。
 - 专家材料列表材料类型展示优先使用材料响应内联 `materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”。

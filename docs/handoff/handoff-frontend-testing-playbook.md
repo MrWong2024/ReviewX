@@ -500,7 +500,7 @@ Workspace 入口：
 2. 前端运行在 `http://localhost:3001`
 3. 使用具有 `expert` 角色的用户登录
 4. 管理员已为某项目分配该专家
-5. 项目已设置评审负责人、评审方案和 `reviewSchemeSnapshot`
+5. 项目已设置评审负责人、评审方案和 `reviewSchemeSnapshot`；建议至少准备一个 `admin + review_manager` 多角色用户作为项目评审负责人
 6. 项目负责人已提交至少一个 submitted 材料用于下载验证
 7. 数据库中存在 active 批次、`material_type`、`project_status`、评审负责人和评审方案基础数据
 
@@ -521,24 +521,25 @@ Workspace 和守卫：
 4. 状态显示为未开始、草稿、已提交、已退回
 5. 状态筛选支持 `not_started/draft/submitted/returned`
 6. 批次、评审负责人、评审方案筛选可用，提交的是对应 ID
-7. 批次、项目状态、评审负责人、评审方案尽量显示名称；映射缺失时显示“未知项（短ID）”
+7. 批次、项目状态、评审负责人、评审方案尽量显示名称；评审负责人优先使用 `/expert/review-tasks` 响应内联 `project.reviewManager.name`，多角色 `admin + review_manager` 负责人不应显示为“未知评审负责人（短ID）”；映射缺失时显示“未知项（短ID）”
 8. 分页可用
 9. 点击“开始评分 / 继续评分 / 查看评分 / 修改重提”进入详情
 10. 任务列表加载失败时显示“评审任务加载失败。”，不白屏
 11. reference-data 加载失败时主列表仍可用，并提示部分名称将使用短 ID 兜底
+12. Network 中专家任务列表不调用 `/admin/*`，不调用 project_owner / review_manager 接口补评审负责人名称
 
 详情和材料：
 
 1. 进入 `/expert/review-tasks/[projectId]`
 2. Network 使用 `GET /expert/review-tasks/:projectId`
-3. 页面展示项目编号、项目名称、批次、项目状态、评审负责人、评审方案、评审时间、地点、会议链接和后续推进需求
+3. 页面展示项目编号、项目名称、批次、项目状态、评审负责人、评审方案、评审时间、地点、会议链接和后续推进需求；评审负责人优先使用详情响应内联 `project.reviewManager.name`
 4. meetingUrl 有值时点击“打开会议链接”新窗口打开，不调用腾讯会议 API
 5. 材料区域 Network 使用 `GET /expert/projects/:id/materials`
 6. 材料列表只显示项目负责人已 submitted 材料
 7. 如果项目负责人只有 draft 材料，专家材料列表为空，并显示“项目负责人提交评审后，专家才能看到材料。”
 8. 点击材料下载只调用 `GET /expert/projects/:id/materials/:materialId/download-url`
 9. 下载只打开后端返回的 `string/url/downloadUrl`，不拼接 objectKey
-10. Network 中不得出现 admin / project_owner / review_manager 材料接口
+10. Network 中不得出现 admin / project_owner / review_manager 材料接口；不得出现 `/admin/*` 用户接口用于补评审负责人名称
 11. 材料加载失败只影响材料卡片，不阻断评分表单
 
 保存草稿：

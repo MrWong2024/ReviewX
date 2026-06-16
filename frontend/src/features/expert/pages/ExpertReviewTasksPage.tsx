@@ -28,6 +28,7 @@ import {
   EXPERT_REVIEW_STATUS_OPTIONS,
   formatExpertErrorMessage,
   formatLookupName,
+  formatReviewManagerName,
   formatScore,
   getExpertTaskActionLabel,
 } from '../utils';
@@ -180,11 +181,7 @@ export function ExpertReviewTasksPage() {
     {
       key: 'reviewManager',
       render: (item) =>
-        formatLookupName(
-          item.project.reviewManagerId,
-          lookupMaps.userNameById,
-          '未知评审负责人',
-        ),
+        formatReviewManagerName(item.project, lookupMaps.userNameById),
       title: '评审负责人',
     },
     {

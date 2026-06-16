@@ -5,7 +5,7 @@ import type {
   ExpertLookupMaps,
   ExpertReviewProjectSummary,
 } from '../types';
-import { formatLookupName } from '../utils';
+import { formatLookupName, formatReviewManagerName } from '../utils';
 
 type ExpertProjectInfoPanelProps = {
   lookupMaps: ExpertLookupMaps;
@@ -47,11 +47,7 @@ export function ExpertProjectInfoPanel({
   const reviewItems: InfoItem[] = [
     {
       label: '评审负责人',
-      value: formatLookupName(
-        project.reviewManagerId,
-        lookupMaps.userNameById,
-        '未知评审负责人',
-      ),
+      value: formatReviewManagerName(project, lookupMaps.userNameById),
     },
     {
       label: '评审方案',

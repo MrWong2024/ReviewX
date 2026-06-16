@@ -138,6 +138,7 @@ type ProjectTaskSummary = {
   name: string;
   statusId?: string | null;
   reviewManagerId?: string | null;
+  reviewManager?: ReviewManagerSummary | null;
   reviewSchemeId?: string | null;
   reviewTime?: Date | null;
   reviewLocation?: string;
@@ -163,6 +164,12 @@ type ExpertBasicSummary = {
   name: string;
   organizationIds: string[];
   disciplineIds: string[];
+};
+
+type ReviewManagerSummary = {
+  id: string;
+  name: string;
+  phone?: string;
 };
 
 type ProjectLean = TimestampFields & {
@@ -222,6 +229,12 @@ type UserLean = {
   name: string;
   organizationIds?: Types.ObjectId[];
   disciplineIds?: Types.ObjectId[];
+};
+
+type ReviewManagerLean = {
+  _id: Types.ObjectId;
+  name: string;
+  phone?: string;
 };
 
 @Injectable()
@@ -290,14 +303,14 @@ export class ExpertReviewsService {
         .exec(),
       this.projectModel.countDocuments(filter).exec(),
     ]);
-    const [reviewMap, materialCountMap] = await Promise.all([
-      this.getReviewMap(
-        projects.map((project) => project._id),
-        currentUser.user.id,
-      ),
-      this.countActiveMaterialsByProject(
-        projects.map((project) => project._id),
-      ),
+    const pageProjectIds = projects.map((project) => project._id);
+    const reviewManagerIds = projects
+      .map((project) => project.reviewManagerId)
+      .filter((id): id is Types.ObjectId => Boolean(id));
+    const [reviewMap, materialCountMap, reviewManagerMap] = await Promise.all([
+      this.getReviewMap(pageProjectIds, currentUser.user.id),
+      this.countActiveMaterialsByProject(pageProjectIds),
+      this.getReviewManagerMap(reviewManagerIds),
     ]);
 
     return {
@@ -305,7 +318,13 @@ export class ExpertReviewsService {
         const review = reviewMap.get(project._id.toString());
 
         return {
-          project: this.toProjectSummary(project),
+          project: this.toProjectSummary(
+            project,
+            project.reviewManagerId
+              ? (reviewManagerMap.get(project.reviewManagerId.toString()) ??
+                  null)
+              : null,
+          ),
           assignmentId:
             assignmentByProjectId.get(project._id.toString())?._id.toString() ??
             '',
@@ -331,13 +350,14 @@ export class ExpertReviewsService {
       currentUser.user.id,
     );
     const snapshot = this.getProjectSnapshot(project);
-    const [review, materials] = await Promise.all([
+    const [review, materials, reviewManager] = await Promise.all([
       this.findExpertReview(project._id, currentUser.user.id),
       this.listMaterialSummaries(project._id),
+      this.getReviewManagerSummary(project.reviewManagerId),
     ]);
 
     return {
-      project: this.toProjectSummary(project),
+      project: this.toProjectSummary(project, reviewManager),
       materialCount: materials.length,
       materials,
       reviewSchemeSnapshot: snapshot,
@@ -1220,7 +1240,52 @@ export class ExpertReviewsService {
     );
   }
 
-  private toProjectSummary(project: ProjectLean): ProjectTaskSummary {
+  private async getReviewManagerMap(
+    reviewManagerIds: Types.ObjectId[],
+  ): Promise<Map<string, ReviewManagerSummary>> {
+    if (reviewManagerIds.length === 0) {
+      return new Map();
+    }
+
+    const uniqueIds = [
+      ...new Set(reviewManagerIds.map((id) => id.toString())),
+    ].map((id) => toObjectId(id, 'reviewManagerId'));
+    const reviewManagers = await this.userModel
+      .find({ _id: { $in: uniqueIds } })
+      .select({ name: 1, phone: 1 })
+      .lean<ReviewManagerLean[]>()
+      .exec();
+
+    return new Map(
+      reviewManagers.map((reviewManager) => [
+        reviewManager._id.toString(),
+        {
+          id: reviewManager._id.toString(),
+          name: reviewManager.name,
+          phone: reviewManager.phone,
+        },
+      ]),
+    );
+  }
+
+  private async getReviewManagerSummary(
+    reviewManagerId?: Types.ObjectId | null,
+  ): Promise<ReviewManagerSummary | null> {
+    if (!reviewManagerId) {
+      return null;
+    }
+
+    return (
+      (await this.getReviewManagerMap([reviewManagerId])).get(
+        reviewManagerId.toString(),
+      ) ?? null
+    );
+  }
+
+  private toProjectSummary(
+    project: ProjectLean,
+    reviewManager: ReviewManagerSummary | null = null,
+  ): ProjectTaskSummary {
     return {
       id: project._id.toString(),
       batchId: project.batchId.toString(),
@@ -1228,6 +1293,7 @@ export class ExpertReviewsService {
       name: project.name,
       statusId: project.statusId?.toString() ?? null,
       reviewManagerId: project.reviewManagerId?.toString() ?? null,
+      reviewManager,
       reviewSchemeId: project.reviewSchemeId?.toString() ?? null,
       reviewTime: project.reviewTime,
       reviewLocation: project.reviewLocation,

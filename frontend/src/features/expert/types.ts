@@ -50,11 +50,18 @@ export type ExpertReviewProjectSummary = {
   name: string;
   statusId?: string | null;
   reviewManagerId?: string | null;
+  reviewManager?: ExpertReviewManagerSummary | null;
   reviewSchemeId?: string | null;
   reviewTime?: string | null;
   reviewLocation?: string;
   meetingUrl?: string;
   followUpNeeds?: string;
+};
+
+export type ExpertReviewManagerSummary = {
+  id: string;
+  name: string;
+  phone?: string;
 };
 
 export type ExpertReviewTask = {

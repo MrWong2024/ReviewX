@@ -22,6 +22,7 @@ jest.setTimeout(30000);
 
 type TestUser = {
   id: string;
+  name: string;
   phone: string;
 };
 
@@ -114,12 +115,66 @@ describe('Expert review APIs (e2e)', () => {
       total: 1,
       pageSize: 1000,
     });
-    expect(getRecordArray(getJsonBody(listResponse), 'items')[0]).toMatchObject(
-      {
-        status: 'not_started',
-        materialCount: 0,
+    const listItem = getRecordArray(getJsonBody(listResponse), 'items')[0];
+    expect(listItem).toMatchObject({
+      status: 'not_started',
+      materialCount: 0,
+      project: {
+        reviewManagerId: data.reviewManager.id,
+        reviewManager: {
+          id: data.reviewManager.id,
+          name: data.reviewManager.name,
+          phone: data.reviewManager.phone,
+        },
       },
-    );
+    });
+    expectResponseHasNoForbiddenFields(listItem);
+
+    const detailResponse = await request(httpServer)
+      .get(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .expect(200);
+    expect(getJsonBody(detailResponse)).toMatchObject({
+      project: {
+        reviewManagerId: data.reviewManager.id,
+        reviewManager: {
+          id: data.reviewManager.id,
+          name: data.reviewManager.name,
+          phone: data.reviewManager.phone,
+        },
+      },
+    });
+    expectResponseHasNoForbiddenFields(getJsonBody(detailResponse));
+
+    const missingManagerListResponse = await request(httpServer)
+      .get('/expert/review-tasks')
+      .query({
+        pageSize: 1000,
+        batchId: data.missingManagerBatchId,
+      })
+      .set('Cookie', expertCookie)
+      .expect(200);
+    expect(
+      getRecordArray(getJsonBody(missingManagerListResponse), 'items')[0],
+    ).toMatchObject({
+      project: {
+        id: data.missingManagerProject.id,
+        reviewManagerId: data.missingReviewManagerId,
+        reviewManager: null,
+      },
+    });
+
+    const missingManagerDetailResponse = await request(httpServer)
+      .get(`/expert/review-tasks/${data.missingManagerProject.id}`)
+      .set('Cookie', expertCookie)
+      .expect(200);
+    expect(getJsonBody(missingManagerDetailResponse)).toMatchObject({
+      project: {
+        id: data.missingManagerProject.id,
+        reviewManagerId: data.missingReviewManagerId,
+        reviewManager: null,
+      },
+    });
 
     await request(httpServer)
       .get(`/expert/review-tasks/${data.project.id}`)
@@ -348,9 +403,11 @@ describe('Expert review APIs (e2e)', () => {
   async function seedData() {
     const admin = await createUser('+8613830000001', ['admin']);
     const client = await createUser('+8613830000002', ['client']);
-    const reviewManager = await createUser('+8613830000003', [
-      'review_manager',
-    ]);
+    const reviewManager = await createUser(
+      '+8613830000003',
+      ['admin', 'review_manager'],
+      '多角色评审负责人',
+    );
     const otherReviewManager = await createUser('+8613830000004', [
       'review_manager',
     ]);
@@ -359,6 +416,10 @@ describe('Expert review APIs (e2e)', () => {
     const unassignedExpert = await createUser('+8613830000007', ['expert']);
     const removedExpert = await createUser('+8613830000008', ['expert']);
     const batch = await batchModel.create({ name: '2026', year: 2026 });
+    const missingManagerBatch = await batchModel.create({
+      name: '2026 缺失负责人',
+      year: 2026,
+    });
     const reviewSchemeSnapshot = {
       id: new Types.ObjectId().toString(),
       name: '专家评分方案',
@@ -396,6 +457,16 @@ describe('Expert review APIs (e2e)', () => {
       reviewManagerId: new Types.ObjectId(reviewManager.id),
       isActive: true,
     });
+    const missingReviewManagerId = new Types.ObjectId();
+    const missingManagerProject = await projectModel.create({
+      batchId: missingManagerBatch._id,
+      projectNo: 'P-REVIEW-003',
+      name: '负责人缺失项目',
+      reviewManagerId: missingReviewManagerId,
+      reviewSchemeId: new Types.ObjectId(reviewSchemeSnapshot.id),
+      reviewSchemeSnapshot,
+      isActive: true,
+    });
 
     await assignmentModel.create([
       {
@@ -422,6 +493,12 @@ describe('Expert review APIs (e2e)', () => {
         assignedByUserId: new Types.ObjectId(reviewManager.id),
         status: 'assigned',
       },
+      {
+        projectId: missingManagerProject._id,
+        expertUserId: new Types.ObjectId(expert.id),
+        assignedByUserId: new Types.ObjectId(reviewManager.id),
+        status: 'assigned',
+      },
     ]);
 
     return {
@@ -434,27 +511,34 @@ describe('Expert review APIs (e2e)', () => {
       unassignedExpert,
       removedExpert,
       batchId: batch._id.toString(),
+      missingManagerBatchId: missingManagerBatch._id.toString(),
+      missingReviewManagerId: missingReviewManagerId.toString(),
       reviewSchemeId: reviewSchemeSnapshot.id,
       project: { id: project._id.toString() },
+      missingManagerProject: { id: missingManagerProject._id.toString() },
       noSnapshotProject: { id: noSnapshotProject._id.toString() },
     };
   }
 
-  async function createUser(phone: string, roles: string[]): Promise<TestUser> {
+  async function createUser(
+    phone: string,
+    roles: string[],
+    name = `User ${phone.slice(-4)}`,
+  ): Promise<TestUser> {
     const userId = new Types.ObjectId();
 
     await userModel.create({
       _id: userId,
       phone,
       passwordHash: await hash('correct-password', 4),
-      name: `User ${phone.slice(-4)}`,
+      name,
       roles,
       status: 'active',
       isActive: true,
       mustChangePassword: false,
     });
 
-    return { id: userId.toString(), phone };
+    return { id: userId.toString(), name, phone };
   }
 
   async function login(phone: string): Promise<string> {
@@ -517,6 +601,31 @@ function getRecordArray(
   }
 
   return value.filter(isRecord);
+}
+
+function expectResponseHasNoForbiddenFields(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      expectResponseHasNoForbiddenFields(item);
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  expect(value).not.toHaveProperty('passwordHash');
+  expect(value).not.toHaveProperty('refreshToken');
+  expect(value).not.toHaveProperty('resetToken');
+  expect(value).not.toHaveProperty('mustChangePassword');
+  expect(value).not.toHaveProperty('token');
+  expect(value).not.toHaveProperty('sessionToken');
+  expect(value).not.toHaveProperty('session');
+
+  for (const childValue of Object.values(value)) {
+    expectResponseHasNoForbiddenFields(childValue);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

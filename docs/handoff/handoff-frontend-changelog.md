@@ -2,6 +2,15 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：专家任务评审负责人多角色用户名称解析修复
+
+- 后端 `/expert/review-tasks` 列表响应和 `/expert/review-tasks/:projectId` 详情响应的 `project` 摘要新增 `reviewManager` 最小摘要，结构为 `{ id, name, phone? }` 或 `null`
+- 专家任务列表批量查询当前页项目 `reviewManagerId` 对应用户，详情按当前项目 `reviewManagerId` 查询，不放宽 `/portal/reference-data/users` 对含 `admin` 角色用户的排除规则
+- 专家端 `ExpertReviewProjectSummary` 增加可选 `reviewManager`，列表和详情统一通过 `formatReviewManagerName` 优先显示 inline 负责人姓名，再 fallback 到 portal reference-data 用户映射，最后显示未知短 ID 或未指定
+- 本小修未新增专家任意用户查询接口，未调用 `/admin/*`、project_owner 或 review_manager 接口补名称，未改变专家任务可见性、评分草稿保存、评分提交、submitted 只读或 returned 重提逻辑
+- 本小修未新增依赖、环境变量，未修改 `package.json` 或锁文件，未实现第六阶段合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：backend `npm run lint`、`npm run test:e2e`、`npm run build` 通过；backend 原始 `npm run test` 因 Jest 并发共享测试库清理导致既有 service spec 数据被清空而失败，`npm run test -- --runInBand` 通过；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过
+
 ### ReviewX 小修：统一增强原生 Select 中树形选项缩进显示
 
 - `treeOptionLabel` 增加空名称兜底，继续使用全角空格、`└─` 和 `›` 作为原生 select/option 树形层级的统一纯文本格式
