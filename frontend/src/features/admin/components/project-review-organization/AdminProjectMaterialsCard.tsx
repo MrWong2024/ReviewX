@@ -25,10 +25,12 @@ import {
 
 type AdminProjectMaterialsCardProps = {
   projectId: string;
+  userNameById?: Map<string, string>;
 };
 
 export function AdminProjectMaterialsCard({
   projectId,
+  userNameById,
 }: AdminProjectMaterialsCardProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] =
@@ -166,7 +168,7 @@ export function AdminProjectMaterialsCard({
     },
     {
       key: 'uploadedBy',
-      render: (item) => getUploadedByLabel(item),
+      render: (item) => getUploadedByLabel(item, userNameById),
       title: '上传人',
     },
     {
@@ -312,11 +314,23 @@ function getMaterialTypeLabel(material: AdminProjectMaterial): string {
   );
 }
 
-function getUploadedByLabel(material: AdminProjectMaterial): string {
+function getUploadedByLabel(
+  material: AdminProjectMaterial,
+  userNameById?: Map<string, string>,
+): string {
   if (material.uploadedByUser?.name) {
     return material.uploadedByUser.phone
       ? `${material.uploadedByUser.name}（${material.uploadedByUser.phone}）`
       : material.uploadedByUser.name;
+  }
+
+  if (!material.uploadedByUserId) {
+    return '未知上传人';
+  }
+
+  const mappedName = userNameById?.get(material.uploadedByUserId);
+  if (mappedName) {
+    return mappedName;
   }
 
   return `上传人（${shortId(material.uploadedByUserId)}）`;

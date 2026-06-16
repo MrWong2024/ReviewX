@@ -106,6 +106,14 @@ npm run build
 
 注意：管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials` 系列接口；删除必须填写 `reason`，不得调用 project_owner / review_manager / expert 材料接口。
 
+本次 ReviewX 小修：管理员项目材料上传人显示与删除弹窗可视性优化已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：管理员项目材料上传人显示复用项目评审组织详情页已加载 users 映射，不新增额外用户请求；删除弹窗 reason 表单保留必填校验，内容过长时在弹窗主体内滚动。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -213,20 +221,24 @@ npm run build
 1. 使用 project_owner 上传并提交至少一个材料后，admin 进入 `/admin/projects/[projectId]/review-organization`
 2. 页面出现“项目材料”卡片
 3. 材料列表展示文件名、材料类型、状态、上传人、上传时间、文件大小和备注
-4. `submitted` 材料显示“已提交评审”，`draft` 材料显示“草稿”，legacy `active` 材料显示“历史草稿”
-5. 点击“下载”应调用 `GET /admin/projects/:id/materials/:materialId/download-url` 并打开后端返回 URL
-6. 下载失败时卡片内显示错误，不白屏，不拼接 OSS objectKey
-7. 点击“删除”打开删除项目材料弹窗，不得直接删除
-8. 弹窗说明物理删除文件和材料记录、删除后不可恢复，且系统会保留删除审计日志
-9. 删除原因为空或 trim 后为空时不能提交，并显示“请填写删除原因。”
-10. 删除原因超过 1000 字时不能提交
-11. 填写删除原因后提交，调用 `DELETE /admin/projects/:id/materials/:materialId` 且 body 包含 `{ reason }`
-12. 删除成功后提示“材料已删除，系统已保留删除审计。”并刷新材料列表
-13. 删除失败时弹窗保留并显示错误，不在成功前从列表乐观移除
-14. 404 显示“材料不存在或已被删除。”，403 显示“当前账号无权管理该材料。”，500 / storage 删除失败提示材料未删除并建议稍后重试或联系管理员
-15. Network 中不得出现 project_owner / review_manager / expert 材料接口
-16. 不调用 `/admin/users` 只为补上传人名称；上传人缺少 inline 信息时使用短 ID 兜底
-17. 不提供删除日志查询页面、材料恢复或文件预览
+4. 上传人优先显示材料响应内联 `uploadedByUser` 的姓名和手机号；未内联时应复用页面已加载 users 映射显示“姓名（手机号）”
+5. 当上传人确实不在 users 映射且材料响应也没有 inline 用户信息时，才允许显示“上传人（短ID）”；`uploadedByUserId` 缺失时显示“未知上传人”
+6. `submitted` 材料显示“已提交评审”，`draft` 材料显示“草稿”，legacy `active` 材料显示“历史草稿”
+7. 点击“下载”应调用 `GET /admin/projects/:id/materials/:materialId/download-url` 并打开后端返回 URL
+8. 下载失败时卡片内显示错误，不白屏，不拼接 OSS objectKey
+9. 点击“删除”打开删除项目材料弹窗，不得直接删除
+10. 弹窗说明物理删除文件和材料记录、删除后不可恢复，且系统会保留删除审计日志
+11. 删除弹窗在小屏或浏览器缩放 125% 时仍应完整可操作；风险说明、待删除材料、textarea、字数统计、错误提示区域、取消按钮和删除按钮均可见或可通过弹窗主体滚动访问
+12. 长文件名不应撑破弹窗，删除原因 textarea 应有足够高度
+13. 删除原因为空或 trim 后为空时不能提交，并显示“请填写删除原因。”
+14. 删除原因超过 1000 字时不能提交
+15. 填写删除原因后提交，调用 `DELETE /admin/projects/:id/materials/:materialId` 且 body 包含 `{ reason }`
+16. 删除成功后提示“材料已删除，系统已保留删除审计。”并刷新材料列表
+17. 删除失败时弹窗保留并显示错误，不在成功前从列表乐观移除
+18. 404 显示“材料不存在或已被删除。”，403 显示“当前账号无权管理该材料。”，500 / storage 删除失败提示材料未删除并建议稍后重试或联系管理员
+19. Network 中不得出现 project_owner / review_manager / expert 材料接口
+20. 不调用 `/admin/users` 只为补上传人名称；只复用项目评审组织详情页已经加载的 users 映射
+21. 不提供删除日志查询页面、材料恢复或文件预览
 
 专家候选与分配：
 

@@ -51,8 +51,8 @@
 | `ReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/ReviewAssignmentModal.tsx` | 单项目设置评审负责人和评审方案 |
 | `BatchReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/BatchReviewAssignmentModal.tsx` | 多项目批量设置评审负责人和评审方案，并展示成功 / 失败明细 |
 | `ProjectSchedulePanel` | `frontend/src/features/admin/components/project-review-organization/ProjectSchedulePanel.tsx` | 设置单项目评审时间、地点和会议链接；明确仅保存会议链接字段 |
-| `AdminProjectMaterialsCard` | `frontend/src/features/admin/components/project-review-organization/AdminProjectMaterialsCard.tsx` | 管理员项目材料卡片，独立加载材料列表，展示状态 / 类型 / 上传人 / 时间 / 大小 / 备注，支持下载、刷新和打开删除原因弹窗 |
-| `AdminProjectMaterialDeleteModal` | `frontend/src/features/admin/components/project-review-organization/AdminProjectMaterialDeleteModal.tsx` | 管理员删除项目材料弹窗，要求填写 1-1000 字删除原因，说明物理删除且后端保留删除审计，提交中禁用重复操作 |
+| `AdminProjectMaterialsCard` | `frontend/src/features/admin/components/project-review-organization/AdminProjectMaterialsCard.tsx` | 管理员项目材料卡片，独立加载材料列表，展示状态 / 类型 / 上传人 / 时间 / 大小 / 备注，上传人优先使用材料响应内联用户，其次复用页面已加载 users 映射，支持下载、刷新和打开删除原因弹窗 |
+| `AdminProjectMaterialDeleteModal` | `frontend/src/features/admin/components/project-review-organization/AdminProjectMaterialDeleteModal.tsx` | 管理员删除项目材料弹窗，要求填写 1-1000 字删除原因，说明物理删除且后端保留删除审计；内容区域限制高度并内部滚动，长文件名换行，提交中禁用重复操作 |
 | `AdminProjectMaterialStatusBadge` | `frontend/src/features/admin/components/project-review-organization/AdminProjectMaterialStatusBadge.tsx` | 管理员材料状态标签，显示草稿 / 已提交评审 / 历史草稿 / 已删除 / 未知状态及说明 |
 | `AssignedExpertsPanel` | `frontend/src/features/admin/components/project-review-organization/AssignedExpertsPanel.tsx` | 查看已分配专家并支持二次确认移除 |
 | `ExpertCandidatesPanel` | `frontend/src/features/admin/components/project-review-organization/ExpertCandidatesPanel.tsx` | 查看后端候选专家，按 keyword 搜索分页，从候选追加或替换专家 |

@@ -2,6 +2,14 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：管理员项目材料上传人显示与删除弹窗可视性优化
+
+- `/admin/projects/[projectId]/review-organization` 将已加载的 `userNameById` 传入 `AdminProjectMaterialsCard`，项目材料上传人列在材料响应未内联 `uploadedByUser` 时复用页面 users 映射显示姓名和手机号
+- `AdminProjectMaterialsCard` 上传人显示顺序调整为：材料响应内联 `uploadedByUser`、页面已加载 users 映射、短 ID 兜底；`uploadedByUserId` 缺失时显示“未知上传人”
+- `AdminProjectMaterialDeleteModal` 增加局部内容滚动边界、长文件名换行和稳定 textarea 高度，保证删除原因输入区与底部按钮在小屏 / 缩放场景下可操作
+- 本小修未修改 backend，未新增后端接口，未新增额外用户请求，未修改 admin 删除材料接口和 reason 必填规则，未修改项目负责人材料页面语义
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入
 
 - `/admin/projects/[projectId]/review-organization` 新增“项目材料”卡片，管理员可查看项目负责人上传材料的文件名、材料类型、状态、上传人、上传时间、大小和备注

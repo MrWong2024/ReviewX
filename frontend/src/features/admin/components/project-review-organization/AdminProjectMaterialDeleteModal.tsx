@@ -75,7 +75,7 @@ export function AdminProjectMaterialDeleteModal({
       open={open}
       title="删除项目材料"
     >
-      <div className="grid gap-4">
+      <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-700">
           该操作会物理删除文件和材料记录，删除后不可恢复。系统会保留删除审计日志。请填写删除原因。
         </div>
@@ -83,7 +83,7 @@ export function AdminProjectMaterialDeleteModal({
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
             <div className="font-bold text-slate-900">待删除材料</div>
             <div className="mt-1 break-all">
-              {material.originalFilename || material.safeFilename || '未命名材料'}
+              {getMaterialFilename(material)}
             </div>
           </div>
         ) : null}
@@ -93,6 +93,7 @@ export function AdminProjectMaterialDeleteModal({
           error={validationError ?? undefined}
           id="admin-project-material-delete-reason"
           label="删除原因"
+          className="min-h-[120px]"
           maxLength={DELETE_REASON_MAX_LENGTH}
           onChange={(event) => {
             setReason(event.target.value);
@@ -101,6 +102,7 @@ export function AdminProjectMaterialDeleteModal({
             }
           }}
           placeholder="请填写删除原因，系统会写入删除审计。"
+          rows={5}
           value={reason}
         />
         <div className="text-right text-xs font-medium text-slate-500">
@@ -109,4 +111,13 @@ export function AdminProjectMaterialDeleteModal({
       </div>
     </Modal>
   );
+}
+
+function getMaterialFilename(material: AdminProjectMaterial): string {
+  const originalFilename = material.originalFilename?.trim();
+  if (originalFilename) {
+    return originalFilename;
+  }
+
+  return material.safeFilename?.trim() || '未命名材料';
 }

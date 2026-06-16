@@ -180,7 +180,7 @@ export type AdminProjectMaterial = {
   submittedByUserId?: string | null;
   updatedAt?: string;
   uploadedByUser?: AdminProjectMaterialUploadedBy | null;
-  uploadedByUserId: string;
+  uploadedByUserId?: string | null;
 };
 
 export type AdminProjectMaterialDownloadUrlResult =

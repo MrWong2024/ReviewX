@@ -144,7 +144,8 @@ frontend/
 - 管理员项目材料查看、下载和删除位于 `/admin/projects/[projectId]/review-organization` 的“项目材料”卡片；只调用 `GET /admin/projects/:id/materials`、`GET /admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`
 - 管理员删除材料必须填写 1-1000 字 `reason`，前端在弹窗中校验；删除成功后刷新材料列表，失败时不乐观移除；后端保留删除审计，前端不实现删除日志查询
 - 管理员材料下载只打开后端返回的签名 URL 或 fake storage URL，不拼接 OSS objectKey；材料状态显示 `draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`
-- 管理员项目材料卡片不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称；上传人缺少 inline 信息时使用短 ID 兜底
+- 管理员项目材料卡片不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称；上传人优先使用材料响应内联用户，其次复用项目评审组织详情页已加载 users 映射，最后才使用短 ID 兜底
+- 管理员删除项目材料弹窗保留 reason 必填、1000 字限制和物理删除风险提示；弹窗主体限制高度并支持内部滚动，长文件名换行，小屏 / 缩放时删除原因 textarea 和底部按钮应保持可操作
 - `/admin/projects` 批量设置专家完成后的逐项目结果标题优先显示项目编号和项目名称；失败明细优先显示专家姓名和手机号，专家或项目映射缺失时显示“未知专家 / 未知项目 + 短ID”兜底，避免把裸 ObjectId 作为主展示文案
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看

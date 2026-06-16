@@ -309,7 +309,10 @@ export function ProjectReviewOrganizationPage({
 
         <ProjectSchedulePanel onSaved={setProject} project={project} />
 
-        <AdminProjectMaterialsCard projectId={project.id} />
+        <AdminProjectMaterialsCard
+          projectId={project.id}
+          userNameById={userNameById}
+        />
 
         {expertsError ? <ErrorAlert message={expertsError} /> : null}
         <AssignedExpertsPanel
