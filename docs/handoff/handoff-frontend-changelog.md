@@ -2,6 +2,15 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：专家评分提交增加评审时间窗口校验
+
+- 后端 `ExpertReviewsService.submitReview()` 新增 `Project.reviewTime` 校验：评审时间存在且服务器当前时间早于评审时间时，`POST /expert/review-tasks/:projectId/submit` 返回 `409 REVIEW_NOT_STARTED` 和“评审尚未开始，暂不能提交评分。”，不写 `submitted/submittedAt`
+- 保存草稿 `PUT /expert/review-tasks/:projectId` 不受评审时间限制；`reviewTime` 缺失或为空的历史项目兼容允许提交
+- 前端专家评分详情页根据 `project.reviewTime` 显示“评审尚未开始，暂不能提交评分；可先保存草稿。”，禁用提交评分按钮但保留保存草稿按钮
+- 前端对后端 `409 REVIEW_NOT_STARTED` 或“评审尚未开始”错误映射为友好提示“评审尚未开始，暂不能提交评分。”，不清空表单、不跳转、不误标 submitted
+- 本小修未改变专家任务权限、材料可见性、评分项校验、submitted 只读、returned 重提逻辑，未新增依赖、环境变量，未修改 `package.json` 或锁文件，未实现第六阶段合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：backend `npm run lint`、`npm run test -- --runInBand`、`npm run test:e2e`、`npm run build` 通过；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过
+
 ### ReviewX 小修：专家任务评审负责人多角色用户名称解析修复
 
 - 后端 `/expert/review-tasks` 列表响应和 `/expert/review-tasks/:projectId` 详情响应的 `project` 摘要新增 `reviewManager` 最小摘要，结构为 `{ id, name, phone? }` 或 `null`

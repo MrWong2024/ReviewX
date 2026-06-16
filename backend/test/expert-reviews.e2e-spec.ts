@@ -334,6 +334,127 @@ describe('Expert review APIs (e2e)', () => {
       .expect(201);
   });
 
+  it('blocks submit before review time while allowing drafts', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+    const futureReviewTime = new Date(Date.now() + 60 * 60 * 1000);
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, {
+        $set: { reviewTime: futureReviewTime },
+      })
+      .exec();
+
+    await request(httpServer)
+      .put(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .send({
+        items: [
+          {
+            name: '技术',
+            score: 50,
+            evaluationDescription: '提前准备技术意见',
+          },
+          {
+            name: '财务',
+            score: 35,
+            evaluationDescription: '提前准备财务意见',
+          },
+        ],
+      })
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          status: 'draft',
+          totalScore: 85,
+        });
+      });
+
+    const blockedResponse = await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(409);
+    const blockedBody = getJsonBody(blockedResponse);
+    expect(blockedBody).toMatchObject({
+      code: 'REVIEW_NOT_STARTED',
+    });
+    expect(getStringValue(blockedBody, 'message')).toContain('评审尚未开始');
+    expect(blockedBody.reviewTime).toBe(futureReviewTime.toISOString());
+
+    const persistedReview = await expertReviewModel
+      .findOne({
+        projectId: new Types.ObjectId(data.project.id),
+        expertUserId: new Types.ObjectId(data.expert.id),
+      })
+      .lean<{ status: string; submittedAt?: Date | null } | null>()
+      .exec();
+    expect(persistedReview).toMatchObject({ status: 'draft' });
+    expect(persistedReview?.submittedAt ?? null).toBeNull();
+  });
+
+  it('allows submit after review time', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, {
+        $set: { reviewTime: new Date(Date.now() - 60 * 1000) },
+      })
+      .exec();
+
+    await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(201)
+      .expect((response) => {
+        const body = getJsonBody(response);
+
+        expect(body).toMatchObject({
+          status: 'submitted',
+          totalScore: 85,
+        });
+        expect(body.submittedAt).toBeTruthy();
+      });
+
+    const persistedReview = await expertReviewModel
+      .findOne({
+        projectId: new Types.ObjectId(data.project.id),
+        expertUserId: new Types.ObjectId(data.expert.id),
+      })
+      .lean<{ status: string; submittedAt?: Date | null } | null>()
+      .exec();
+    expect(persistedReview).toMatchObject({ status: 'submitted' });
+    expect(persistedReview?.submittedAt).toBeInstanceOf(Date);
+  });
+
+  it('allows submit when review time is not set', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, {
+        $set: { reviewTime: null },
+      })
+      .exec();
+
+    await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(201)
+      .expect((response) => {
+        const body = getJsonBody(response);
+
+        expect(body).toMatchObject({
+          status: 'submitted',
+          totalScore: 85,
+        });
+        expect(body.submittedAt).toBeTruthy();
+      });
+  });
+
   it('allows review managers and admins to inspect reviews and summaries', async () => {
     const data = await seedData();
     const expertCookie = await login(data.expert.phone);
@@ -601,6 +722,35 @@ function getRecordArray(
   }
 
   return value.filter(isRecord);
+}
+
+function getStringValue(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+
+  return typeof value === 'string' ? value : '';
+}
+
+function createValidSubmitPayload(): {
+  items: Array<{
+    evaluationDescription: string;
+    name: string;
+    score: number;
+  }>;
+} {
+  return {
+    items: [
+      {
+        name: '技术',
+        score: 50,
+        evaluationDescription: '技术路线清晰，成果较完整',
+      },
+      {
+        name: '财务',
+        score: 35,
+        evaluationDescription: '预算安排基本合理',
+      },
+    ],
+  };
 }
 
 function expectResponseHasNoForbiddenFields(value: unknown): void {

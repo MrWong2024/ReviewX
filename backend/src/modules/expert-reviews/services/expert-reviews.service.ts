@@ -435,6 +435,8 @@ export class ExpertReviewsService {
       throw new ConflictException('Expert review has already been submitted');
     }
 
+    this.assertReviewSubmissionStarted(project.reviewTime);
+
     const reviewSnapshot = existing
       ? this.normalizeSnapshot(existing.reviewSchemeSnapshot)
       : snapshot;
@@ -706,6 +708,22 @@ export class ExpertReviewsService {
     }
 
     return this.normalizeSnapshot(project.reviewSchemeSnapshot);
+  }
+
+  private assertReviewSubmissionStarted(reviewTime?: Date | null): void {
+    if (!reviewTime) {
+      return;
+    }
+
+    if (new Date().getTime() >= reviewTime.getTime()) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: '评审尚未开始，暂不能提交评分。',
+      code: 'REVIEW_NOT_STARTED',
+      reviewTime,
+    });
   }
 
   private normalizeSnapshot(

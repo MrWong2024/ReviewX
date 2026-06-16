@@ -27,6 +27,7 @@ import {
 import { ExpertTaskStatusBadge } from './ExpertTaskStatusBadge';
 
 type ExpertReviewFormProps = {
+  disableSubmitReason?: string | null;
   error?: string | null;
   onSaveDraft: (input: SaveExpertReviewInput) => Promise<void>;
   onSubmitReview: (input: SaveExpertReviewInput) => Promise<void>;
@@ -39,6 +40,7 @@ type ExpertReviewFormProps = {
 type FormErrors = Record<string, ExpertReviewItemEditorErrors>;
 
 export function ExpertReviewForm({
+  disableSubmitReason,
   error,
   onSaveDraft,
   onSubmitReview,
@@ -75,6 +77,7 @@ export function ExpertReviewForm({
   );
   const displayTotalScore =
     review.status === 'submitted' ? review.totalScore : draftTotalScore;
+  const submitDisabled = saving || submitting || Boolean(disableSubmitReason);
 
   function updateItem(index: number, nextItem: ExpertReviewItemEditorValue) {
     setItems((currentItems) =>
@@ -97,7 +100,7 @@ export function ExpertReviewForm({
   }
 
   function handleSubmitClick() {
-    if (readOnly || saving || submitting) {
+    if (readOnly || submitDisabled) {
       return;
     }
 
@@ -239,6 +242,12 @@ export function ExpertReviewForm({
           </div>
         ) : null}
 
+        {!readOnly && disableSubmitReason ? (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">
+            {disableSubmitReason}
+          </div>
+        ) : null}
+
         <ErrorAlert message={error} />
 
         <div className="form-stack">
@@ -264,7 +273,7 @@ export function ExpertReviewForm({
               {saving ? '保存中...' : '保存草稿'}
             </Button>
             <Button
-              disabled={saving || submitting}
+              disabled={submitDisabled}
               onClick={handleSubmitClick}
               variant="primary"
             >

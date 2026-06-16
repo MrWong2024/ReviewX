@@ -9,6 +9,10 @@ import type {
 } from './types';
 
 export const DEFAULT_SUGGESTION_REQUIRED_THRESHOLD_RATIO = 0.8;
+export const REVIEW_NOT_STARTED_MESSAGE =
+  '评审尚未开始，暂不能提交评分。';
+export const REVIEW_NOT_STARTED_HINT =
+  '评审尚未开始，暂不能提交评分；可先保存草稿。';
 
 export const EXPERT_REVIEW_STATUS_OPTIONS: Array<{
   label: string;
@@ -68,6 +72,20 @@ export function getExpertTaskActionLabel(status: ExpertReviewViewStatus): string
 
 export function isExpertReviewReadonly(status: ExpertReviewViewStatus): boolean {
   return status === 'submitted';
+}
+
+export function isBeforeReviewTime(reviewTime?: string | null): boolean {
+  if (!reviewTime) {
+    return false;
+  }
+
+  const reviewTimeMs = Date.parse(reviewTime);
+
+  if (!Number.isFinite(reviewTimeMs)) {
+    return false;
+  }
+
+  return Date.now() < reviewTimeMs;
 }
 
 export function parseOptionalScore(value: string): number | null {
@@ -284,6 +302,13 @@ export function formatExpertErrorMessage(error: unknown): string {
     }
 
     if (error.status === 409) {
+      if (
+        error.code === 'REVIEW_NOT_STARTED' ||
+        error.message.includes('评审尚未开始')
+      ) {
+        return REVIEW_NOT_STARTED_MESSAGE;
+      }
+
       return '评分已提交，不能修改。';
     }
 

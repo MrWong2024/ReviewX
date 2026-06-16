@@ -503,6 +503,7 @@ Workspace 入口：
 5. 项目已设置评审负责人、评审方案和 `reviewSchemeSnapshot`；建议至少准备一个 `admin + review_manager` 多角色用户作为项目评审负责人
 6. 项目负责人已提交至少一个 submitted 材料用于下载验证
 7. 数据库中存在 active 批次、`material_type`、`project_status`、评审负责人和评审方案基础数据
+8. 如需验证提交时间窗口，准备一个 `reviewTime` 在未来的项目、一个 `reviewTime` 在过去的项目，以及一个 `reviewTime` 为空的历史兼容项目
 
 Workspace 和守卫：
 
@@ -553,20 +554,23 @@ Workspace 和守卫：
 7. 保存成功提示“评分草稿已保存”
 8. 保存成功后刷新详情，任务状态可从未开始变为草稿
 9. 保存失败显示后端错误，不清空表单
+10. 即使项目 `reviewTime` 在未来，保存草稿按钮仍可用，保存成功仍调用 `PUT /expert/review-tasks/:projectId`
 
 提交评分：
 
-1. 填写所有评分项 score
-2. 填写所有评价描述
-3. 对低于 `maxScore * suggestionRequiredThresholdRatio` 的评分项填写改进建议
-4. 勾选“存在重大问题”的评分项必须填写改进建议
-5. 点击“提交评分”
-6. 出现二次确认，文案为“提交后评分将进入评审流程，除非评审负责人退回，否则不能再修改。确认提交评分吗？”
-7. 确认后调用 `POST /expert/review-tasks/:projectId/submit`
-8. 提交成功提示“评分已提交”，刷新详情，表单变为只读
-9. 返回列表后任务状态显示已提交，总分显示
-10. 后端返回 400 时显示后端具体 message，不清空表单
-11. 后端返回 409 时显示“评分已提交，不能修改。”
+1. 当项目 `reviewTime` 在未来时，页面显示“评审尚未开始，暂不能提交评分；可先保存草稿。”，提交按钮禁用，保存草稿按钮仍可用
+2. 绕过前端直接调用 `POST /expert/review-tasks/:projectId/submit`，后端返回 `409 REVIEW_NOT_STARTED` 时页面错误映射为“评审尚未开始，暂不能提交评分。”，不清空表单、不跳转、不误标 submitted
+3. 当项目 `reviewTime` 在过去或为空时，填写所有评分项 score
+4. 填写所有评价描述
+5. 对低于 `maxScore * suggestionRequiredThresholdRatio` 的评分项填写改进建议
+6. 勾选“存在重大问题”的评分项必须填写改进建议
+7. 点击“提交评分”
+8. 出现二次确认，文案为“提交后评分将进入评审流程，除非评审负责人退回，否则不能再修改。确认提交评分吗？”
+9. 确认后调用 `POST /expert/review-tasks/:projectId/submit`
+10. 提交成功提示“评分已提交”，刷新详情，表单变为只读
+11. 返回列表后任务状态显示已提交，总分显示
+12. 后端返回 400 时显示后端具体 message，不清空表单
+13. 后端返回普通 409 时显示“评分已提交，不能修改。”
 
 提交校验：
 
@@ -586,7 +590,7 @@ submitted 和 returned：
 4. returned 详情页显示退回时间和退回原因
 5. returned 表单可编辑
 6. returned 可保存草稿
-7. returned 可点击“重新提交评分”
+7. returned 在 `reviewTime` 未到时仍可保存草稿，但“重新提交评分”禁用并显示评审未开始提示
 8. 重新提交成功后状态变为 submitted
 
 回归边界：

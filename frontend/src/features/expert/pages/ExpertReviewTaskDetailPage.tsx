@@ -27,6 +27,8 @@ import {
   createEmptyExpertLookupMaps,
   formatExpertErrorMessage,
   formatScore,
+  isBeforeReviewTime,
+  REVIEW_NOT_STARTED_HINT,
 } from '../utils';
 
 type ExpertReviewTaskDetailPageProps = {
@@ -59,6 +61,10 @@ export function ExpertReviewTaskDetailPage({
         : createEmptyExpertLookupMaps(),
     [referenceData],
   );
+  const disableSubmitReason =
+    detail && isBeforeReviewTime(detail.project.reviewTime)
+      ? REVIEW_NOT_STARTED_HINT
+      : null;
 
   async function loadInitialData() {
     setLoading(true);
@@ -218,6 +224,7 @@ export function ExpertReviewTaskDetailPage({
           />
 
           <ExpertReviewForm
+            disableSubmitReason={disableSubmitReason}
             error={operationError}
             onSaveDraft={handleSaveDraft}
             onSubmitReview={handleSubmitReview}

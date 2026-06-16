@@ -8,8 +8,10 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 
 type ErrorResponseBody = {
+  code?: string;
   error?: string;
   message?: string | string[];
+  reviewTime?: Date | string | null;
   statusCode?: number;
 };
 
@@ -30,6 +32,18 @@ function toErrorResponseBody(value: unknown): ErrorResponseBody | null {
 
   if (typeof value.error === 'string') {
     responseBody.error = value.error;
+  }
+
+  if (typeof value.code === 'string') {
+    responseBody.code = value.code;
+  }
+
+  if (
+    value.reviewTime === null ||
+    typeof value.reviewTime === 'string' ||
+    value.reviewTime instanceof Date
+  ) {
+    responseBody.reviewTime = value.reviewTime;
   }
 
   if (typeof value.statusCode === 'number') {
@@ -53,7 +67,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    let code: string | undefined;
     let message = 'Internal server error';
+    let reviewTime: Date | string | null | undefined;
 
     if (exception instanceof HttpException) {
       const responseBody = exception.getResponse();
@@ -72,20 +88,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
         } else if (typeof parsedResponseBody?.error === 'string') {
           message = parsedResponseBody.error;
         }
+
+        code = parsedResponseBody?.code;
+        reviewTime = parsedResponseBody?.reviewTime;
       }
     } else if (exception instanceof Error && exception.message) {
       message = exception.message;
     }
 
-    httpAdapter.reply(
-      response,
-      {
-        statusCode: status,
-        timestamp: new Date().toISOString(),
-        path: String(httpAdapter.getRequestUrl(request)),
-        message,
-      },
-      status,
-    );
+    const body = {
+      statusCode: status,
+      timestamp: new Date().toISOString(),
+      path: String(httpAdapter.getRequestUrl(request)),
+      message,
+      ...(code ? { code } : {}),
+      ...(reviewTime !== undefined ? { reviewTime } : {}),
+    };
+
+    httpAdapter.reply(response, body, status);
   }
 }
