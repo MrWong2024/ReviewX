@@ -19,6 +19,7 @@ import { getErrorMessage } from '@/src/lib/api/errors';
 import { displayValue, statusText } from '@/src/lib/format/value';
 import {
   flattenTree,
+  flattenVisibleTree,
   indentedTreeLabel,
 } from '@/src/lib/tree/build-tree';
 import {
@@ -60,6 +61,9 @@ export function TreeDictionariesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [treeType, setTreeType] = useState('project_type');
+  const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const treeTypes = useMemo(() => {
     const existingTypes = Array.from(
@@ -76,7 +80,10 @@ export function TreeDictionariesPage() {
     [items, treeType],
   );
 
-  const treeRows = useMemo(() => flattenTree(currentItems), [currentItems]);
+  const treeRows = useMemo(
+    () => flattenVisibleTree(currentItems, expandedNodeIds),
+    [currentItems, expandedNodeIds],
+  );
 
   const parentOptions = useMemo(() => {
     const candidates = items.filter((item) => item.treeType === form.treeType);
@@ -108,6 +115,10 @@ export function TreeDictionariesPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    setExpandedNodeIds(new Set());
+  }, [treeType]);
+
   function openCreateRoot() {
     setEditing(null);
     setForm({ ...EMPTY_FORM, treeType, parentId: '' });
@@ -138,6 +149,23 @@ export function TreeDictionariesPage() {
     setModalOpen(true);
   }
 
+  function handleToggleExpand(item: TreeDictionary) {
+    setExpandedNodeIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(item.id)) {
+        next.delete(item.id);
+        collectDescendantIds(currentItems, item.id).forEach((id) => {
+          next.delete(id);
+        });
+        return next;
+      }
+
+      next.add(item.id);
+      return next;
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
@@ -152,12 +180,22 @@ export function TreeDictionariesPage() {
       sortOrder: toNumber(form.sortOrder, 0),
       treeType: form.treeType.trim(),
     };
+    const parentIdToExpand =
+      !editing && payload.parentId ? payload.parentId : null;
 
     try {
       if (editing) {
         await updateTreeDictionary(editing.id, payload);
       } else {
         await createTreeDictionary(payload);
+
+        if (parentIdToExpand) {
+          setExpandedNodeIds((current) => {
+            const next = new Set(current);
+            next.add(parentIdToExpand);
+            return next;
+          });
+        }
       }
 
       setModalOpen(false);
@@ -180,6 +218,18 @@ export function TreeDictionariesPage() {
 
     try {
       await deleteTreeDictionary(confirmTarget.id);
+      const removedIds = [
+        confirmTarget.id,
+        ...collectDescendantIds(currentItems, confirmTarget.id),
+      ];
+
+      setExpandedNodeIds((current) => {
+        const next = new Set(current);
+        removedIds.forEach((id) => {
+          next.delete(id);
+        });
+        return next;
+      });
       setConfirmTarget(null);
       await loadData();
     } catch (deleteError) {
@@ -226,6 +276,7 @@ export function TreeDictionariesPage() {
         ) : (
           <TreeList
             emptyText="暂无节点，请先新增根节点。"
+            onToggleExpand={handleToggleExpand}
             renderActions={(item) => (
               <>
                 <Button
@@ -384,4 +435,37 @@ export function TreeDictionariesPage() {
       />
     </>
   );
+}
+
+function collectDescendantIds(
+  items: TreeDictionary[],
+  nodeId: string,
+): string[] {
+  const childrenByParentId = new Map<string, string[]>();
+
+  items.forEach((item) => {
+    if (!item.parentId) {
+      return;
+    }
+
+    const children = childrenByParentId.get(item.parentId) ?? [];
+    children.push(item.id);
+    childrenByParentId.set(item.parentId, children);
+  });
+
+  const descendants: string[] = [];
+  const stack = [...(childrenByParentId.get(nodeId) ?? [])];
+
+  while (stack.length > 0) {
+    const id = stack.pop();
+
+    if (!id) {
+      continue;
+    }
+
+    descendants.push(id);
+    stack.push(...(childrenByParentId.get(id) ?? []));
+  }
+
+  return descendants;
 }

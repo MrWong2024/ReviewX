@@ -21,7 +21,7 @@
 | `ConfirmDialog` | `frontend/src/components/ui/ConfirmDialog.tsx` | 确认弹窗 |
 | `DataTable` | `frontend/src/components/ui/DataTable.tsx` | 简单数据表格 |
 | `Pagination` | `frontend/src/components/ui/Pagination.tsx` | 简单分页控件 |
-| `TreeList` | `frontend/src/components/ui/TreeList.tsx` | 树形缩进列表，用于树形字典展示 |
+| `TreeList` | `frontend/src/components/ui/TreeList.tsx` | 树形缩进列表，用于树形字典展示；支持可选展开 / 收起控件 |
 | `MultiSelect` | `frontend/src/components/ui/MultiSelect.tsx` | 轻量 checkbox 多选，用于用户角色和单位多选 |
 | `TreeMultiSelect` | `frontend/src/components/ui/TreeMultiSelect.tsx` | 轻量树形/缩进 checkbox 多选，用于用户学科关联 |
 
@@ -43,7 +43,7 @@
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
 | `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型 / 评审等级，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
-| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，列表行内展示编码、排序和全称，不重复显示树类型 |
+| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；列表行内展示编码、排序和全称，不重复显示树类型 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
 | `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口 |

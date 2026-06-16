@@ -13,6 +13,7 @@ export type TreeFlatNode<T extends TreeLike> = {
   item: T;
   depth: number;
   hasChildren: boolean;
+  isExpanded?: boolean;
 };
 
 export function buildTree<T extends TreeLike>(items: T[]): Array<TreeNode<T>> {
@@ -52,9 +53,39 @@ export function flattenTree<T extends TreeLike>(
       result.push({
         depth: node.depth,
         hasChildren: node.children.length > 0,
+        isExpanded: node.children.length > 0,
         item: node,
       });
       visit(node.children);
+    });
+  }
+
+  visit(buildTree(items));
+
+  return result;
+}
+
+export function flattenVisibleTree<T extends TreeLike>(
+  items: T[],
+  expandedNodeIds: ReadonlySet<string>,
+): Array<TreeFlatNode<T>> {
+  const result: Array<TreeFlatNode<T>> = [];
+
+  function visit(nodes: Array<TreeNode<T>>) {
+    nodes.forEach((node) => {
+      const hasChildren = node.children.length > 0;
+      const isExpanded = expandedNodeIds.has(node.id);
+
+      result.push({
+        depth: node.depth,
+        hasChildren,
+        isExpanded,
+        item: node,
+      });
+
+      if (hasChildren && isExpanded) {
+        visit(node.children);
+      }
     });
   }
 

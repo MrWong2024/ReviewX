@@ -87,7 +87,7 @@ frontend/
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息；AdminShell 正常顶部栏显示当前用户、手机号、管理员 Badge、“返回工作台”和“退出登录”
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、固定字典类型筛选、新增、编辑、停用；筛选仅支持项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType
-- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用；列表行内不重复展示树类型
+- `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、默认仅展示第一层、按需展开 / 收起、新增根节点、新增子节点、编辑、停用；列表行内不重复展示树类型
 - `/admin/organizations`：单位分页、搜索、树形缩进行政区划选择、新增、编辑、停用
 - `/admin/review-schemes`：评审方案列表、新增、编辑、停用、动态评分项；评分项使用稳定 `clientId` 防止输入失焦
 - `/admin/project-imports`：管理员 Excel 项目导入页，支持批次选择、上传前校验、FormData 上传、任务列表、批次/状态/keyword 筛选、分页和未确认导入任务删除
@@ -130,6 +130,8 @@ frontend/
 - 普通字典新增时 `dictType` 跟随当前选中类型，编辑时只读展示原类型且不可修改；页面不提供“全部”“自定义类型”或自定义 `dictType` 输入
 - 树形字典预设 `treeType` 前端显示中文：`project_type=项目类型`、`discipline=学科`、`department=受理处室`、`administrative_division=行政区划`
 - 树形字典页面顶部树类型筛选控制当前维护范围；列表行内只展示编码、排序和全称 / 路径等节点信息，不逐行重复显示树类型
+- 树形字典列表默认只显示第一层节点，展开状态由前端 `expandedNodeIds` 维护；有子节点的节点可逐层展开 / 收起，收起时隐藏所有后代，切换树类型时重置展开状态
+- 当前树形字典管理页没有 keyword 搜索入口或查询参数；本小修未新增搜索，也未改变 `listTreeDictionaries()` 调用方式
 - 单位行政区划选择只读取 `treeType=administrative_division`；不再兼容历史 `treeType=region`；底层仍提交 `regionId` ObjectId
 - `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
 - 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别
