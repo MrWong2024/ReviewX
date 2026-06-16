@@ -4,7 +4,7 @@
 
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
-| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、退出登录 |
+| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、返回工作台和退出登录 |
 | `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、返回工作台和退出登录 |
 | `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、返回工作台和退出登录 |
 
@@ -114,7 +114,7 @@
 - Button size 体系为 `sm/md/lg`；表格行内操作、树节点行内操作和分页按钮使用 `sm`
 - Input / Select 基础高度统一为 `h-10`，Textarea 统一字号、圆角、边框和 focus ring
 - 表格、分页、空状态、错误提示、加载态、Modal、ConfirmDialog 已同步现代化样式
-- `AdminShell` 已升级为深海军蓝 / 墨蓝 / 靛蓝渐变侧栏、胶囊选中态、顶部用户与角色 Badge、浅灰蓝内容背景
+- `AdminShell` 已升级为深海军蓝 / 墨蓝 / 靛蓝渐变侧栏、胶囊选中态、顶部用户与角色 Badge、返回工作台入口、退出登录和浅灰蓝内容背景
 - 页面仍保留少量语义 class（如 `page-title`、`toolbar`、`panel`、`form-stack`），由全局 CSS 通过 Tailwind `@apply` 统一承载
 - `.grid-2` / `.grid-3` 使用 `items-start` 保持同行字段顶部对齐；字典和树形字典表单通过说明区预留避免“名称 / 编码”高度错位
 - 单位行政区划选择只使用 `treeType=administrative_division` 的缩进树选项；无数据时提示先在树形字典中维护行政区划

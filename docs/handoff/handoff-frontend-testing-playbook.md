@@ -130,6 +130,14 @@ npm run build
 
 注意：专家材料查看和下载只调用 `/expert/projects/:id/materials` 系列接口；专家评分只调用 `/expert/review-tasks` 系列接口；不得调用 admin / project_owner / review_manager 材料接口。
 
+本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：管理员后台正常页头右上角“返回工作台”仅做前端导航，指向 `/workspace`；不改变管理员左侧导航、退出登录或 403 无权限页。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -159,7 +167,10 @@ npm run build
 2. 顶部栏显示当前用户和管理员角色 Badge
 3. 侧边栏导航可用，选中态为胶囊高亮
 4. 退出登录可用
-5. 首页按“主数据维护 / 项目评审组织 / 监管闭环”展示
+5. 顶部栏右上角显示“返回工作台”入口
+6. 点击“返回工作台”跳转 `/workspace`
+7. 窄屏下顶部用户信息、角色 Badge、“返回工作台”和“退出登录”不明显溢出
+8. 首页按“主数据维护 / 项目评审组织 / 监管闭环”展示
 
 ## 6. 主数据人工验证
 

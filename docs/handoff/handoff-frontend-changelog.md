@@ -2,6 +2,16 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：AdminShell 增加返回工作台入口
+
+- `AdminShell` 正常管理员后台页头右上角新增“返回工作台”入口，指向 `/workspace`
+- 新入口复用 ExpertShell 顶部操作区的轻量链接样式，并放在管理员角色 Badge 与“退出登录”之间
+- 顶部用户操作区保持 `flex-wrap` 和 `gap`，窄屏下避免挤爆布局；左侧管理员导航不变
+- 保留原有“退出登录”按钮和 `handleLogout` 逻辑，不修改无管理员权限 403 页面中的返回工作台入口
+- 本小修未修改 backend，未新增接口、依赖或环境变量，未修改 `package.json` 或锁文件
+- 本小修未修改 ExpertShell、ProjectOwnerShell、专家评分页面、项目负责人材料页面或管理员业务页面逻辑
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 前端第五阶段：专家工作台与评分
 
 - `/workspace` 放开 `expert` 角色入口，点击进入 `/expert`；admin 和 project_owner 入口保持原有能力，多角色用户可见多个入口

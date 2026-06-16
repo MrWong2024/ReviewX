@@ -84,7 +84,7 @@ frontend/
 - `/login`：品牌化登录页，手机号 + 密码登录，已登录访问自动回 `/workspace`
 - `/workspace`：现代化角色入口，展示 admin、client、review_manager、expert、project_owner 中文角色状态
 - `/workspace` 当前放开 admin、project_owner 和 expert；client、review_manager 仍显示“后续建设”
-- `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息
+- `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息；AdminShell 正常顶部栏显示当前用户、手机号、管理员 Badge、“返回工作台”和“退出登录”
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、字典类型中文过滤、新增、编辑、停用；支持自定义 dictType 保存
 - `/admin/tree-dictionaries`：树形字典缩进树列表、树类型中文过滤、新增根节点、新增子节点、编辑、停用
@@ -132,6 +132,7 @@ frontend/
 - `region` 为历史临时 treeType 口径，本阶段后前端不再作为行政区划显示或备用读取；当前不做历史数据迁移
 - 普通字典和树形字典的 `code` UI 文案统一显示为“编码”，并提示用于系统识别
 - Button 当前支持 `sm/md/lg` size 体系；表格行内操作、树节点行内操作和分页使用 `sm`
+- AdminShell 正常布局顶部右上角已提供“返回工作台”入口，使用 `Link href="/workspace"`，视觉样式与 ExpertShell / ProjectOwnerShell 顶部入口一致；退出登录按钮和左侧管理员导航保持不变
 - Input / Select 默认固定 `h-10`，Textarea 复用同一 label / description / error 布局；普通字典和树形字典表单已修正“名称 / 编码 / 父节点”等控件对齐
 - 通用 `Modal` 通过 React Portal 挂载到 `document.body`，使用视口级 fixed overlay 和 `z-[1000]`，面板 `max-h-[90vh]`，header/footer 在面板内保留，body 区滚动；默认调用保持兼容，并支持可选 `size/bodyClassName/panelClassName`
 - 管理员用户管理页面已对接 `/admin/users` 系列接口；创建和重置密码时密码留空不提交，由后端默认手机号；编辑用户时手机号只读且不提交 `phone/password`
