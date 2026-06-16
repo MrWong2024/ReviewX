@@ -2,6 +2,15 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：通用 Modal 改为视口级 Portal 弹窗
+
+- `Modal` 改为通过 React Portal 挂载到 `document.body`，避免被调用位置的父级布局、overflow、transform 或层叠上下文限制
+- Modal overlay 使用视口级 `fixed inset-0 z-[1000]`，遮罩覆盖整个浏览器视口，面板在最高层居中显示
+- Modal 面板改为 flex 列布局，`max-h-[90vh]`，header/footer 固定在面板内，body 区负责滚动；新增可选 `size/bodyClassName/panelClassName` 且保持原调用兼容
+- `AdminProjectMaterialDeleteModal` 改为使用通用 Portal Modal 的 body 滚动能力，保留删除原因表单、1000 字限制、长文件名换行和提交中禁用
+- 本小修未修改 backend，未新增接口或依赖，未修改 admin 删除材料 API 语义，未修改项目负责人材料流程
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：管理员项目材料上传人显示与删除弹窗可视性优化
 
 - `/admin/projects/[projectId]/review-organization` 将已加载的 `userNameById` 传入 `AdminProjectMaterialsCard`，项目材料上传人列在材料响应未内联 `uploadedByUser` 时复用页面 users 映射显示姓名和手机号

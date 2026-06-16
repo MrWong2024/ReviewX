@@ -73,9 +73,10 @@ export function AdminProjectMaterialDeleteModal({
       }
       onClose={handleClose}
       open={open}
+      size="lg"
       title="删除项目材料"
     >
-      <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+      <div className="space-y-4">
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-700">
           该操作会物理删除文件和材料记录，删除后不可恢复。系统会保留删除审计日志。请填写删除原因。
         </div>
