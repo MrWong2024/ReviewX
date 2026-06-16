@@ -22,9 +22,9 @@
 - 当前已准备 Storage / OSS 环境变量 example：`STORAGE_DRIVER`、`OSS_REGION`、`OSS_BUCKET`、`OSS_INTERNAL_ENDPOINT`、`OSS_PUBLIC_ENDPOINT`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_OBJECT_PREFIX`
 - 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`
 - 当前已实现 `ProjectMaterial` 项目材料模型，数据库只保存 OSS/fake storage 引用和文件元数据，不保存文件内容
-- 当前已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL 和软删除
+- 当前已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL、材料提交、物理删除和删除审计
 - 当前项目材料上传已复用通用上传文件名规范化工具，保存 `originalFilename` 和生成 `safeFilename` 前会保守修正常见 multipart 中文文件名 mojibake；该修复只影响新上传材料，历史乱码材料不自动迁移
-- 当前已实现评审负责人、已分配专家和管理员查看项目材料及获取短期下载 URL 的后端接口
+- 当前已实现评审负责人、已分配专家和管理员查看项目材料及获取短期下载 URL 的后端接口；评审负责人/专家只可见 `submitted` 材料，项目负责人/admin 可见 `draft/submitted/legacy active`
 - 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
 - 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
 - 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
@@ -202,6 +202,7 @@ backend/
   - `ReviewManagerMaterialsController`
   - `ExpertMaterialsController`
   - `AdminMaterialsController`
+  - `ProjectMaterialDeletionLog` schema
 - 当前已有第四阶段补丁一门户参考数据模块：
   - `PortalReferenceDataModule`
   - `PortalReferenceDataController`
@@ -269,7 +270,7 @@ backend/
 - 当前 `scripts/sync-indexes.ts` 使用 `MONGO_ADMIN_URI` 运维账号连接，不启动 Nest 应用，不使用 `MONGO_URI`
 - 当前 `scripts/sync-indexes.ts` 显式注册 `User`、`Session`、`Batch`、`Dictionary`、`TreeDictionary`、`Organization`、`ReviewScheme`、`Project`、`ProjectImportFieldMapping`、`ProjectImportJob`、`ProjectImportRow` schema，并同步对应集合索引
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectExpertAssignment` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
-- 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectMaterial` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
+- 当前 `scripts/sync-indexes.ts` 也显式注册 `ProjectMaterial` 和 `ProjectMaterialDeletionLog` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 也显式注册 `ExpertReview`、`ConsensusReview`、`ProjectAppeal`、`ProjectAppealAttachment` 和 `ProjectLevelChangeLog` schema；production 或目标库为 `reviewx` 时仍要求 `--confirm-production`
 - 当前 `scripts/sync-indexes.ts` 在 production 或目标库为 `reviewx` 时要求 `--confirm-production`
 - 当前配置项包括 `MONGO_URI`、`MONGO_AUTO_INDEX` 和 `MONGO_SERVER_SELECTION_TIMEOUT_MS`
@@ -294,9 +295,12 @@ backend/
 - 当前项目设置 `reviewSchemeId` 的第三阶段专用接口会同步写入 `reviewSchemeSnapshot`，快照包含方案 ID、名称、总分和评分项数组；仅设置 `reviewManagerId` 不更新快照；本阶段不实现清空 `reviewSchemeId`
 - 当前已创建 `project_expert_assignments` 集合，用于保存项目与专家分配关系，字段包括 `projectId`、`expertUserId`、`assignedByUserId`、`source`、`status`、`removedAt`、`removedByUserId` 和 timestamps
 - 当前 `project_expert_assignments` 索引：`projectId + expertUserId` unique、`projectId + status`、`expertUserId + status`、`assignedByUserId + createdAt`
-- 当前已创建 `project_materials` 集合，用于保存项目材料文件引用和元数据，字段包括 `projectId`、`materialTypeId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`deletedAt`、`deletedByUserId` 和 timestamps
+- 当前已创建 `project_materials` 集合，用于保存项目材料文件引用和元数据，字段包括 `projectId`、`materialTypeId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`submittedAt`、`submittedByUserId`、legacy `deletedAt`、legacy `deletedByUserId` 和 timestamps
 - 当前 `project_materials` 索引：`projectId + status`、`projectId + materialTypeId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
-- 当前材料删除为软删除，`status=deleted` 并记录 `deletedAt/deletedByUserId`，不默认物理删除 OSS object
+- 当前项目材料状态为 `draft/submitted/active`，其中新上传默认 `draft`，`submitted` 对评审负责人/专家可见，`active` 仅为 legacy 兼容并按草稿处理；schema 可读取旧 `deleted`，但业务不再新写 `deleted`
+- 当前已创建 `project_material_deletion_logs` 集合，用于保存项目材料删除审计，字段包括项目/材料/材料类型/上传人/删除人/删除角色/删除原因、原材料文件快照、删除前状态、提交留痕快照、storage 删除结果和 `deletedAt`
+- 当前 `project_material_deletion_logs` 索引：`projectId + deletedAt`、`materialId`、`deletedByUserId + deletedAt`、`deletedByRole + deletedAt`
+- 当前项目材料删除为物理删除：项目负责人只能删除 `draft/legacy active`，`submitted` 返回 `409`；admin 删除必须提供 reason，可删除 `draft/submitted/legacy active`；删除时先调用 `storageService.deleteObject(objectKey)`，成功后写 deletion log 并删除 `project_materials` 主记录；storage 删除失败时不删 DB、不写成功日志
 - 当前已创建 `expert_reviews` 集合，用于保存专家对项目的评分记录，字段包括 `projectId`、`expertUserId`、`assignmentId`、`reviewSchemeSnapshot`、`items.itemSnapshot`、`items.score`、`items.evaluationDescription`、`items.improvementSuggestion`、`items.hasMajorIssue`、`totalScore`、`status`、`submittedAt`、`returnedAt`、`returnedByUserId`、`returnReason` 和 timestamps
 - 当前 `expert_reviews` 索引：`projectId + expertUserId` unique、`projectId + status`、`expertUserId + status`、`projectId + submittedAt`
 - 当前 `ExpertReview.status` 取值：`draft/submitted/returned`；无记录时接口返回视图状态 `not_started`，不入库
@@ -342,8 +346,8 @@ backend/
 - OSS Bucket 建议私有读写；后端当前通过材料下载 URL 接口生成短期签名 URL 供下载/预览
 - 不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续可替换为 RAM Role
 - E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`，自动化测试使用 fake storage
-- 当前已实现项目材料上传、列表、短期下载 URL 和软删除；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
-- 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
+- 当前已实现项目材料上传、列表、短期下载 URL、提交、物理删除和删除审计；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
+- 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。新上传材料默认 `draft`；历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
 - 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage
 - 当前仍未实现真实 AI 合议、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
@@ -378,8 +382,8 @@ backend/
 - `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析、删除配置后默认内置别名 fallback 仍可用，以及包含顿号的完整学科名称在上传解析后按完整名称匹配 `treeType=discipline` 节点
 - 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
-- 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成，以及多文件 failures 返回规范化后的 `originalFilename`
-- 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、软删除、评审负责人/专家/管理员材料可见性、multipart 中文文件名 mojibake 修复和既有接口轻量回归
+- 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成、多文件 failures 返回规范化后的 `originalFilename`，以及 draft/submitted 状态机、角色可见性、提交统计、物理删除、删除审计和 storage 删除失败保护
+- 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复和既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖

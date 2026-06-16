@@ -1,7 +1,18 @@
 export const MATERIAL_TYPE_DICT_TYPE = 'material_type';
 
-export const PROJECT_MATERIAL_STATUSES = ['active', 'deleted'] as const;
+export const PROJECT_MATERIAL_STATUSES = [
+  'draft',
+  'submitted',
+  'active',
+] as const;
 export type ProjectMaterialStatus = (typeof PROJECT_MATERIAL_STATUSES)[number];
+
+export const PROJECT_MATERIAL_SCHEMA_STATUSES = [
+  ...PROJECT_MATERIAL_STATUSES,
+  'deleted',
+] as const;
+export type ProjectMaterialPersistedStatus =
+  (typeof PROJECT_MATERIAL_SCHEMA_STATUSES)[number];
 
 export const PROJECT_MATERIAL_MAX_FILES = 20;
 export const PROJECT_MATERIAL_MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024;

@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -26,6 +28,7 @@ import {
   DEFAULT_SIGNED_URL_EXPIRES_SECONDS,
   STORAGE_SERVICE,
 } from '../../storage/storage.constants';
+import type { StorageDriver } from '../../storage/storage.constants';
 import { StorageConfigService } from '../../storage/storage-config.service';
 import type { StorageService } from '../../storage/storage.interface';
 import {
@@ -39,13 +42,20 @@ import {
   MATERIAL_TYPE_DICT_TYPE,
   PROJECT_MATERIAL_MAX_FILE_SIZE_BYTES,
   PROJECT_MATERIAL_MAX_FILES,
+  ProjectMaterialPersistedStatus,
   ProjectMaterialStatus,
 } from '../constants/project-material.constants';
+import { DeleteProjectMaterialAdminDto } from '../dto/delete-project-material-admin.dto';
 import { QueryExpertProjectsDto } from '../dto/query-expert-projects.dto';
 import { QueryProjectMaterialsDto } from '../dto/query-project-materials.dto';
 import { QueryProjectOwnerProjectsDto } from '../dto/query-project-owner-projects.dto';
+import { SubmitProjectMaterialsDto } from '../dto/submit-project-materials.dto';
 import { UpdateFollowUpNeedsDto } from '../dto/update-follow-up-needs.dto';
 import { UploadProjectMaterialsDto } from '../dto/upload-project-materials.dto';
+import {
+  ProjectMaterialDeletedByRole,
+  ProjectMaterialDeletionLog,
+} from '../schemas/project-material-deletion-log.schema';
 import { ProjectMaterial } from '../schemas/project-material.schema';
 
 export type UploadedProjectMaterialFile = {
@@ -72,13 +82,15 @@ export type ProjectMaterialResponse = {
   safeFilename: string;
   objectKey: string;
   bucket: string;
-  storageDriver: string;
+  storageDriver: StorageDriver;
   mimeType: string;
   extension: string;
   sizeBytes: number;
   sha256?: string;
   remark?: string;
   status: ProjectMaterialStatus;
+  submittedAt?: Date | null;
+  submittedByUserId?: string | null;
   deletedAt?: Date | null;
   deletedByUserId?: string | null;
   createdAt: Date;
@@ -124,7 +136,24 @@ export type UploadProjectMaterialsResult = {
 
 export type DeleteProjectMaterialResult = {
   deleted: boolean;
-  alreadyDeleted: boolean;
+  alreadyDeleted?: boolean;
+  deletionLogId?: string;
+};
+
+export type AdminDeleteProjectMaterialResult = {
+  deleted: boolean;
+  deletionLogId: string;
+};
+
+export type SubmitProjectMaterialsResult = {
+  submittedCount: number;
+  alreadySubmittedCount: number;
+  skippedCount: number;
+  submittedMaterialIds: string[];
+  skipped: {
+    materialId: string;
+    reason: string;
+  }[];
 };
 
 type ProjectLean = TimestampFields & {
@@ -160,15 +189,21 @@ type ProjectMaterialLean = TimestampFields & {
   safeFilename: string;
   objectKey: string;
   bucket: string;
-  storageDriver: string;
+  storageDriver: StorageDriver;
   mimeType: string;
   extension: string;
   sizeBytes: number;
   sha256?: string;
   remark?: string;
-  status: ProjectMaterialStatus;
+  status: ProjectMaterialPersistedStatus;
+  submittedAt?: Date | null;
+  submittedByUserId?: Types.ObjectId | null;
   deletedAt?: Date | null;
   deletedByUserId?: Types.ObjectId | null;
+};
+
+type ProjectMaterialVisibleLean = Omit<ProjectMaterialLean, 'status'> & {
+  status: ProjectMaterialStatus;
 };
 
 type MaterialTypeLean = {
@@ -193,11 +228,29 @@ type ValidatedFile = {
   sha256: string;
 };
 
+const OWNER_VISIBLE_MATERIAL_STATUSES: ProjectMaterialStatus[] = [
+  'draft',
+  'submitted',
+  'active',
+];
+const SUBMITTABLE_MATERIAL_STATUSES: ProjectMaterialStatus[] = [
+  'draft',
+  'active',
+];
+const SUBMITTED_MATERIAL_STATUSES: ProjectMaterialStatus[] = ['submitted'];
+const ADMIN_VISIBLE_MATERIAL_STATUSES: ProjectMaterialStatus[] = [
+  'draft',
+  'submitted',
+  'active',
+];
+
 @Injectable()
 export class ProjectMaterialsService {
   constructor(
     @InjectModel(ProjectMaterial.name)
     private readonly materialModel: Model<ProjectMaterial>,
+    @InjectModel(ProjectMaterialDeletionLog.name)
+    private readonly deletionLogModel: Model<ProjectMaterialDeletionLog>,
     @InjectModel(Project.name)
     private readonly projectModel: Model<Project>,
     @InjectModel(Dictionary.name)
@@ -218,7 +271,11 @@ export class ProjectMaterialsService {
       isActive: true,
     });
 
-    return this.paginateProjects(filter, query);
+    return this.paginateProjects(
+      filter,
+      query,
+      OWNER_VISIBLE_MATERIAL_STATUSES,
+    );
   }
 
   async getProjectOwnerProject(
@@ -231,7 +288,10 @@ export class ProjectMaterialsService {
     );
     return this.toProjectPortalResponse(
       project,
-      await this.countActiveMaterials(project._id),
+      await this.countMaterialsByStatuses(
+        project._id,
+        OWNER_VISIBLE_MATERIAL_STATUSES,
+      ),
     );
   }
 
@@ -259,7 +319,10 @@ export class ProjectMaterialsService {
 
     return this.toProjectPortalResponse(
       updated,
-      await this.countActiveMaterials(updated._id),
+      await this.countMaterialsByStatuses(
+        updated._id,
+        OWNER_VISIBLE_MATERIAL_STATUSES,
+      ),
     );
   }
 
@@ -283,7 +346,7 @@ export class ProjectMaterialsService {
       isActive: true,
     });
 
-    return this.paginateProjects(filter, query);
+    return this.paginateProjects(filter, query, SUBMITTED_MATERIAL_STATUSES);
   }
 
   async getExpertProject(
@@ -296,7 +359,10 @@ export class ProjectMaterialsService {
     );
     return this.toProjectPortalResponse(
       project,
-      await this.countActiveMaterials(project._id),
+      await this.countMaterialsByStatuses(
+        project._id,
+        SUBMITTED_MATERIAL_STATUSES,
+      ),
     );
   }
 
@@ -306,7 +372,11 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ): Promise<ProjectMaterialResponse[]> {
     await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
-    return this.listActiveMaterials(projectId, query);
+    return this.listMaterialsByStatuses(
+      projectId,
+      query,
+      OWNER_VISIBLE_MATERIAL_STATUSES,
+    );
   }
 
   async uploadOwnerMaterials(input: {
@@ -385,7 +455,145 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ) {
     await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
-    return this.getMaterialSignedUrl(projectId, materialId);
+    return this.getMaterialSignedUrl(
+      projectId,
+      materialId,
+      OWNER_VISIBLE_MATERIAL_STATUSES,
+    );
+  }
+
+  async submitOwnerMaterials(
+    projectId: string,
+    dto: SubmitProjectMaterialsDto,
+    currentUser: AuthenticatedUser,
+  ): Promise<SubmitProjectMaterialsResult> {
+    await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
+    const requestedMaterialIds = [...new Set(dto.materialIds ?? [])];
+    const submitAll = requestedMaterialIds.length === 0;
+    const projectObjectId = toObjectId(projectId, 'projectId');
+    const submittedByUserId = toObjectId(currentUser.user.id, 'userId');
+    const now = new Date();
+
+    if (submitAll) {
+      const materials = await this.materialModel
+        .find({
+          projectId: projectObjectId,
+          status: { $in: SUBMITTABLE_MATERIAL_STATUSES },
+        })
+        .select({ _id: 1 })
+        .lean<{ _id: Types.ObjectId }[]>()
+        .exec();
+      const materialObjectIds = materials.map((material) => material._id);
+
+      if (materialObjectIds.length > 0) {
+        await this.materialModel
+          .updateMany(
+            { _id: { $in: materialObjectIds } },
+            {
+              $set: {
+                status: 'submitted',
+                submittedAt: now,
+                submittedByUserId,
+              },
+            },
+          )
+          .exec();
+      }
+
+      return {
+        submittedCount: materialObjectIds.length,
+        alreadySubmittedCount: 0,
+        skippedCount: 0,
+        submittedMaterialIds: materialObjectIds.map((id) => id.toString()),
+        skipped: [],
+      };
+    }
+
+    const requestedObjectIds = requestedMaterialIds.map((materialId) =>
+      toObjectId(materialId, 'materialId'),
+    );
+    const materials = await this.materialModel
+      .find({
+        _id: { $in: requestedObjectIds },
+        projectId: projectObjectId,
+        status: { $in: OWNER_VISIBLE_MATERIAL_STATUSES },
+      })
+      .select({ _id: 1, status: 1 })
+      .lean<{ _id: Types.ObjectId; status: ProjectMaterialStatus }[]>()
+      .exec();
+    const materialsById = new Map(
+      materials.map((material) => [material._id.toString(), material]),
+    );
+    const submitIds: Types.ObjectId[] = [];
+    const submittedMaterialIds: string[] = [];
+    const skipped: SubmitProjectMaterialsResult['skipped'] = [];
+    let alreadySubmittedCount = 0;
+
+    for (const materialId of requestedMaterialIds) {
+      const material = materialsById.get(materialId);
+
+      if (!material) {
+        skipped.push({ materialId, reason: 'not_found' });
+        continue;
+      }
+
+      if (material.status === 'submitted') {
+        alreadySubmittedCount += 1;
+        continue;
+      }
+
+      submitIds.push(material._id);
+      submittedMaterialIds.push(materialId);
+    }
+
+    if (submitIds.length > 0) {
+      await this.materialModel
+        .updateMany(
+          { _id: { $in: submitIds } },
+          {
+            $set: {
+              status: 'submitted',
+              submittedAt: now,
+              submittedByUserId,
+            },
+          },
+        )
+        .exec();
+    }
+
+    return {
+      submittedCount: submittedMaterialIds.length,
+      alreadySubmittedCount,
+      skippedCount: skipped.length,
+      submittedMaterialIds,
+      skipped,
+    };
+  }
+
+  async deleteOwnerMaterial(
+    projectId: string,
+    materialId: string,
+    currentUser: AuthenticatedUser,
+  ): Promise<DeleteProjectMaterialResult> {
+    await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
+    const material = await this.findMaterialByProjectAndStatuses(
+      projectId,
+      materialId,
+      OWNER_VISIBLE_MATERIAL_STATUSES,
+    );
+
+    if (material.status === 'submitted') {
+      throw new ConflictException(
+        'Submitted material cannot be deleted by project owner',
+      );
+    }
+
+    return this.deleteMaterialWithStorage({
+      material,
+      deletedByUserId: currentUser.user.id,
+      deletedByRole: 'project_owner',
+      deleteReason: 'project_owner_draft_delete',
+    });
   }
 
   async softDeleteOwnerMaterial(
@@ -393,27 +601,7 @@ export class ProjectMaterialsService {
     materialId: string,
     currentUser: AuthenticatedUser,
   ): Promise<DeleteProjectMaterialResult> {
-    await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
-    const material = await this.findMaterialByProject(projectId, materialId);
-
-    if (material.status === 'deleted') {
-      return { deleted: false, alreadyDeleted: true };
-    }
-
-    await this.materialModel
-      .updateOne(
-        { _id: material._id },
-        {
-          $set: {
-            status: 'deleted',
-            deletedAt: new Date(),
-            deletedByUserId: toObjectId(currentUser.user.id, 'userId'),
-          },
-        },
-      )
-      .exec();
-
-    return { deleted: true, alreadyDeleted: false };
+    return this.deleteOwnerMaterial(projectId, materialId, currentUser);
   }
 
   async listReviewManagerMaterials(
@@ -422,7 +610,11 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ): Promise<ProjectMaterialResponse[]> {
     await this.assertReviewManagerAccess(projectId, currentUser);
-    return this.listActiveMaterials(projectId, query);
+    return this.listMaterialsByStatuses(
+      projectId,
+      query,
+      SUBMITTED_MATERIAL_STATUSES,
+    );
   }
 
   async getReviewManagerMaterialDownloadUrl(
@@ -431,7 +623,11 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ) {
     await this.assertReviewManagerAccess(projectId, currentUser);
-    return this.getMaterialSignedUrl(projectId, materialId);
+    return this.getMaterialSignedUrl(
+      projectId,
+      materialId,
+      SUBMITTED_MATERIAL_STATUSES,
+    );
   }
 
   async listExpertMaterials(
@@ -440,7 +636,11 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ): Promise<ProjectMaterialResponse[]> {
     await this.assertExpertAssignedAccess(projectId, currentUser.user.id);
-    return this.listActiveMaterials(projectId, query);
+    return this.listMaterialsByStatuses(
+      projectId,
+      query,
+      SUBMITTED_MATERIAL_STATUSES,
+    );
   }
 
   async getExpertMaterialDownloadUrl(
@@ -449,7 +649,11 @@ export class ProjectMaterialsService {
     currentUser: AuthenticatedUser,
   ) {
     await this.assertExpertAssignedAccess(projectId, currentUser.user.id);
-    return this.getMaterialSignedUrl(projectId, materialId);
+    return this.getMaterialSignedUrl(
+      projectId,
+      materialId,
+      SUBMITTED_MATERIAL_STATUSES,
+    );
   }
 
   async listAdminMaterials(
@@ -457,12 +661,52 @@ export class ProjectMaterialsService {
     query: QueryProjectMaterialsDto,
   ): Promise<ProjectMaterialResponse[]> {
     await this.findActiveProject(projectId);
-    return this.listActiveMaterials(projectId, query);
+    return this.listMaterialsByStatuses(
+      projectId,
+      query,
+      ADMIN_VISIBLE_MATERIAL_STATUSES,
+    );
   }
 
   async getAdminMaterialDownloadUrl(projectId: string, materialId: string) {
     await this.findActiveProject(projectId);
-    return this.getMaterialSignedUrl(projectId, materialId);
+    return this.getMaterialSignedUrl(
+      projectId,
+      materialId,
+      ADMIN_VISIBLE_MATERIAL_STATUSES,
+    );
+  }
+
+  async deleteAdminMaterial(
+    projectId: string,
+    materialId: string,
+    dto: DeleteProjectMaterialAdminDto,
+    currentUser: AuthenticatedUser,
+  ): Promise<AdminDeleteProjectMaterialResult> {
+    await this.findActiveProject(projectId);
+    const reason = typeof dto.reason === 'string' ? dto.reason.trim() : '';
+
+    if (!reason) {
+      throw new BadRequestException('reason is required');
+    }
+
+    const material = await this.findMaterialByProjectAndStatuses(
+      projectId,
+      materialId,
+      ADMIN_VISIBLE_MATERIAL_STATUSES,
+    );
+    const result = await this.deleteMaterialWithStorage({
+      material,
+      deletedByUserId: currentUser.user.id,
+      deletedByRole: 'admin',
+      deleteReason: reason,
+    });
+
+    if (!result.deletionLogId) {
+      throw new InternalServerErrorException('Failed to create deletion log');
+    }
+
+    return { deleted: true, deletionLogId: result.deletionLogId };
   }
 
   private async uploadAndPersistMaterial(input: {
@@ -501,14 +745,19 @@ export class ProjectMaterialsService {
         sizeBytes: uploaded.sizeBytes,
         sha256: input.validatedFile.sha256,
         remark: input.remark,
-        status: 'active',
+        status: 'draft',
+        submittedAt: null,
+        submittedByUserId: null,
       });
 
-      return this.toMaterialResponse(material.toObject<ProjectMaterialLean>(), {
-        [input.materialType._id.toString()]: this.toMaterialTypeSummary(
-          input.materialType,
-        ),
-      });
+      return this.toMaterialResponse(
+        material.toObject<ProjectMaterialVisibleLean>(),
+        {
+          [input.materialType._id.toString()]: this.toMaterialTypeSummary(
+            input.materialType,
+          ),
+        },
+      );
     } catch (error) {
       await this.storageService.deleteObject(uploaded.objectKey);
       throw error;
@@ -554,23 +803,29 @@ export class ProjectMaterialsService {
     };
   }
 
-  private async getMaterialSignedUrl(projectId: string, materialId: string) {
-    const material = await this.findActiveMaterialByProject(
+  private async getMaterialSignedUrl(
+    projectId: string,
+    materialId: string,
+    statuses: ProjectMaterialStatus[],
+  ) {
+    const material = await this.findMaterialByProjectAndStatuses(
       projectId,
       materialId,
+      statuses,
     );
     return this.storageService.getSignedUrl(material.objectKey, {
       expiresInSeconds: DEFAULT_SIGNED_URL_EXPIRES_SECONDS,
     });
   }
 
-  private async listActiveMaterials(
+  private async listMaterialsByStatuses(
     projectId: string,
     query: QueryProjectMaterialsDto,
+    statuses: ProjectMaterialStatus[],
   ): Promise<ProjectMaterialResponse[]> {
     const filter: Record<string, unknown> = {
       projectId: toObjectId(projectId, 'projectId'),
-      status: 'active',
+      status: { $in: statuses },
     };
 
     if (query.materialTypeId) {
@@ -583,7 +838,7 @@ export class ProjectMaterialsService {
     const items = await this.materialModel
       .find(filter)
       .sort({ createdAt: -1 })
-      .lean<ProjectMaterialLean[]>()
+      .lean<ProjectMaterialVisibleLean[]>()
       .exec();
     const materialTypes = await this.getMaterialTypeMap(
       items.map((item) => item.materialTypeId),
@@ -606,6 +861,7 @@ export class ProjectMaterialsService {
   private async paginateProjects(
     filter: Record<string, unknown>,
     query: PaginationQueryDto,
+    materialCountStatuses: ProjectMaterialStatus[],
   ): Promise<PaginatedResponse<ProjectPortalResponse>> {
     const [items, total] = await Promise.all([
       this.projectModel
@@ -617,8 +873,9 @@ export class ProjectMaterialsService {
         .exec(),
       this.projectModel.countDocuments(filter).exec(),
     ]);
-    const counts = await this.countActiveMaterialsByProject(
+    const counts = await this.countMaterialsByProjectAndStatuses(
       items.map((item) => item._id),
+      materialCountStatuses,
     );
 
     return {
@@ -744,36 +1001,18 @@ export class ProjectMaterialsService {
     return project;
   }
 
-  private async findActiveMaterialByProject(
+  private async findMaterialByProjectAndStatuses(
     projectId: string,
     materialId: string,
-  ): Promise<ProjectMaterialLean> {
+    statuses: ProjectMaterialStatus[],
+  ): Promise<ProjectMaterialVisibleLean> {
     const material = await this.materialModel
       .findOne({
         _id: toObjectId(materialId, 'materialId'),
         projectId: toObjectId(projectId, 'projectId'),
-        status: 'active',
+        status: { $in: statuses },
       })
-      .lean<ProjectMaterialLean | null>()
-      .exec();
-
-    if (!material) {
-      throw new NotFoundException('Project material not found');
-    }
-
-    return material;
-  }
-
-  private async findMaterialByProject(
-    projectId: string,
-    materialId: string,
-  ): Promise<ProjectMaterialLean> {
-    const material = await this.materialModel
-      .findOne({
-        _id: toObjectId(materialId, 'materialId'),
-        projectId: toObjectId(projectId, 'projectId'),
-      })
-      .lean<ProjectMaterialLean | null>()
+      .lean<ProjectMaterialVisibleLean | null>()
       .exec();
 
     if (!material) {
@@ -820,16 +1059,18 @@ export class ProjectMaterialsService {
     return assignments.map((assignment) => assignment.projectId);
   }
 
-  private async countActiveMaterials(
+  private async countMaterialsByStatuses(
     projectId: Types.ObjectId,
+    statuses: ProjectMaterialStatus[],
   ): Promise<number> {
     return this.materialModel
-      .countDocuments({ projectId, status: 'active' })
+      .countDocuments({ projectId, status: { $in: statuses } })
       .exec();
   }
 
-  private async countActiveMaterialsByProject(
+  private async countMaterialsByProjectAndStatuses(
     projectIds: Types.ObjectId[],
+    statuses: ProjectMaterialStatus[],
   ): Promise<Map<string, number>> {
     const counts = new Map<string, number>();
 
@@ -837,12 +1078,76 @@ export class ProjectMaterialsService {
       projectIds.map(async (projectId) => {
         counts.set(
           projectId.toString(),
-          await this.countActiveMaterials(projectId),
+          await this.countMaterialsByStatuses(projectId, statuses),
         );
       }),
     );
 
     return counts;
+  }
+
+  private async deleteMaterialWithStorage(input: {
+    material: ProjectMaterialVisibleLean;
+    deletedByUserId: string;
+    deletedByRole: ProjectMaterialDeletedByRole;
+    deleteReason?: string;
+  }): Promise<DeleteProjectMaterialResult> {
+    try {
+      await this.storageService.deleteObject(input.material.objectKey);
+    } catch {
+      throw new InternalServerErrorException(
+        'Failed to delete material object',
+      );
+    }
+
+    const deletionLogId = await this.createMaterialDeletionLog({
+      material: input.material,
+      deletedByUserId: input.deletedByUserId,
+      deletedByRole: input.deletedByRole,
+      deleteReason: input.deleteReason ?? '',
+    });
+
+    // Storage deletion cannot join the DB transaction boundary; a later DB
+    // failure leaves an operational recovery case rather than a soft-delete.
+    await this.materialModel.deleteOne({ _id: input.material._id }).exec();
+
+    return { deleted: true, alreadyDeleted: false, deletionLogId };
+  }
+
+  private async createMaterialDeletionLog(input: {
+    material: ProjectMaterialVisibleLean;
+    deletedByUserId: string;
+    deletedByRole: ProjectMaterialDeletedByRole;
+    deleteReason: string;
+  }): Promise<string> {
+    const deletionLog = await this.deletionLogModel.create({
+      projectId: input.material.projectId,
+      materialId: input.material._id,
+      materialTypeId: input.material.materialTypeId,
+      uploadedByUserId: input.material.uploadedByUserId,
+      deletedByUserId: toObjectId(input.deletedByUserId, 'userId'),
+      deletedByRole: input.deletedByRole,
+      deleteReason: input.deleteReason,
+      originalFilename: input.material.originalFilename,
+      safeFilename: input.material.safeFilename,
+      objectKey: input.material.objectKey,
+      bucket: input.material.bucket,
+      storageDriver: input.material.storageDriver,
+      mimeType: input.material.mimeType,
+      extension: input.material.extension,
+      sizeBytes: input.material.sizeBytes,
+      sha256: input.material.sha256,
+      remark: input.material.remark,
+      materialStatusBeforeDelete: input.material.status,
+      submittedAt: input.material.submittedAt ?? null,
+      submittedByUserId: input.material.submittedByUserId ?? null,
+      storageDeleteSucceeded: true,
+      storageDeleteError: null,
+      deletedAt: new Date(),
+    });
+    const deletionLogObject = deletionLog.toObject<{ _id: Types.ObjectId }>();
+
+    return deletionLogObject._id.toString();
   }
 
   private async getMaterialTypeMap(
@@ -905,7 +1210,7 @@ export class ProjectMaterialsService {
   }
 
   private toMaterialResponse(
-    material: ProjectMaterialLean,
+    material: ProjectMaterialVisibleLean,
     materialTypes: Record<string, MaterialTypeSummary>,
   ): ProjectMaterialResponse {
     return {
@@ -925,6 +1230,8 @@ export class ProjectMaterialsService {
       sha256: material.sha256,
       remark: material.remark,
       status: material.status,
+      submittedAt: material.submittedAt,
+      submittedByUserId: material.submittedByUserId?.toString() ?? null,
       deletedAt: material.deletedAt,
       deletedByUserId: material.deletedByUserId?.toString() ?? null,
       createdAt: material.createdAt,

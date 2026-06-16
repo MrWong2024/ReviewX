@@ -21,6 +21,7 @@ import {
   PROJECT_MATERIAL_MAX_FILE_SIZE_BYTES,
 } from '../constants/project-material.constants';
 import { QueryProjectMaterialsDto } from '../dto/query-project-materials.dto';
+import { SubmitProjectMaterialsDto } from '../dto/submit-project-materials.dto';
 import { UploadProjectMaterialsDto } from '../dto/upload-project-materials.dto';
 import {
   ProjectMaterialsService,
@@ -71,6 +72,19 @@ export class ProjectOwnerMaterialsController {
     });
   }
 
+  @Post('submit')
+  submit(
+    @Param('id') id: string,
+    @Body() dto: SubmitProjectMaterialsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.projectMaterialsService.submitOwnerMaterials(
+      id,
+      dto,
+      currentUser,
+    );
+  }
+
   @Get(':materialId/download-url')
   getDownloadUrl(
     @Param('id') id: string,
@@ -90,7 +104,7 @@ export class ProjectOwnerMaterialsController {
     @Param('materialId') materialId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
-    return this.projectMaterialsService.softDeleteOwnerMaterial(
+    return this.projectMaterialsService.deleteOwnerMaterial(
       id,
       materialId,
       currentUser,

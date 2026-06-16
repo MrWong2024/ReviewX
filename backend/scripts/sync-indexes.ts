@@ -58,6 +58,10 @@ import {
   ProjectMaterialSchema,
 } from '../src/modules/project-materials/schemas/project-material.schema';
 import {
+  ProjectMaterialDeletionLog,
+  ProjectMaterialDeletionLogSchema,
+} from '../src/modules/project-materials/schemas/project-material-deletion-log.schema';
+import {
   ReviewScheme,
   ReviewSchemeSchema,
 } from '../src/modules/review-schemes/schemas/review-scheme.schema';
@@ -348,6 +352,14 @@ function registerModels(): RegisteredModel[] {
   const projectMaterialModel = mongoose.models[ProjectMaterial.name]
     ? mongoose.model<unknown>(ProjectMaterial.name)
     : mongoose.model(ProjectMaterial.name, ProjectMaterialSchema);
+  const projectMaterialDeletionLogModel = mongoose.models[
+    ProjectMaterialDeletionLog.name
+  ]
+    ? mongoose.model<unknown>(ProjectMaterialDeletionLog.name)
+    : mongoose.model(
+        ProjectMaterialDeletionLog.name,
+        ProjectMaterialDeletionLogSchema,
+      );
   const expertReviewModel = mongoose.models[ExpertReview.name]
     ? mongoose.model<unknown>(ExpertReview.name)
     : mongoose.model(ExpertReview.name, ExpertReviewSchema);
@@ -386,6 +398,10 @@ function registerModels(): RegisteredModel[] {
     { name: ProjectImportJob.name, model: projectImportJobModel },
     { name: ProjectImportRow.name, model: projectImportRowModel },
     { name: ProjectMaterial.name, model: projectMaterialModel },
+    {
+      name: ProjectMaterialDeletionLog.name,
+      model: projectMaterialDeletionLogModel,
+    },
     { name: ExpertReview.name, model: expertReviewModel },
     { name: ConsensusReview.name, model: consensusReviewModel },
     { name: ProjectAppeal.name, model: projectAppealModel },

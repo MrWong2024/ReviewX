@@ -11,6 +11,7 @@ import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
+import { ProjectMaterialDeletionLog } from '../src/modules/project-materials/schemas/project-material-deletion-log.schema';
 import { ProjectMaterial } from '../src/modules/project-materials/schemas/project-material.schema';
 import { Project } from '../src/modules/projects/schemas/project.schema';
 import { Session } from '../src/modules/sessions/schemas/session.schema';
@@ -57,6 +58,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
   let projectModel: Model<Project>;
   let assignmentModel: Model<ProjectExpertAssignment>;
   let materialModel: Model<ProjectMaterial>;
+  let deletionLogModel: Model<ProjectMaterialDeletionLog>;
   let models: Model<unknown>[];
 
   beforeAll(async () => {
@@ -86,6 +88,9 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     materialModel = app.get<Model<ProjectMaterial>>(
       getModelToken(ProjectMaterial.name),
     );
+    deletionLogModel = app.get<Model<ProjectMaterialDeletionLog>>(
+      getModelToken(ProjectMaterialDeletionLog.name),
+    );
     models = [
       userModel,
       sessionModel,
@@ -95,6 +100,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       projectModel,
       assignmentModel,
       materialModel,
+      deletionLogModel,
     ];
 
     for (const model of models) {
@@ -178,7 +184,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     expect(getJsonBody(clearResponse)).toMatchObject({ followUpNeeds: '' });
   });
 
-  it('uses fake storage for upload, validates files and material types, lists, signs, and soft deletes materials', async () => {
+  it('uses fake storage for upload, validates files and material types, lists, signs, submits, and physically deletes draft materials', async () => {
     const data = await seedData();
     const ownerCookie = await login(data.owner.phone);
     const otherOwnerCookie = await login(data.otherOwner.phone);
@@ -239,7 +245,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       uploadedByUserId: data.owner.id,
       storageDriver: 'fake',
       remark: 'first upload',
-      status: 'active',
+      status: 'draft',
     });
     expect(getString(materials[0], 'objectKey')).toContain(
       `/projects/${data.project.id}/materials/ppt/`,
@@ -253,6 +259,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     expect(storedMaterial).toMatchObject({
       objectKey: getString(materials[0], 'objectKey'),
       sizeBytes: materials[0].sizeBytes,
+      status: 'draft',
     });
     expect(storedMaterial).not.toHaveProperty('buffer');
     expect(storedMaterial).not.toHaveProperty('file');
@@ -296,19 +303,17 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       deleted: true,
       alreadyDeleted: false,
     });
+    const deletionLogId = getString(
+      getJsonBody(deleteResponse),
+      'deletionLogId',
+    );
 
     await request(httpServer)
       .delete(
         `/project-owner/projects/${data.project.id}/materials/${materialId}`,
       )
       .set('Cookie', ownerCookie)
-      .expect(200)
-      .expect((response) => {
-        expect(response.body).toMatchObject({
-          deleted: false,
-          alreadyDeleted: true,
-        });
-      });
+      .expect(404);
 
     const afterDeleteListResponse = await request(httpServer)
       .get(`/project-owner/projects/${data.project.id}/materials`)
@@ -327,11 +332,50 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       .findById(materialId)
       .lean<ProjectMaterial | null>()
       .exec();
-    expect(deletedMaterial).toMatchObject({
-      status: 'deleted',
+    expect(deletedMaterial).toBeNull();
+    const deletionLog = await deletionLogModel
+      .findById(deletionLogId)
+      .lean<Record<string, unknown> | null>()
+      .exec();
+    expect(deletionLog).toMatchObject({
+      materialId: new Types.ObjectId(materialId),
       deletedByUserId: new Types.ObjectId(data.owner.id),
+      deletedByRole: 'project_owner',
+      deleteReason: 'project_owner_draft_delete',
+      objectKey: getString(materials[0], 'objectKey'),
+      materialStatusBeforeDelete: 'draft',
+      storageDeleteSucceeded: true,
     });
-    expect(deletedMaterial?.deletedAt).toBeTruthy();
+
+    const submittedMaterialId = getString(materials[1], 'id');
+    const submitResponse = await request(httpServer)
+      .post(`/project-owner/projects/${data.project.id}/materials/submit`)
+      .set('Cookie', ownerCookie)
+      .send({ materialIds: [submittedMaterialId] })
+      .expect(201);
+    expect(getJsonBody(submitResponse)).toMatchObject({
+      submittedCount: 1,
+      alreadySubmittedCount: 0,
+      skippedCount: 0,
+      submittedMaterialIds: [submittedMaterialId],
+      skipped: [],
+    });
+    const submittedMaterial = await materialModel
+      .findById(submittedMaterialId)
+      .lean<ProjectMaterial | null>()
+      .exec();
+    expect(submittedMaterial).toMatchObject({
+      status: 'submitted',
+      submittedByUserId: new Types.ObjectId(data.owner.id),
+    });
+    expect(submittedMaterial?.submittedAt).toBeTruthy();
+
+    await request(httpServer)
+      .delete(
+        `/project-owner/projects/${data.project.id}/materials/${submittedMaterialId}`,
+      )
+      .set('Cookie', ownerCookie)
+      .expect(409);
   });
 
   it('normalizes mojibake Chinese material filenames on upload and list', async () => {
@@ -406,7 +450,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       .set('Cookie', managerCookie)
       .expect(200)
       .expect((response) => {
-        expect(getJsonArray(response)).toHaveLength(1);
+        expect(getJsonArray(response)).toHaveLength(0);
       });
 
     await request(httpServer)
@@ -426,7 +470,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
         `/review-manager/projects/${data.project.id}/materials/${materialId}/download-url`,
       )
       .set('Cookie', managerCookie)
-      .expect(200);
+      .expect(404);
 
     const expertProjectsResponse = await request(httpServer)
       .get('/expert/projects')
@@ -437,7 +481,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       getRecordArray(getJsonBody(expertProjectsResponse), 'items')[0],
     ).toMatchObject({
       id: data.project.id,
-      materialCount: 1,
+      materialCount: 0,
       followUpNeeds: 'Initial needs',
     });
 
@@ -449,9 +493,54 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
         expect(response.body).toMatchObject({
           id: data.project.id,
           followUpNeeds: 'Initial needs',
-          materialCount: 1,
+          materialCount: 0,
         });
       });
+
+    await request(httpServer)
+      .get(`/expert/projects/${data.project.id}/materials`)
+      .set('Cookie', expertCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(0);
+      });
+
+    await request(httpServer)
+      .get(
+        `/expert/projects/${data.project.id}/materials/${materialId}/download-url`,
+      )
+      .set('Cookie', expertCookie)
+      .expect(404);
+
+    await request(httpServer)
+      .post(`/project-owner/projects/${data.project.id}/materials/submit`)
+      .set('Cookie', ownerCookie)
+      .send()
+      .expect(201)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          submittedCount: 1,
+          alreadySubmittedCount: 0,
+          skippedCount: 0,
+          submittedMaterialIds: [materialId],
+          skipped: [],
+        });
+      });
+
+    await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/materials`)
+      .set('Cookie', managerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(1);
+      });
+
+    await request(httpServer)
+      .get(
+        `/review-manager/projects/${data.project.id}/materials/${materialId}/download-url`,
+      )
+      .set('Cookie', managerCookie)
+      .expect(200);
 
     await request(httpServer)
       .get(`/expert/projects/${data.project.id}/materials`)
@@ -467,6 +556,17 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       )
       .set('Cookie', expertCookie)
       .expect(200);
+
+    await request(httpServer)
+      .get(`/expert/projects/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: data.project.id,
+          materialCount: 1,
+        });
+      });
 
     await request(httpServer)
       .get(`/expert/projects/${data.project.id}`)
@@ -492,6 +592,53 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       )
       .set('Cookie', adminCookie)
       .expect(200);
+
+    await request(httpServer)
+      .delete(`/admin/projects/${data.project.id}/materials/${materialId}`)
+      .set('Cookie', adminCookie)
+      .send({ reason: '' })
+      .expect(400);
+
+    const adminDeleteResponse = await request(httpServer)
+      .delete(`/admin/projects/${data.project.id}/materials/${materialId}`)
+      .set('Cookie', adminCookie)
+      .send({ reason: '  replaced by signed copy  ' })
+      .expect(200);
+    const adminDeletionLogId = getString(
+      getJsonBody(adminDeleteResponse),
+      'deletionLogId',
+    );
+    expect(getJsonBody(adminDeleteResponse)).toMatchObject({ deleted: true });
+
+    const adminDeletionLog = await deletionLogModel
+      .findById(adminDeletionLogId)
+      .lean<Record<string, unknown> | null>()
+      .exec();
+    expect(adminDeletionLog).toMatchObject({
+      materialId: new Types.ObjectId(materialId),
+      deletedByUserId: new Types.ObjectId(data.admin.id),
+      deletedByRole: 'admin',
+      deleteReason: 'replaced by signed copy',
+      materialStatusBeforeDelete: 'submitted',
+      storageDeleteSucceeded: true,
+    });
+    await expect(materialModel.findById(materialId).exec()).resolves.toBeNull();
+
+    await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/materials`)
+      .set('Cookie', managerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(0);
+      });
+
+    await request(httpServer)
+      .get(`/expert/projects/${data.project.id}/materials`)
+      .set('Cookie', expertCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(0);
+      });
 
     await request(httpServer)
       .get(`/admin/projects/${data.project.id}/materials`)

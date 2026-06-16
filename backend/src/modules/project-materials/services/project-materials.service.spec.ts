@@ -25,6 +25,10 @@ import type {
 import { sanitizeFilename } from '../../storage/utils/object-key.util';
 import { MATERIAL_TYPE_DICT_TYPE } from '../constants/project-material.constants';
 import {
+  ProjectMaterialDeletionLog,
+  ProjectMaterialDeletionLogSchema,
+} from '../schemas/project-material-deletion-log.schema';
+import {
   ProjectMaterial,
   ProjectMaterialSchema,
 } from '../schemas/project-material.schema';
@@ -39,6 +43,9 @@ process.env.STORAGE_DRIVER = 'fake';
 
 type SeedData = {
   currentUser: ReturnType<typeof buildCurrentUser>;
+  adminUser: ReturnType<typeof buildCurrentUser>;
+  reviewManagerUser: ReturnType<typeof buildCurrentUser>;
+  expertUser: ReturnType<typeof buildCurrentUser>;
   materialTypeId: string;
   projectId: string;
 };
@@ -47,6 +54,19 @@ type StoredMaterialProbe = {
   originalFilename: string;
   safeFilename: string;
   objectKey: string;
+  status: string;
+  submittedAt?: Date | null;
+  submittedByUserId?: Types.ObjectId | null;
+};
+
+type StoredDeletionLogProbe = {
+  materialId: Types.ObjectId;
+  deletedByUserId: Types.ObjectId;
+  deletedByRole: string;
+  deleteReason?: string;
+  objectKey: string;
+  materialStatusBeforeDelete: string;
+  storageDeleteSucceeded: boolean;
 };
 
 describe('ProjectMaterialsService', () => {
@@ -56,6 +76,7 @@ describe('ProjectMaterialsService', () => {
   let projectModel: Model<Project>;
   let dictionaryModel: Model<Dictionary>;
   let materialModel: Model<ProjectMaterial>;
+  let deletionLogModel: Model<ProjectMaterialDeletionLog>;
   let assignmentModel: Model<ProjectExpertAssignment>;
   let uploadFileMock: jest.MockedFunction<StorageService['uploadFile']>;
   let getSignedUrlMock: jest.MockedFunction<StorageService['getSignedUrl']>;
@@ -110,6 +131,10 @@ describe('ProjectMaterialsService', () => {
         }),
         MongooseModule.forFeature([
           { name: ProjectMaterial.name, schema: ProjectMaterialSchema },
+          {
+            name: ProjectMaterialDeletionLog.name,
+            schema: ProjectMaterialDeletionLogSchema,
+          },
           { name: Project.name, schema: ProjectSchema },
           { name: Dictionary.name, schema: DictionarySchema },
           {
@@ -137,10 +162,19 @@ describe('ProjectMaterialsService', () => {
     materialModel = moduleRef.get<Model<ProjectMaterial>>(
       getModelToken(ProjectMaterial.name),
     );
+    deletionLogModel = moduleRef.get<Model<ProjectMaterialDeletionLog>>(
+      getModelToken(ProjectMaterialDeletionLog.name),
+    );
     assignmentModel = moduleRef.get<Model<ProjectExpertAssignment>>(
       getModelToken(ProjectExpertAssignment.name),
     );
-    models = [projectModel, dictionaryModel, materialModel, assignmentModel];
+    models = [
+      projectModel,
+      dictionaryModel,
+      materialModel,
+      deletionLogModel,
+      assignmentModel,
+    ];
 
     for (const model of models) {
       await model.syncIndexes();
@@ -193,7 +227,9 @@ describe('ProjectMaterialsService', () => {
       originalFilename: '结题材料.pdf',
       safeFilename: expectedSafeFilename,
       objectKey: material.objectKey,
+      status: 'draft',
     });
+    expect(material.status).toBe('draft');
   });
 
   it('keeps English filenames unchanged', async () => {
@@ -253,13 +289,232 @@ describe('ProjectMaterialsService', () => {
     await expect(materialModel.countDocuments({}).exec()).resolves.toBe(1);
   });
 
+  it('hides draft materials from review roles until owner submits them', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'draft.pdf');
+
+    await expect(
+      service.listOwnerMaterials(data.projectId, {}, data.currentUser),
+    ).resolves.toMatchObject([{ id: material.id, status: 'draft' }]);
+    await expect(
+      service.listReviewManagerMaterials(
+        data.projectId,
+        {},
+        data.reviewManagerUser,
+      ),
+    ).resolves.toEqual([]);
+    await expect(
+      service.listExpertMaterials(data.projectId, {}, data.expertUser),
+    ).resolves.toEqual([]);
+    await expect(
+      service.getExpertProject(data.projectId, data.expertUser),
+    ).resolves.toMatchObject({ materialCount: 0 });
+
+    const result = await service.submitOwnerMaterials(
+      data.projectId,
+      {},
+      data.currentUser,
+    );
+
+    expect(result).toMatchObject({
+      submittedCount: 1,
+      alreadySubmittedCount: 0,
+      skippedCount: 0,
+      submittedMaterialIds: [material.id],
+      skipped: [],
+    });
+    const storedMaterial = await findStoredMaterial(material.id);
+    expect(storedMaterial.status).toBe('submitted');
+    expect(storedMaterial.submittedAt).toBeTruthy();
+    expect(storedMaterial.submittedByUserId?.toString()).toBe(
+      data.currentUser.user.id,
+    );
+    await expect(
+      service.listReviewManagerMaterials(
+        data.projectId,
+        {},
+        data.reviewManagerUser,
+      ),
+    ).resolves.toMatchObject([{ id: material.id, status: 'submitted' }]);
+    await expect(
+      service.listExpertMaterials(data.projectId, {}, data.expertUser),
+    ).resolves.toMatchObject([{ id: material.id, status: 'submitted' }]);
+    await expect(
+      service.getExpertProject(data.projectId, data.expertUser),
+    ).resolves.toMatchObject({ materialCount: 1 });
+  });
+
+  it('submits specified draft or legacy active materials and counts already submitted or skipped ids', async () => {
+    const data = await seedData();
+    const draftMaterial = await uploadOneMaterial(data, 'draft.pdf');
+    const submittedMaterial = await uploadOneMaterial(data, 'submitted.pdf');
+    const legacyActiveMaterial = await uploadOneMaterial(data, 'legacy.pdf');
+    await materialModel
+      .updateOne(
+        { _id: new Types.ObjectId(submittedMaterial.id) },
+        { $set: { status: 'submitted', submittedAt: new Date() } },
+      )
+      .exec();
+    await materialModel
+      .updateOne(
+        { _id: new Types.ObjectId(legacyActiveMaterial.id) },
+        { $set: { status: 'active' } },
+      )
+      .exec();
+    const missingMaterialId = new Types.ObjectId().toString();
+
+    const result = await service.submitOwnerMaterials(
+      data.projectId,
+      {
+        materialIds: [
+          draftMaterial.id,
+          submittedMaterial.id,
+          legacyActiveMaterial.id,
+          missingMaterialId,
+        ],
+      },
+      data.currentUser,
+    );
+
+    expect(result).toMatchObject({
+      submittedCount: 2,
+      alreadySubmittedCount: 1,
+      skippedCount: 1,
+      skipped: [{ materialId: missingMaterialId, reason: 'not_found' }],
+    });
+    expect(result.submittedMaterialIds).toEqual([
+      draftMaterial.id,
+      legacyActiveMaterial.id,
+    ]);
+    await expect(findStoredMaterial(draftMaterial.id)).resolves.toMatchObject({
+      status: 'submitted',
+    });
+    await expect(
+      findStoredMaterial(legacyActiveMaterial.id),
+    ).resolves.toMatchObject({
+      status: 'submitted',
+    });
+  });
+
+  it('physically deletes owner draft materials and writes deletion logs', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'delete-me.pdf');
+    deleteObjectMock.mockClear();
+
+    const result = await service.deleteOwnerMaterial(
+      data.projectId,
+      material.id,
+      data.currentUser,
+    );
+
+    expect(result).toMatchObject({
+      deleted: true,
+      alreadyDeleted: false,
+    });
+    expect(result.deletionLogId).toBeTruthy();
+    expect(deleteObjectMock).toHaveBeenCalledWith(material.objectKey);
+    await expect(
+      materialModel.findById(material.id).exec(),
+    ).resolves.toBeNull();
+    const deletionLog = await findDeletionLog(result.deletionLogId ?? '');
+    expect(deletionLog).toMatchObject({
+      materialId: new Types.ObjectId(material.id),
+      deletedByUserId: new Types.ObjectId(data.currentUser.user.id),
+      deletedByRole: 'project_owner',
+      deleteReason: 'project_owner_draft_delete',
+      objectKey: material.objectKey,
+      materialStatusBeforeDelete: 'draft',
+      storageDeleteSucceeded: true,
+    });
+  });
+
+  it('rejects project owner deletion of submitted materials without deleting storage', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'submitted.pdf');
+    await service.submitOwnerMaterials(data.projectId, {}, data.currentUser);
+    deleteObjectMock.mockClear();
+
+    await expect(
+      service.deleteOwnerMaterial(
+        data.projectId,
+        material.id,
+        data.currentUser,
+      ),
+    ).rejects.toThrow('Submitted material cannot be deleted by project owner');
+    expect(deleteObjectMock).not.toHaveBeenCalled();
+    await expect(
+      materialModel.findById(material.id).exec(),
+    ).resolves.toBeTruthy();
+  });
+
+  it('keeps material records when storage deletion fails', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'storage-fails.pdf');
+    deleteObjectMock.mockRejectedValueOnce(new Error('storage down'));
+
+    await expect(
+      service.deleteOwnerMaterial(
+        data.projectId,
+        material.id,
+        data.currentUser,
+      ),
+    ).rejects.toThrow('Failed to delete material object');
+    await expect(
+      materialModel.findById(material.id).exec(),
+    ).resolves.toBeTruthy();
+    await expect(deletionLogModel.countDocuments({}).exec()).resolves.toBe(0);
+  });
+
+  it('requires admin deletion reasons and lets admins delete submitted materials with audit logs', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'admin-delete.pdf');
+    await service.submitOwnerMaterials(data.projectId, {}, data.currentUser);
+    deleteObjectMock.mockClear();
+
+    await expect(
+      service.deleteAdminMaterial(
+        data.projectId,
+        material.id,
+        { reason: '' },
+        data.adminUser,
+      ),
+    ).rejects.toThrow('reason is required');
+    expect(deleteObjectMock).not.toHaveBeenCalled();
+
+    const result = await service.deleteAdminMaterial(
+      data.projectId,
+      material.id,
+      { reason: ' obsolete material ' },
+      data.adminUser,
+    );
+
+    expect(result).toMatchObject({ deleted: true });
+    expect(deleteObjectMock).toHaveBeenCalledWith(material.objectKey);
+    await expect(
+      materialModel.findById(material.id).exec(),
+    ).resolves.toBeNull();
+    const deletionLog = await findDeletionLog(result.deletionLogId);
+    expect(deletionLog).toMatchObject({
+      materialId: new Types.ObjectId(material.id),
+      deletedByUserId: new Types.ObjectId(data.adminUser.user.id),
+      deletedByRole: 'admin',
+      deleteReason: 'obsolete material',
+      materialStatusBeforeDelete: 'submitted',
+      storageDeleteSucceeded: true,
+    });
+  });
+
   async function seedData(): Promise<SeedData> {
     const ownerUserId = new Types.ObjectId();
+    const reviewManagerUserId = new Types.ObjectId();
+    const expertUserId = new Types.ObjectId();
+    const adminUserId = new Types.ObjectId();
     const project = await projectModel.create({
       batchId: new Types.ObjectId(),
       projectNo: 'P-MAT-SVC-001',
       name: 'Material Service Project',
       ownerUserId,
+      reviewManagerId: reviewManagerUserId,
       isActive: true,
     });
     const materialType = await dictionaryModel.create({
@@ -269,9 +524,21 @@ describe('ProjectMaterialsService', () => {
       sortOrder: 1,
       isActive: true,
     });
+    await assignmentModel.create({
+      projectId: project._id,
+      expertUserId,
+      assignedByUserId: reviewManagerUserId,
+      source: 'manual',
+      status: 'assigned',
+    });
 
     return {
       currentUser: buildCurrentUser(ownerUserId.toString()),
+      adminUser: buildCurrentUser(adminUserId.toString(), ['admin']),
+      reviewManagerUser: buildCurrentUser(reviewManagerUserId.toString(), [
+        'review_manager',
+      ]),
+      expertUser: buildCurrentUser(expertUserId.toString(), ['expert']),
       materialTypeId: materialType._id.toString(),
       projectId: project._id.toString(),
     };
@@ -286,7 +553,14 @@ describe('ProjectMaterialsService', () => {
   async function findStoredMaterial(id: string): Promise<StoredMaterialProbe> {
     const material = await materialModel
       .findById(id)
-      .select({ originalFilename: 1, safeFilename: 1, objectKey: 1 })
+      .select({
+        originalFilename: 1,
+        safeFilename: 1,
+        objectKey: 1,
+        status: 1,
+        submittedAt: 1,
+        submittedByUserId: 1,
+      })
       .lean<StoredMaterialProbe | null>()
       .exec();
 
@@ -295,6 +569,42 @@ describe('ProjectMaterialsService', () => {
     }
 
     return material;
+  }
+
+  async function findDeletionLog(id: string): Promise<StoredDeletionLogProbe> {
+    const deletionLog = await deletionLogModel
+      .findById(id)
+      .select({
+        materialId: 1,
+        deletedByUserId: 1,
+        deletedByRole: 1,
+        deleteReason: 1,
+        objectKey: 1,
+        materialStatusBeforeDelete: 1,
+        storageDeleteSucceeded: 1,
+      })
+      .lean<StoredDeletionLogProbe | null>()
+      .exec();
+
+    if (!deletionLog) {
+      throw new Error('deletion log not found');
+    }
+
+    return deletionLog;
+  }
+
+  async function uploadOneMaterial(
+    data: SeedData,
+    filename: string,
+  ): Promise<ProjectMaterialResponse> {
+    const result = await service.uploadOwnerMaterials({
+      projectId: data.projectId,
+      dto: { materialTypeId: data.materialTypeId },
+      files: [buildFile(filename, 'file-content')],
+      currentUser: data.currentUser,
+    });
+
+    return getOnlyMaterial(result.materials);
   }
 });
 
@@ -310,7 +620,12 @@ function buildFile(
   };
 }
 
-function buildCurrentUser(userId: string) {
+function buildCurrentUser(
+  userId: string,
+  roles: Array<'admin' | 'review_manager' | 'expert' | 'project_owner'> = [
+    'project_owner',
+  ],
+) {
   const now = new Date();
 
   return {
@@ -318,7 +633,7 @@ function buildCurrentUser(userId: string) {
       id: userId,
       phone: '+8613900000000',
       name: 'Project Owner',
-      roles: ['project_owner' as const],
+      roles,
       organizationIds: [],
       disciplineIds: [],
       mustChangePassword: false,

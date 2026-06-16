@@ -17,6 +17,10 @@ import { ProjectOwnerMaterialsController } from './controllers/project-owner-mat
 import { ProjectOwnerProjectsController } from './controllers/project-owner-projects.controller';
 import { ReviewManagerMaterialsController } from './controllers/review-manager-materials.controller';
 import {
+  ProjectMaterialDeletionLog,
+  ProjectMaterialDeletionLogSchema,
+} from './schemas/project-material-deletion-log.schema';
+import {
   ProjectMaterial,
   ProjectMaterialSchema,
 } from './schemas/project-material.schema';
@@ -28,6 +32,10 @@ import { ProjectMaterialsService } from './services/project-materials.service';
     StorageModule,
     MongooseModule.forFeature([
       { name: ProjectMaterial.name, schema: ProjectMaterialSchema },
+      {
+        name: ProjectMaterialDeletionLog.name,
+        schema: ProjectMaterialDeletionLogSchema,
+      },
       { name: Project.name, schema: ProjectSchema },
       { name: Dictionary.name, schema: DictionarySchema },
       {
