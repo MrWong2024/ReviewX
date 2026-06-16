@@ -11,7 +11,7 @@
 | `/admin/users` | `frontend/app/admin/users/page.tsx` | 需要登录 + admin 角色 | implemented | 用户管理，支持列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码 |
 | `/admin/batches` | `frontend/app/admin/batches/page.tsx` | 需要登录 + admin 角色 | implemented | 批次管理 |
 | `/admin/dictionaries` | `frontend/app/admin/dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 普通字典管理，类型筛选固定为项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType |
-| `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，顶部树类型筛选、默认仅展示第一层、按需展开 / 收起、缩进树展示和子节点新增；列表行内不重复显示树类型 |
+| `/admin/tree-dictionaries` | `frontend/app/admin/tree-dictionaries/page.tsx` | 需要登录 + admin 角色 | implemented | 树形字典管理，顶部树类型筛选、默认仅展示第一层、按需展开 / 收起、缩进树展示和子节点新增；新增 / 编辑弹窗父节点默认仅列一级节点，可切换显示全部层级，空父节点表示作为一级节点；列表行内不重复显示树类型 |
 | `/admin/organizations` | `frontend/app/admin/organizations/page.tsx` | 需要登录 + admin 角色 | implemented | 单位管理，树形缩进行政区划选择 |
 | `/admin/review-schemes` | `frontend/app/admin/review-schemes/page.tsx` | 需要登录 + admin 角色 | implemented | 评审方案管理，评分项稳定 clientId 防失焦 |
 | `/admin/project-imports` | `frontend/app/admin/project-imports/page.tsx` | 需要登录 + admin 角色 | implemented | 项目 Excel 导入任务列表、上传入口和未确认导入任务删除入口 |

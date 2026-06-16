@@ -43,7 +43,7 @@
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
 | `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型 / 评审等级，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
-| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；列表行内展示编码、排序和全称，不重复显示树类型 |
+| `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；新增 / 编辑弹窗父节点下拉默认仅列一级节点，可勾选显示全部层级，空父节点文案明确为作为一级节点；列表行内展示编码、排序和全称，不重复显示树类型 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
 | `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口 |
@@ -97,7 +97,7 @@
 | project import labels | `frontend/src/lib/labels/project-import-labels.ts` | 项目导入任务状态、行状态、issue code 和字段名中文显示映射 |
 | project import field mapping labels | `frontend/src/lib/labels/project-import-field-mapping-labels.ts` | Excel 字段映射配置页必填、配置状态、启用状态、标准字段 fallback 和别名展示辅助 |
 | project review organization labels | `frontend/src/lib/labels/project-review-organization-labels.ts` | 项目组织状态和专家失败原因中文展示辅助 |
-| tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
+| tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平、列表缩进标签和 select option 专用树形缩进标签 |
 | project review organization API | `frontend/src/features/admin/api/project-review-organization.ts` | 管理员项目评审组织详情、专家候选 / 分配，以及项目材料列表 / 下载 URL / 带原因删除 API 封装；材料删除只调用 admin 材料接口 |
 | project review organization types | `frontend/src/features/admin/types/project-review-organization.ts` | 管理员项目评审组织、专家候选 / 分配，以及 admin 项目材料状态、材料、下载 URL 和删除结果类型 |
 | project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 提交 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口或 admin 材料删除接口 |

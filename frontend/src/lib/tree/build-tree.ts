@@ -128,3 +128,17 @@ export function indentedTreeLabel(
 
   return `${prefix}${marker}${name}`;
 }
+
+export function treeOptionLabel(
+  name: string,
+  depth: number,
+  hasChildren = false,
+): string {
+  const suffix = hasChildren ? ' ›' : '';
+
+  if (depth <= 0) {
+    return `${name}${suffix}`;
+  }
+
+  return `${'　'.repeat(depth)}└─ ${name}${suffix}`;
+}

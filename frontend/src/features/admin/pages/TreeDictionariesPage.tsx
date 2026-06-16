@@ -20,7 +20,7 @@ import { displayValue, statusText } from '@/src/lib/format/value';
 import {
   flattenTree,
   flattenVisibleTree,
-  indentedTreeLabel,
+  treeOptionLabel,
 } from '@/src/lib/tree/build-tree';
 import {
   createTreeDictionary,
@@ -59,6 +59,7 @@ export function TreeDictionariesPage() {
   const [items, setItems] = useState<TreeDictionary[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showAllParentOptions, setShowAllParentOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [treeType, setTreeType] = useState('project_type');
   const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(
@@ -87,15 +88,34 @@ export function TreeDictionariesPage() {
 
   const parentOptions = useMemo(() => {
     const candidates = items.filter((item) => item.treeType === form.treeType);
+    const selectableCandidates = editing
+      ? candidates.filter(
+          (item) => item.id !== editing.id && !item.pathIds.includes(editing.id),
+        )
+      : candidates;
+    const allOptions = flattenTree(selectableCandidates);
 
-    return flattenTree(candidates).filter(({ item }) => {
-      if (!editing) {
-        return true;
-      }
+    if (showAllParentOptions) {
+      return allOptions;
+    }
 
-      return item.id !== editing.id && !item.pathIds.includes(editing.id);
-    });
-  }, [editing, form.treeType, items]);
+    const firstLayerOptions = allOptions.filter(({ item }) => !item.parentId);
+
+    if (
+      !form.parentId ||
+      firstLayerOptions.some(({ item }) => item.id === form.parentId)
+    ) {
+      return firstLayerOptions;
+    }
+
+    const selectedOption = allOptions.find(
+      ({ item }) => item.id === form.parentId,
+    );
+
+    return selectedOption
+      ? [...firstLayerOptions, selectedOption]
+      : firstLayerOptions;
+  }, [editing, form.parentId, form.treeType, items, showAllParentOptions]);
 
   async function loadData() {
     setLoading(true);
@@ -122,6 +142,7 @@ export function TreeDictionariesPage() {
   function openCreateRoot() {
     setEditing(null);
     setForm({ ...EMPTY_FORM, treeType, parentId: '' });
+    setShowAllParentOptions(false);
     setModalOpen(true);
   }
 
@@ -132,6 +153,7 @@ export function TreeDictionariesPage() {
       parentId: parent.id,
       treeType: parent.treeType,
     });
+    setShowAllParentOptions(true);
     setModalOpen(true);
   }
 
@@ -146,7 +168,17 @@ export function TreeDictionariesPage() {
       sortOrder: item.sortOrder.toString(),
       treeType: item.treeType,
     });
+    setShowAllParentOptions(Boolean(item.parentId));
     setModalOpen(true);
+  }
+
+  function handleFormTreeTypeChange(nextTreeType: string) {
+    setForm((current) => ({
+      ...current,
+      parentId: '',
+      treeType: nextTreeType,
+    }));
+    setShowAllParentOptions(false);
   }
 
   function handleToggleExpand(item: TreeDictionary) {
@@ -350,7 +382,7 @@ export function TreeDictionariesPage() {
               id="tree-type"
               label="树类型"
               onChange={(event) =>
-                setForm({ ...form, treeType: event.target.value, parentId: '' })
+                handleFormTreeTypeChange(event.target.value)
               }
               value={form.treeType}
             >
@@ -360,21 +392,35 @@ export function TreeDictionariesPage() {
                 </option>
               ))}
             </Select>
-            <Select
-              id="tree-parent"
-              label="父节点"
-              onChange={(event) =>
-                setForm({ ...form, parentId: event.target.value })
-              }
-              value={form.parentId}
-            >
-              <option value="">根节点</option>
-              {parentOptions.map(({ depth, hasChildren, item }) => (
-                <option key={item.id} value={item.id}>
-                  {indentedTreeLabel(item.name, depth, hasChildren)}
-                </option>
-              ))}
-            </Select>
+            <div className="grid content-start gap-2">
+              <Select
+                description="默认仅显示一级节点。如需选择更深层父节点，请勾选显示全部层级。"
+                id="tree-parent"
+                label="父节点"
+                onChange={(event) =>
+                  setForm({ ...form, parentId: event.target.value })
+                }
+                value={form.parentId}
+              >
+                <option value="">不选择父节点（作为一级节点）</option>
+                {parentOptions.map(({ depth, hasChildren, item }) => (
+                  <option key={item.id} value={item.id}>
+                    {treeOptionLabel(item.name, depth, hasChildren)}
+                  </option>
+                ))}
+              </Select>
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <input
+                  checked={showAllParentOptions}
+                  className="h-4 w-4 accent-cyan-700"
+                  onChange={(event) =>
+                    setShowAllParentOptions(event.target.checked)
+                  }
+                  type="checkbox"
+                />
+                显示全部层级
+              </label>
+            </div>
           </div>
           <div className="grid-2">
             <Input
