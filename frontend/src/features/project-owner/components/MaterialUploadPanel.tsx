@@ -92,7 +92,7 @@ export function MaterialUploadPanel({
       setRemark('');
       setFileInputKey((current) => current + 1);
       setNotice(
-        `材料上传完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个。`,
+        `上传完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个。新上传材料已保存为草稿，提交前评审负责人和专家不可见。如需进入评审，请点击“提交评审材料”。`,
       );
       setFailures(result.failures);
       onUploaded(result);

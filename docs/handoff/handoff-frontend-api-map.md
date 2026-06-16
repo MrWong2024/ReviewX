@@ -87,10 +87,11 @@
 | `listProjectOwnerProjects` | `GET /project-owner/projects` | 分页对象；只提交 `page/pageSize/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId`，不提交 `ownerUserId`，不提交 `keyword` | `/project-owner`、`/project-owner/projects` |
 | `getProjectOwnerProject` | `GET /project-owner/projects/:id` | `ProjectOwnerProject`；后端按当前登录用户校验 owner 权限 | `/project-owner/projects/[projectId]` |
 | `updateProjectOwnerFollowUpNeeds` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只提交 `{ followUpNeeds }`，最大长度 5000 由前后端共同校验 | `/project-owner/projects/[projectId]` |
-| `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；当前详情页读取项目 active 材料，材料类型名称优先使用响应内联 `materialType.name`，否则使用 portal `material_type` 映射 | `/project-owner/projects/[projectId]` |
-| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；材料类型来自 portal active `material_type` 字典 | `/project-owner/projects/[projectId]` |
+| `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；项目负责人可见 `draft/submitted/legacy active`，`deleted` 仅作 legacy 兜底；材料类型名称优先使用响应内联 `materialType.name`，否则使用 portal `material_type` 映射 | `/project-owner/projects/[projectId]` |
+| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；新上传材料为 `draft`，提交前评审负责人和专家不可见；材料类型来自 portal active `material_type` 字典 | `/project-owner/projects/[projectId]` |
+| `submitProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials/submit` | 请求 `{ materialIds?: string[] }`；当前前端提交全部草稿材料时传 `{}`；返回 `submittedCount/alreadySubmittedCount/skippedCount/submittedMaterialIds/skipped`；不修改文件本体或 objectKey | `/project-owner/projects/[projectId]` |
 | `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
-| `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted }`；软删除，删除前二次确认 | `/project-owner/projects/[projectId]` |
+| `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
 | `listPortalDictionaries` | `GET /portal/reference-data/dictionaries` | `{ items }`；读取 `dictTypes=material_type,project_status`，用于材料类型、项目状态和普通字典名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
 | `listPortalTreeDictionaries` | `GET /portal/reference-data/tree-dictionaries` | `{ items }`；读取 `treeTypes=project_type,discipline,department,administrative_division`，用于项目类型、学科、受理处室和行政区划名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
@@ -107,14 +108,17 @@
 - reference-data 加载失败时详情页仍可展示项目原始信息兜底，但上传禁用并显示错误。
 - 项目负责人页面不调用 admin-only 字典接口，不写死材料类型 ID，不使用 mock 材料类型作为真实数据源。
 - 材料上传仍使用 `POST /project-owner/projects/:id/materials`，FormData 字段名固定为 `files/materialTypeId/remark`，不手动设置 multipart `Content-Type`。
+- 新上传材料为草稿；项目负责人详情页通过 `submitProjectOwnerMaterials` 调用 `POST /project-owner/projects/:id/materials/submit` 提交草稿材料后，评审负责人和专家才可见。
+- 材料状态展示统一为：`draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`；只有 `draft/active` 可提交或由项目负责人删除。
 - 材料下载只使用后端 download-url 返回的签名 URL，不前端拼接 `objectKey`。
+- 项目负责人删除材料只调用 `DELETE /project-owner/projects/:id/materials/:materialId`，不调用 admin-only 删除接口；`409` 映射为“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”。
 
 ## 4. 错误处理
 
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示
+- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径
@@ -144,6 +148,7 @@
 - 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；未命中时显示“未知项（短ID）”类兜底，不默认展示裸 ID
 - 项目负责人项目列表筛选使用批次、项目类型、项目状态、评审负责人、评审方案 select；提交给后端的仍是对应 ID，不新增 keyword
 - 项目负责人材料列表类型展示优先使用 `ProjectMaterial.materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”
+- 项目负责人材料列表显示材料状态 Badge；`draft/active` 可提交或删除，`submitted` 禁用删除，`deleted/unknown` 禁用操作。
 
 ## 5. 当前未对接的后端接口
 

@@ -2,6 +2,20 @@
 
 ## 2026-06-16
 
+### ReviewX 第四阶段补丁四：项目负责人材料提交与删除规则前端接入
+
+- 项目负责人材料类型扩展为 `draft/submitted/active/deleted`，新增提交材料请求与响应类型，并保留删除结果兼容字段 `alreadyDeleted?`、`deletionLogId?`
+- 新增 `submitProjectOwnerMaterials`，调用 `POST /project-owner/projects/:id/materials/submit`，当前页面用于提交全部草稿材料
+- `/project-owner/projects/[projectId]` 材料管理区新增草稿、已提交、历史草稿和总数统计；新增“提交全部草稿材料”入口、二次确认、提交结果统计和 skipped 明细展示
+- `MaterialUploadPanel` 上传成功提示明确新材料为草稿，提交前评审负责人和专家不可见；上传后不自动提交
+- `MaterialListPanel` 新增材料状态 Badge；`draft/legacy active` 可删除，`submitted` 删除按钮禁用并提示不可删除
+- 草稿删除二次确认文案调整为物理删除文件和材料记录且不可恢复；legacy active 删除提示历史草稿物理删除语义
+- 项目负责人删除材料仍调用 `DELETE /project-owner/projects/:id/materials/:materialId`，成功后刷新材料列表和项目详情；`409` 映射为“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
+- 下载仍只使用后端 download-url 返回的签名 URL，不前端拼接 OSS objectKey；材料类型展示继续使用响应内联名称和 portal `material_type` 映射
+- 本补丁未修改 backend，未新增后端接口，未调用 `/admin/*` 删除接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本补丁未实现 admin 删除材料页面、删除日志查询、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复或自动提交上传材料
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 第四阶段补丁二：项目负责人材料上传闭环启用与名称映射优化
 
 - `/project-owner/projects` 接入 `/portal/reference-data/*`，批次、项目类型、项目状态、评审负责人、评审方案筛选从手填 ID 改为 select，筛选提交仍传后端 ID，不新增 keyword

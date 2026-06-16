@@ -104,7 +104,17 @@ export type MaterialTypeSummary = {
   sortOrder: number;
 };
 
-export type ProjectMaterialStatus = 'active' | 'deleted';
+export type ProjectMaterialStatus =
+  | 'draft'
+  | 'submitted'
+  | 'active'
+  | 'deleted';
+
+export type MaterialStatusView = {
+  description: string;
+  label: string;
+  tone: 'primary' | 'warning' | 'success' | 'muted' | 'danger';
+};
 
 export type ProjectMaterial = {
   id: string;
@@ -123,6 +133,8 @@ export type ProjectMaterial = {
   sha256?: string;
   remark?: string;
   status: ProjectMaterialStatus;
+  submittedAt?: string | null;
+  submittedByUserId?: string | null;
   deletedAt?: string | null;
   deletedByUserId?: string | null;
   createdAt: string;
@@ -146,9 +158,25 @@ export type UploadProjectMaterialsResult = {
   }>;
 };
 
+export type SubmitProjectMaterialsInput = {
+  materialIds?: string[];
+};
+
+export type SubmitProjectMaterialsResult = {
+  submittedCount: number;
+  alreadySubmittedCount: number;
+  skippedCount: number;
+  submittedMaterialIds: string[];
+  skipped: Array<{
+    materialId: string;
+    reason: string;
+  }>;
+};
+
 export type DeleteProjectMaterialResult = {
   deleted: boolean;
-  alreadyDeleted: boolean;
+  alreadyDeleted?: boolean;
+  deletionLogId?: string;
 };
 
 export type ProjectMaterialDownloadUrlResponse =

@@ -7,7 +7,7 @@ import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
 import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
-import { getErrorMessage } from '@/src/lib/api/errors';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import { formatDateTime } from '@/src/lib/format/date';
 import { displayValue } from '@/src/lib/format/value';
 import {
@@ -16,7 +16,13 @@ import {
   resolveProjectMaterialDownloadUrl,
 } from '../api';
 import type { MaterialTypeSummary, ProjectMaterial } from '../types';
-import { formatFileSize, formatLookupName } from '../utils';
+import {
+  canProjectOwnerDeleteMaterial,
+  formatFileSize,
+  formatLookupName,
+  getMaterialDeleteDisabledReason,
+  getMaterialStatusView,
+} from '../utils';
 
 type MaterialListPanelProps = {
   loading: boolean;
@@ -88,10 +94,10 @@ export function MaterialListPanel({
     try {
       const result = await deleteProjectOwnerMaterial(projectId, deleteTarget.id);
       setDeleteTarget(null);
-      setNotice(result.alreadyDeleted ? '材料此前已删除。' : '已删除材料。');
+      setNotice(result.alreadyDeleted ? '材料不存在或已被删除。' : '材料已删除。');
       onChanged();
     } catch (deleteError) {
-      setError(getErrorMessage(deleteError));
+      setError(getDeleteErrorMessage(deleteError));
     } finally {
       setDeleting(false);
     }
@@ -118,6 +124,22 @@ export function MaterialListPanel({
       title: '文件名',
     },
     {
+      key: 'status',
+      render: (item) => {
+        const statusView = getMaterialStatusView(item.status);
+
+        return (
+          <div>
+            <Badge tone={statusView.tone}>{statusView.label}</Badge>
+            <div className="mt-1 max-w-60 text-xs leading-5 text-slate-500">
+              {statusView.description}
+            </div>
+          </div>
+        );
+      },
+      title: '状态',
+    },
+    {
       key: 'size',
       render: (item) => formatFileSize(item.sizeBytes),
       title: '大小',
@@ -139,24 +161,41 @@ export function MaterialListPanel({
     },
     {
       key: 'actions',
-      render: (item) => (
-        <div className="table-actions">
-          <Button
-            onClick={() => handleDownload(item)}
-            size="sm"
-            variant="secondary"
-          >
-            下载
-          </Button>
-          <Button
-            onClick={() => setDeleteTarget(item)}
-            size="sm"
-            variant="danger"
-          >
-            删除
-          </Button>
-        </div>
-      ),
+      render: (item) => {
+        const deleteDisabledReason = getMaterialDeleteDisabledReason(item);
+
+        return (
+          <div>
+            <div className="table-actions">
+              <Button
+                onClick={() => handleDownload(item)}
+                size="sm"
+                variant="secondary"
+              >
+                下载
+              </Button>
+              <Button
+                disabled={Boolean(deleteDisabledReason)}
+                onClick={() => {
+                  if (canProjectOwnerDeleteMaterial(item)) {
+                    setDeleteTarget(item);
+                  }
+                }}
+                size="sm"
+                title={deleteDisabledReason ?? undefined}
+                variant="danger"
+              >
+                删除
+              </Button>
+            </div>
+            {deleteDisabledReason ? (
+              <div className="mt-1 text-xs leading-5 text-slate-500">
+                {deleteDisabledReason}
+              </div>
+            ) : null}
+          </div>
+        );
+      },
       title: '操作',
     },
   ];
@@ -225,11 +264,7 @@ export function MaterialListPanel({
 
       <ConfirmDialog
         confirmLabel="删除材料"
-        description={
-          deleteTarget
-            ? `确认删除材料“${deleteTarget.originalFilename}”？删除后列表默认不再显示，当前页面不提供恢复。`
-            : '确认删除材料？'
-        }
+        description={getDeleteConfirmDescription(deleteTarget)}
         loading={deleting}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
@@ -238,6 +273,36 @@ export function MaterialListPanel({
       />
     </section>
   );
+}
+
+function getDeleteConfirmDescription(material: ProjectMaterial | null): string {
+  if (!material) {
+    return '确认删除该草稿材料？';
+  }
+
+  if (material.status === 'active') {
+    return `该材料“${material.originalFilename}”是历史草稿状态，删除后会物理删除文件和材料记录，且不可恢复。`;
+  }
+
+  return `该操作会物理删除文件和材料记录，删除后不可恢复。确认删除该草稿材料“${material.originalFilename}”吗？`;
+}
+
+function getDeleteErrorMessage(error: unknown): string {
+  if (isApiError(error)) {
+    if (error.status === 409) {
+      return '该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。';
+    }
+
+    if (error.status === 404) {
+      return '材料不存在或已被删除。';
+    }
+
+    if (error.status >= 500) {
+      return `${getErrorMessage(error)} 文件存储删除失败，材料未删除，请稍后重试或联系管理员。`;
+    }
+  }
+
+  return getErrorMessage(error);
 }
 
 function formatMaterialTypeName(

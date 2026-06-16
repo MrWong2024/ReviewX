@@ -15,6 +15,8 @@ import type {
   ProjectOwnerProject,
   QueryProjectMaterialsParams,
   QueryProjectOwnerProjectsParams,
+  SubmitProjectMaterialsInput,
+  SubmitProjectMaterialsResult,
   UpdateFollowUpNeedsInput,
   UploadProjectMaterialsInput,
   UploadProjectMaterialsResult,
@@ -211,6 +213,19 @@ export function uploadProjectOwnerMaterials(input: UploadProjectMaterialsInput) 
     `/project-owner/projects/${input.projectId}/materials`,
     {
       body: formData,
+      method: 'POST',
+    },
+  );
+}
+
+export function submitProjectOwnerMaterials(
+  projectId: string,
+  input: SubmitProjectMaterialsInput = {},
+) {
+  return apiRequest<SubmitProjectMaterialsResult>(
+    `/project-owner/projects/${projectId}/materials/submit`,
+    {
+      body: input,
       method: 'POST',
     },
   );

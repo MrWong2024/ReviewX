@@ -90,6 +90,14 @@ npm run build
 
 注意：项目负责人材料上传已通过 `/portal/reference-data/dictionaries?dictTypes=material_type,project_status` 启用；`material_type` 为空或 reference-data 加载失败时上传入口应禁用。不得通过 admin-only 字典接口绕过权限。
 
+本次 ReviewX 第四阶段补丁四：项目负责人材料提交与删除规则前端接入已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：项目负责人材料提交只调用 `POST /project-owner/projects/:id/materials/submit`；项目负责人删除材料只调用 `DELETE /project-owner/projects/:id/materials/:materialId`，不得调用 `/admin/*` 删除接口。
+
 ## 3. 登录与会话人工验证
 
 1. 后端运行在 `5001`
@@ -284,22 +292,33 @@ Workspace 入口：
 3. 上传按钮在选择材料类型和合法文件后可用
 4. 上传调用 `POST /project-owner/projects/:id/materials`，FormData 字段名为 `files/materialTypeId/remark`
 5. 上传请求不手动设置 multipart `Content-Type`
-6. 上传成功后显示 successCount / failedCount，部分失败时显示 failures 的 originalFilename 和 message
-7. 上传成功后材料列表刷新，项目详情 materialCount 刷新
+6. 上传成功后显示 successCount / failedCount，并提示“新上传材料已保存为草稿，提交前评审负责人和专家不可见”
+7. 上传成功后材料列表刷新，项目详情 materialCount 刷新，材料状态显示“草稿”
 8. material_type 字典为空时提示尚未维护材料类型，上传按钮禁用
 9. reference-data 加载失败时上传按钮禁用并显示具体错误
 10. 不调用 `/admin/dictionaries`
 11. 不写死“汇报 PPT、评价报告、证明材料、财务资料、其他”等材料类型 ID
-12. 已上传材料列表展示材料类型名称、文件名、大小、扩展名、上传时间和备注
+12. 已上传材料列表展示材料类型名称、文件名、状态、大小、扩展名、上传时间和备注
 13. 材料类型筛选项来自 portal `material_type`，显示名称
 14. 材料响应内联 `materialType.name` 存在时优先展示；否则使用 portal material_type 映射；仍未命中时显示“未知材料类型（短ID）”
-15. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
-16. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
-17. 点击删除材料出现二次确认
-18. 确认后调用 DELETE，成功后刷新项目详情和材料列表
-19. 删除已删除材料如返回 `alreadyDeleted`，显示友好提示
-20. 不提供材料恢复、硬删除或文件预览
-21. 后端停止、401、403、404、400、500 等错误态应显示友好错误，不应白屏
+15. 草稿 `draft` 状态显示“草稿”，说明评审负责人和专家不可见，可删除
+16. legacy `active` 状态显示“历史草稿”，可提交或删除
+17. `submitted` 状态显示“已提交评审”，删除按钮禁用并提示“已提交评审，不能删除”
+18. 点击“提交全部草稿材料”前出现二次确认，确认文案说明提交后评审负责人和专家可见，项目负责人不能再删除
+19. 提交全部草稿材料调用 `POST /project-owner/projects/:id/materials/submit`
+20. 提交成功后显示 submittedCount / alreadySubmittedCount / skippedCount，并刷新材料列表和项目详情 materialCount
+21. skipped 非空时展示“部分材料未提交”明细，优先显示文件名，reason 中文化或原样兜底
+22. 无草稿时“提交全部草稿材料”按钮禁用
+23. 对草稿材料点击删除出现二次确认，文案说明会物理删除文件和材料记录且不可恢复
+24. 对 legacy active 材料点击删除，确认文案提示历史草稿状态且物理删除不可恢复
+25. 确认删除草稿后调用 project_owner DELETE，成功后刷新项目详情和材料列表
+26. submitted 材料如通过异常方式触发 DELETE 并返回 409，页面显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
+27. DELETE 返回 404 时显示“材料不存在或已被删除。”
+28. storage 删除相关 500 应提示文件存储删除失败、材料未删除，并保留错误信息
+29. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
+30. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
+31. 不提供材料恢复、admin 删除材料页面、删除日志查询、文件预览或自动提交上传后的材料
+32. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
 文件校验实现口径：
 

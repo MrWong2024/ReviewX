@@ -98,8 +98,8 @@ frontend/
 - `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，不提交 `ownerUserId` 或 `keyword`
 - `/project-owner/projects/[projectId]`：项目负责人项目详情页，并发加载项目、材料和 portal reference-data，展示名称映射后的基础信息、评审安排、会议链接、后续推进需求和材料管理
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
-- 项目负责人材料列表 / 下载 / 删除：调用 project_owner 材料接口，材料类型显示名称，下载使用后端签名 URL，删除为软删除且有二次确认
-- 项目负责人材料上传闭环：使用 portal active `material_type` 启用上传；FormData 字段为 `files/materialTypeId/remark`，不手动设置 `Content-Type`；保留文件数量 / 大小 / 扩展名校验和 failures 明细展示
+- 项目负责人材料列表 / 下载 / 提交 / 删除：调用 project_owner 材料接口，材料类型显示名称，显示 `draft/submitted/legacy active` 状态，下载使用后端签名 URL，支持提交全部草稿材料，`draft/active` 可物理删除，`submitted` 禁用删除
+- 项目负责人材料上传闭环：使用 portal active `material_type` 启用上传；FormData 字段为 `files/materialTypeId/remark`，不手动设置 `Content-Type`；新上传材料提示草稿语义，提交前评审负责人和专家不可见；保留文件数量 / 大小 / 扩展名校验和 failures 明细展示
 
 ## 7. 当前未实现
 
@@ -145,13 +145,16 @@ frontend/
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
 - 项目负责人前端 API 封装位于 `frontend/src/features/project-owner/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
-- 项目负责人项目列表 / 详情 / follow-up-needs / 材料列表 / 上传 / 下载 URL / 删除接口已封装；上传封装使用 FormData 且不手动设置 `Content-Type`
+- 项目负责人项目列表 / 详情 / follow-up-needs / 材料列表 / 上传 / 提交 / 下载 URL / 删除接口已封装；上传封装使用 FormData 且不手动设置 `Content-Type`
 - 项目负责人页面已封装 `/portal/reference-data/*` 只读接口：普通字典、树形字典、批次、单位、评审方案和 `role=review_manager` 用户摘要；不调用 `/admin/*` 绕过权限
 - 项目负责人列表和详情通过 portal reference-data 构造批次、项目状态、项目类型、学科、受理处室、单位、评审负责人、评审方案和材料类型名称映射；未命中时使用“未知项（短ID）”类兜底
 - 材料上传选择使用 active `material_type`，`material_type` 为空或 reference-data 加载失败时上传禁用；前端不写死材料类型 ID，不使用 mock 类型作为真实数据源
 - 已上传材料列表的材料类型展示优先使用后端材料响应内联的 `materialType.name`，其次使用 portal `material_type` 映射；筛选项来自 portal `material_type`
+- 已上传材料列表显示状态 Badge：`draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`；未知状态显示“未知状态”并禁用操作
+- 项目负责人详情页支持提交全部草稿材料，调用 `POST /project-owner/projects/:id/materials/submit`；提交前二次确认，成功后展示 `submittedCount/alreadySubmittedCount/skippedCount` 和 skipped 明细，并刷新材料列表与项目详情 `materialCount`
 - 项目负责人详情页 meetingUrl 仅打开管理员录入链接，不接腾讯会议 API
 - 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
-- 项目负责人材料删除只调用软删除接口；当前不实现恢复、硬删除或文件预览
+- 项目负责人材料删除只调用 `DELETE /project-owner/projects/:id/materials/:materialId`；`draft/legacy active` 为物理删除并提示不可恢复，`submitted` 删除按钮禁用，异常触发后端 `409` 时显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
+- 项目负责人材料删除不调用 `/admin/*` 接口，不展示 `deletionLogId`，不前端拼接 OSS objectKey
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案
 - 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、专家评分、合议、申诉、甲方看板、腾讯会议 API、文件预览或真实 AI

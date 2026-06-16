@@ -64,11 +64,11 @@
 | `AliasChips` | `frontend/src/features/admin/components/project-import-field-mappings/AliasChips.tsx` | 字段映射别名 chips 展示，限制表格宽度并显示剩余数量 |
 | `ProjectOwnerDashboardPage` | `frontend/src/features/project-owner/pages/ProjectOwnerDashboardPage.tsx` | 项目负责人概览，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口 |
 | `ProjectOwnerProjectsPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectsPage.tsx` | 项目负责人我的项目列表，加载 portal reference-data，支持后端分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选 |
-| `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，并发加载项目、材料和 portal reference-data，串联基础信息、评审安排、后续推进需求和材料上传闭环 |
+| `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，并发加载项目、材料和 portal reference-data，串联基础信息、评审安排、后续推进需求、材料上传、草稿统计、提交全部草稿材料和提交后刷新 |
 | `ProjectOwnerProjectInfoPanel` | `frontend/src/features/project-owner/components/ProjectOwnerProjectInfoPanel.tsx` | 使用 lookup maps 展示批次、项目类型、项目状态、单位、学科、受理处室、评审负责人、评审方案、评审时间、地点和会议链接 |
 | `FollowUpNeedsPanel` | `frontend/src/features/project-owner/components/FollowUpNeedsPanel.tsx` | 填写和保存项目后续推进需求，前端限制 5000 字，调用 project_owner follow-up-needs 接口 |
-| `MaterialUploadPanel` | `frontend/src/features/project-owner/components/MaterialUploadPanel.tsx` | 使用 portal active `material_type` 选项启用材料上传，保留文件数量 / 大小 / 扩展名校验、FormData 上传和 successCount / failedCount / failures 展示 |
-| `MaterialListPanel` | `frontend/src/features/project-owner/components/MaterialListPanel.tsx` | 展示项目材料列表，按 portal `material_type` 生成筛选项，材料类型名称优先使用响应摘要，其次使用 lookup map，支持签名 URL 下载和软删除二次确认 |
+| `MaterialUploadPanel` | `frontend/src/features/project-owner/components/MaterialUploadPanel.tsx` | 使用 portal active `material_type` 选项启用材料上传，保留文件数量 / 大小 / 扩展名校验、FormData 上传和 successCount / failedCount / failures 展示；上传成功提示新材料为草稿，提交前评审负责人和专家不可见 |
+| `MaterialListPanel` | `frontend/src/features/project-owner/components/MaterialListPanel.tsx` | 展示项目材料列表，按 portal `material_type` 生成筛选项，材料类型名称优先使用响应摘要，其次使用 lookup map；显示材料状态 Badge，支持签名 URL 下载，`draft/legacy active` 可物理删除，`submitted` 删除禁用并映射 409 友好提示 |
 
 ## 5. 工具
 
@@ -86,9 +86,9 @@
 | project import field mapping labels | `frontend/src/lib/labels/project-import-field-mapping-labels.ts` | Excel 字段映射配置页必填、配置状态、启用状态、标准字段 fallback 和别名展示辅助 |
 | project review organization labels | `frontend/src/lib/labels/project-review-organization-labels.ts` | 项目组织状态和专家失败原因中文展示辅助 |
 | tree utils | `frontend/src/lib/tree/build-tree.ts` | 平铺树数据构建、展平和缩进标签 |
-| project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口 |
-| project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、材料、上传结果、删除结果、下载 URL、查询参数、portal reference-data 摘要和 lookup map 类型 |
-| project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化、reference-data lookup map 构造和“未知项（短ID）”名称兜底展示辅助 |
+| project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 提交 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口或 admin 材料删除接口 |
+| project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、材料、`draft/submitted/active/deleted` 状态、提交结果、上传结果、删除结果、下载 URL、查询参数、portal reference-data 摘要和 lookup map 类型 |
+| project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化、材料状态展示 / 可提交 / 可删除判断、skipped reason 中文化、reference-data lookup map 构造和“未知项（短ID）”名称兜底展示辅助 |
 
 ## 6. 当前 UI 基线
 

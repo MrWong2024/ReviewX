@@ -1,6 +1,8 @@
 import type {
+  MaterialStatusView,
   MaterialTypeSummary,
   ProjectMaterial,
+  ProjectMaterialStatus,
   ProjectOwnerLookupMaps,
   ProjectOwnerReferenceData,
 } from './types';
@@ -142,6 +144,108 @@ export function collectMaterialTypesFromMaterials(
   });
 
   return [...byId.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export function isDraftLikeMaterial(material: ProjectMaterial): boolean {
+  return material.status === 'draft' || material.status === 'active';
+}
+
+export function isSubmittedMaterial(material: ProjectMaterial): boolean {
+  return material.status === 'submitted';
+}
+
+export function canProjectOwnerDeleteMaterial(
+  material: ProjectMaterial,
+): boolean {
+  return isDraftLikeMaterial(material);
+}
+
+export function canSubmitMaterial(material: ProjectMaterial): boolean {
+  return isDraftLikeMaterial(material);
+}
+
+export function getMaterialStatusView(
+  status: ProjectMaterialStatus | string,
+): MaterialStatusView {
+  switch (status) {
+    case 'draft':
+      return {
+        description: '尚未提交评审，评审负责人和专家不可见，可删除',
+        label: '草稿',
+        tone: 'warning',
+      };
+    case 'submitted':
+      return {
+        description: '评审负责人和专家可见，项目负责人不可删除',
+        label: '已提交评审',
+        tone: 'success',
+      };
+    case 'active':
+      return {
+        description: '历史数据兼容状态，按草稿处理，可提交或删除',
+        label: '历史草稿',
+        tone: 'primary',
+      };
+    case 'deleted':
+      return {
+        description: '历史删除状态，不应出现在当前列表',
+        label: '已删除',
+        tone: 'muted',
+      };
+    default:
+      return {
+        description: '无法识别该材料状态，请联系管理员',
+        label: '未知状态',
+        tone: 'danger',
+      };
+  }
+}
+
+export function getMaterialStatusLabel(
+  status: ProjectMaterialStatus | string,
+): string {
+  return getMaterialStatusView(status).label;
+}
+
+export function getMaterialStatusDescription(
+  status: ProjectMaterialStatus | string,
+): string {
+  return getMaterialStatusView(status).description;
+}
+
+export function getMaterialDeleteDisabledReason(
+  material: ProjectMaterial,
+): string | null {
+  if (canProjectOwnerDeleteMaterial(material)) {
+    return null;
+  }
+
+  if (isSubmittedMaterial(material)) {
+    return '已提交评审，不能删除';
+  }
+
+  if (material.status === 'deleted') {
+    return '该材料已删除，不能操作';
+  }
+
+  return '未知状态，不能删除';
+}
+
+export function formatSubmitSkippedReason(reason: string): string {
+  switch (reason) {
+    case 'not_found':
+      return '材料不存在';
+    case 'not_in_project':
+      return '材料不属于当前项目';
+    case 'already_submitted':
+      return '材料已提交';
+    case 'not_submittable':
+      return '材料不可提交';
+    case 'unknown':
+      return '未知原因';
+    default:
+      return reason || '未知原因';
+  }
 }
 
 export function createEmptyProjectOwnerLookupMaps(): ProjectOwnerLookupMaps {

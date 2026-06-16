@@ -2,14 +2,18 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { Badge } from '@/src/components/feedback/Badge';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { ProjectOwnerShell } from '@/src/components/layout/ProjectOwnerShell';
+import { Button } from '@/src/components/ui/Button';
+import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import {
   getProjectOwnerProject,
   listProjectOwnerMaterials,
   loadProjectOwnerReferenceData,
+  submitProjectOwnerMaterials,
 } from '../api';
 import { FollowUpNeedsPanel } from '../components/FollowUpNeedsPanel';
 import { MaterialListPanel } from '../components/MaterialListPanel';
@@ -19,10 +23,14 @@ import type {
   ProjectMaterial,
   ProjectOwnerReferenceData,
   ProjectOwnerProject,
+  SubmitProjectMaterialsResult,
 } from '../types';
 import {
   buildProjectOwnerLookupMaps,
+  canSubmitMaterial,
   createEmptyProjectOwnerLookupMaps,
+  formatSubmitSkippedReason,
+  shortId,
 } from '../utils';
 
 type ProjectOwnerProjectDetailPageProps = {
@@ -44,6 +52,13 @@ export function ProjectOwnerProjectDetailPage({
   const [referenceDataError, setReferenceDataError] = useState<string | null>(
     null,
   );
+  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittingMaterials, setSubmittingMaterials] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState<string | null>(null);
+  const [submitSkipped, setSubmitSkipped] = useState<
+    SubmitProjectMaterialsResult['skipped']
+  >([]);
 
   const lookupMaps = useMemo(
     () =>
@@ -56,6 +71,26 @@ export function ProjectOwnerProjectDetailPage({
   const materialTypesError = referenceDataError
     ? `基础数据加载失败：${referenceDataError}`
     : null;
+  const materialStatusStats = useMemo(() => {
+    const draftCount = materials.filter(
+      (material) => material.status === 'draft',
+    ).length;
+    const legacyActiveCount = materials.filter(
+      (material) => material.status === 'active',
+    ).length;
+    const submittedCount = materials.filter(
+      (material) => material.status === 'submitted',
+    ).length;
+    const submittableCount = materials.filter(canSubmitMaterial).length;
+
+    return {
+      draftCount,
+      legacyActiveCount,
+      submittedCount,
+      submittableCount,
+      totalCount: materials.length,
+    };
+  }, [materials]);
 
   async function loadProject() {
     setLoading(true);
@@ -126,6 +161,39 @@ export function ProjectOwnerProjectDetailPage({
     await Promise.all([loadProject(), loadMaterials()]);
   }
 
+  function handleSubmitAllDraftMaterials() {
+    setSubmitError(null);
+
+    if (materialStatusStats.submittableCount === 0) {
+      setSubmitError('当前没有可提交的草稿材料。');
+      return;
+    }
+
+    setSubmitConfirmOpen(true);
+  }
+
+  async function handleConfirmSubmitMaterials() {
+    setSubmittingMaterials(true);
+    setSubmitError(null);
+    setSubmitNotice(null);
+    setSubmitSkipped([]);
+
+    try {
+      const result = await submitProjectOwnerMaterials(projectId, {});
+      setSubmitNotice(formatSubmitResultNotice(result));
+      setSubmitSkipped(result.skipped);
+      setSubmitConfirmOpen(false);
+      await refreshAfterMaterialChange();
+    } catch (error) {
+      setSubmitConfirmOpen(false);
+      setSubmitError(
+        `提交评审材料失败，请稍后重试。${getErrorMessage(error)}`,
+      );
+    } finally {
+      setSubmittingMaterials(false);
+    }
+  }
+
   useEffect(() => {
     loadInitialData();
   }, [projectId]);
@@ -176,8 +244,81 @@ export function ProjectOwnerProjectDetailPage({
                   材料管理
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                  按材料类型查看、下载和删除已上传材料。
+                  上传材料默认为草稿，提交评审后评审负责人和专家可见，项目负责人不能再删除。
                 </p>
+              </div>
+
+              <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <h3 className="m-0 text-base font-black text-slate-950">
+                      提交评审材料
+                    </h3>
+                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
+                      提交后，评审负责人和专家将可以查看这些材料；已提交材料项目负责人不能再删除。
+                    </p>
+                  </div>
+                  <Button
+                    disabled={
+                      submittingMaterials ||
+                      materialsLoading ||
+                      materialStatusStats.submittableCount === 0
+                    }
+                    onClick={handleSubmitAllDraftMaterials}
+                    title={
+                      materialStatusStats.submittableCount === 0
+                        ? '当前没有可提交的草稿材料。'
+                        : undefined
+                    }
+                    variant="primary"
+                  >
+                    {submittingMaterials
+                      ? '提交中...'
+                      : '提交全部草稿材料'}
+                  </Button>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge tone="muted">
+                    总材料 {materialStatusStats.totalCount}
+                  </Badge>
+                  <Badge tone="warning">
+                    草稿 {materialStatusStats.draftCount}
+                  </Badge>
+                  <Badge tone="success">
+                    已提交 {materialStatusStats.submittedCount}
+                  </Badge>
+                  {materialStatusStats.legacyActiveCount > 0 ? (
+                    <Badge tone="primary">
+                      历史草稿 {materialStatusStats.legacyActiveCount}
+                    </Badge>
+                  ) : null}
+                </div>
+
+                <ErrorAlert message={submitError} />
+                {submitNotice ? (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-700 shadow-sm">
+                    {submitNotice}
+                  </div>
+                ) : null}
+                {submitSkipped.length > 0 ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800 shadow-sm">
+                    <div className="font-bold">部分材料未提交</div>
+                    <ul className="mt-2 grid gap-1">
+                      {submitSkipped.map((item) => (
+                        <li key={`${item.materialId}-${item.reason}`}>
+                          <span className="font-semibold">
+                            {formatSkippedMaterialName(
+                              item.materialId,
+                              materials,
+                            )}
+                          </span>
+                          ：{formatSubmitSkippedReason(item.reason)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
 
               <MaterialUploadPanel
@@ -202,10 +343,42 @@ export function ProjectOwnerProjectDetailPage({
                   selectedMaterialTypeId={materialFilter}
                 />
               </div>
+
+              <ConfirmDialog
+                confirmLabel="提交评审材料"
+                description="提交后，评审负责人和专家将可以查看所选材料；已提交材料项目负责人不能再删除。如需删除已提交材料，请联系管理员处理。"
+                loading={submittingMaterials}
+                onCancel={() => setSubmitConfirmOpen(false)}
+                onConfirm={handleConfirmSubmitMaterials}
+                open={submitConfirmOpen}
+                title="确认提交评审材料？"
+              />
             </div>
           </section>
         </div>
       ) : null}
     </ProjectOwnerShell>
   );
+}
+
+function formatSubmitResultNotice(
+  result: SubmitProjectMaterialsResult,
+): string {
+  const visibilityNotice =
+    result.submittedCount > 0 ? '评审组现在可以查看已提交材料。' : '';
+
+  return `提交完成：新提交 ${result.submittedCount} 个，已提交 ${result.alreadySubmittedCount} 个，跳过 ${result.skippedCount} 个。${visibilityNotice}`;
+}
+
+function formatSkippedMaterialName(
+  materialId: string,
+  materials: ProjectMaterial[],
+): string {
+  const material = materials.find((item) => item.id === materialId);
+
+  if (material) {
+    return material.originalFilename;
+  }
+
+  return `材料 ${shortId(materialId)}`;
 }
