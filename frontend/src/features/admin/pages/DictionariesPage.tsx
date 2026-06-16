@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/src/components/feedback/Badge';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
@@ -11,10 +11,7 @@ import { Input } from '@/src/components/ui/Input';
 import { Modal } from '@/src/components/ui/Modal';
 import { Select } from '@/src/components/ui/Select';
 import { Textarea } from '@/src/components/ui/Textarea';
-import {
-  dictionaryTypeLabel,
-  PRESET_DICTIONARY_TYPES,
-} from '@/src/lib/labels/dictionary-labels';
+import { dictionaryTypeLabel } from '@/src/lib/labels/dictionary-labels';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { statusText } from '@/src/lib/format/value';
 import {
@@ -28,20 +25,22 @@ import type { Dictionary, DictionaryFormInput } from '../types';
 
 type DictionaryFormState = {
   code: string;
-  customDictType: string;
   description: string;
-  dictType: string;
+  dictType: SupportedDictionaryType;
   isActive: boolean;
   name: string;
   sortOrder: string;
 };
 
-const CUSTOM_DICT_TYPE = '__custom__';
-const CUSTOM_DICT_FILTER = '__custom_filter__';
+const DICTIONARY_TYPE_OPTIONS = [
+  { label: '项目状态', value: 'project_status' },
+  { label: '材料类型', value: 'material_type' },
+] as const;
+
+type SupportedDictionaryType = (typeof DICTIONARY_TYPE_OPTIONS)[number]['value'];
 
 const EMPTY_FORM: DictionaryFormState = {
   code: '',
-  customDictType: '',
   description: '',
   dictType: 'project_status',
   isActive: true,
@@ -49,81 +48,63 @@ const EMPTY_FORM: DictionaryFormState = {
   sortOrder: '0',
 };
 
+function normalizeDictionaryType(value: string): SupportedDictionaryType {
+  return DICTIONARY_TYPE_OPTIONS.some((option) => option.value === value)
+    ? (value as SupportedDictionaryType)
+    : 'project_status';
+}
+
+function emptyFormFor(dictType: SupportedDictionaryType): DictionaryFormState {
+  return {
+    ...EMPTY_FORM,
+    dictType,
+  };
+}
+
 export function DictionariesPage() {
   const [confirmTarget, setConfirmTarget] = useState<Dictionary | null>(null);
-  const [dictTypeFilter, setDictTypeFilter] = useState('');
   const [editing, setEditing] = useState<Dictionary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<DictionaryFormState>(EMPTY_FORM);
   const [items, setItems] = useState<Dictionary[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedDictType, setSelectedDictType] =
+    useState<SupportedDictionaryType>('project_status');
   const [submitting, setSubmitting] = useState(false);
 
-  const customTypes = useMemo(() => {
-    return Array.from(
-      new Set(
-        items
-          .map((item) => item.dictType)
-          .filter((type) => !PRESET_DICTIONARY_TYPES.includes(type as never)),
-      ),
-    ).sort((a, b) => a.localeCompare(b));
-  }, [items]);
+  const selectedDictTypeLabel = dictionaryTypeLabel(selectedDictType);
 
-  const filteredItems = useMemo(() => {
-    if (!dictTypeFilter) {
-      return items;
-    }
-
-    if (dictTypeFilter === CUSTOM_DICT_FILTER) {
-      return items.filter(
-        (item) =>
-          !PRESET_DICTIONARY_TYPES.includes(item.dictType as never),
-      );
-    }
-
-    return items.filter((item) => item.dictType === dictTypeFilter);
-  }, [dictTypeFilter, items]);
-
-  async function loadData() {
+  const loadData = useCallback(async (dictType: SupportedDictionaryType) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await listDictionaries();
+      const response = await listDictionaries({ dictType });
       setItems(response);
     } catch (loadError) {
       setError(getErrorMessage(loadError));
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadData();
   }, []);
 
-  function openCreate() {
-    const presetType = PRESET_DICTIONARY_TYPES.includes(
-      dictTypeFilter as never,
-    )
-      ? dictTypeFilter
-      : 'project_status';
+  useEffect(() => {
+    void loadData(selectedDictType);
+  }, [loadData, selectedDictType]);
 
+  function openCreate() {
     setEditing(null);
-    setForm({ ...EMPTY_FORM, dictType: presetType });
+    setForm(emptyFormFor(selectedDictType));
     setModalOpen(true);
   }
 
   function openEdit(item: Dictionary) {
-    const isPreset = PRESET_DICTIONARY_TYPES.includes(item.dictType as never);
-
     setEditing(item);
     setForm({
       code: item.code,
-      customDictType: isPreset ? '' : item.dictType,
       description: item.description ?? '',
-      dictType: isPreset ? item.dictType : CUSTOM_DICT_TYPE,
+      dictType: normalizeDictionaryType(item.dictType),
       isActive: item.isActive,
       name: item.name,
       sortOrder: item.sortOrder.toString(),
@@ -136,16 +117,9 @@ export function DictionariesPage() {
     setSubmitting(true);
     setError(null);
 
-    const resolvedDictType =
-      form.dictType === CUSTOM_DICT_TYPE
-        ? form.customDictType.trim()
-        : form.dictType.trim();
-
-    if (!resolvedDictType) {
-      setSubmitting(false);
-      setError('请输入自定义类型标识。');
-      return;
-    }
+    const resolvedDictType = editing
+      ? normalizeDictionaryType(editing.dictType)
+      : selectedDictType;
 
     const payload: DictionaryFormInput = {
       code: form.code.trim(),
@@ -164,8 +138,7 @@ export function DictionariesPage() {
       }
 
       setModalOpen(false);
-      setDictTypeFilter(payload.dictType);
-      await loadData();
+      await loadData(resolvedDictType);
     } catch (submitError) {
       setError(getErrorMessage(submitError));
     } finally {
@@ -184,7 +157,7 @@ export function DictionariesPage() {
     try {
       await deleteDictionary(confirmTarget.id);
       setConfirmTarget(null);
-      await loadData();
+      await loadData(selectedDictType);
     } catch (deleteError) {
       setError(getErrorMessage(deleteError));
     } finally {
@@ -240,10 +213,10 @@ export function DictionariesPage() {
       <div className="page-title">
         <div>
           <h1>普通字典管理</h1>
-          <p>维护项目状态、材料类型、评审等级等普通字典，支持新增自定义类型。</p>
+          <p>普通字典类型由系统固定，管理员只维护对应类型下的字典项。</p>
         </div>
         <Button onClick={openCreate} variant="primary">
-          新增字典
+          新增{selectedDictTypeLabel}
         </Button>
       </div>
 
@@ -252,19 +225,14 @@ export function DictionariesPage() {
           <Select
             id="dict-type-filter"
             label="字典类型筛选"
-            onChange={(event) => setDictTypeFilter(event.target.value)}
-            value={dictTypeFilter}
+            onChange={(event) =>
+              setSelectedDictType(normalizeDictionaryType(event.target.value))
+            }
+            value={selectedDictType}
           >
-            <option value="">全部</option>
-            {PRESET_DICTIONARY_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {dictionaryTypeLabel(type)}
-              </option>
-            ))}
-            <option value={CUSTOM_DICT_FILTER}>自定义类型</option>
-            {customTypes.map((type) => (
-              <option key={type} value={type}>
-                {dictionaryTypeLabel(type)}
+            {DICTIONARY_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </Select>
@@ -279,8 +247,9 @@ export function DictionariesPage() {
         ) : (
           <DataTable
             columns={columns}
+            emptyText={`暂无${selectedDictTypeLabel}字典项。`}
             getRowKey={(item) => item.id}
-            items={filteredItems}
+            items={items}
           />
         )}
       </section>
@@ -303,44 +272,22 @@ export function DictionariesPage() {
         }
         onClose={() => setModalOpen(false)}
         open={modalOpen}
-        title={editing ? '编辑字典' : '新增字典'}
+        title={
+          editing
+            ? `编辑${dictionaryTypeLabel(form.dictType)}`
+            : `新增${selectedDictTypeLabel}`
+        }
       >
         <form className="form-stack" id="dictionary-form" onSubmit={handleSubmit}>
-          <Select
-            id="dictionary-dict-type"
-            label="字典类型"
-            onChange={(event) =>
-              setForm({
-                ...form,
-                dictType: event.target.value,
-                customDictType:
-                  event.target.value === CUSTOM_DICT_TYPE
-                    ? form.customDictType
-                    : '',
-              })
-            }
-            value={form.dictType}
-          >
-            {PRESET_DICTIONARY_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {dictionaryTypeLabel(type)}
-              </option>
-            ))}
-            <option value={CUSTOM_DICT_TYPE}>自定义类型</option>
-          </Select>
-          {form.dictType === CUSTOM_DICT_TYPE ? (
-            <Input
-              hint="用于系统识别，建议使用英文、数字、下划线或中划线。"
-              id="dictionary-custom-dict-type"
-              label="自定义类型标识"
-              onChange={(event) =>
-                setForm({ ...form, customDictType: event.target.value })
-              }
-              placeholder="例如 custom_type"
-              required
-              value={form.customDictType}
-            />
-          ) : null}
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="text-xs font-semibold text-slate-500">字典类型</div>
+            <div className="mt-1 text-sm font-bold text-slate-900">
+              {dictionaryTypeLabel(form.dictType)}
+            </div>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              类型由系统固定，新增时跟随当前筛选，编辑时不可修改。
+            </p>
+          </div>
           <div className="grid-2">
             <Input
               hint="用于系统识别，建议使用英文、数字或下划线，创建后不建议频繁修改。"

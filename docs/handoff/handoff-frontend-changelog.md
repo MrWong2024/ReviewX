@@ -2,6 +2,17 @@
 
 ## 2026-06-16
 
+### ReviewX 小修：普通字典类型筛选固定化并默认选中项目状态
+
+- `/admin/dictionaries` 字典类型筛选固定为平台内置普通字典类型，仅保留“项目状态 / project_status”和“材料类型 / material_type”
+- 页面默认选中“项目状态”，初次进入直接调用 `GET /admin/dictionaries?dictType=project_status`，不再先拉取全部普通字典
+- 移除筛选中的“全部”和“自定义类型”，不再提供跨类型全部浏览或自定义 `dictType` 入口
+- 新增字典项时 `dictType` 跟随当前选中的固定类型；编辑字典项时只读展示类型，不允许修改为其他或自定义类型
+- 空状态按当前类型显示“暂无项目状态字典项。”或“暂无材料类型字典项。”
+- 本小修未修改 backend，未新增接口、依赖或环境变量，未修改 `package.json` 或锁文件
+- 本小修未修改树形字典、项目导入、字段映射、项目评审组织、专家工作台或第六阶段合议能力
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 小修：AdminShell 增加返回工作台入口
 
 - `AdminShell` 正常管理员后台页头右上角新增“返回工作台”入口，指向 `/workspace`

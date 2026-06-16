@@ -42,7 +42,7 @@
 | `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页 |
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
-| `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理 |
+| `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
 | `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
