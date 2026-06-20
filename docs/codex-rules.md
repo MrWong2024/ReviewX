@@ -254,28 +254,6 @@ const projects = await this.projectModel
 return projects.map(toProjectSummaryResponse);
 ```
 
-```ts
-type ProjectNameOnlyLean = {
-  _id: Types.ObjectId;
-  name: string;
-};
-
-const project = await this.projectModel
-  .findById(id)
-  .select({ name: 1 })
-  .lean<ProjectNameOnlyLean | null>()
-  .exec();
-
-if (!project) {
-  throw new NotFoundException('项目不存在');
-}
-
-return {
-  id: project._id.toString(),
-  name: project.name,
-};
-```
-
 违规处理：
 
 - 违反上述约定的修改，视为无效修改，应回滚并重新执行。
