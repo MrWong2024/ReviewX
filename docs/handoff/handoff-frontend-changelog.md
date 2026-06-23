@@ -1,5 +1,26 @@
 # ReviewX 前端变更记录
 
+## 2026-06-24
+
+### ReviewX 前端第六阶段：评审负责人合议工作台
+
+- `/workspace` 放开 `review_manager` 角色入口，点击进入 `/review-manager`；只有 admin 角色的用户不会被默认引导到评审负责人工作台
+- 新增 `ReviewManagerShell`，提供 review_manager 登录态 / 角色守卫、评审负责人首页 / 负责项目导航、返回工作台和退出登录
+- 新增 `/review-manager`、`/review-manager/projects`、`/review-manager/projects/[projectId]` 三个 app route，route 文件保持薄封装
+- 新增 `frontend/src/features/review-manager` 领域目录，包含 API、类型、工具函数、页面和专家评分 / 汇总 / 合议组件
+- 项目列表调用 `GET /review-manager/projects`，支持 keyword、批次、项目状态、评审方案筛选和分页，并通过 portal reference-data 做名称映射
+- 项目详情摘要未调用不存在的 `GET /review-manager/projects/:id`，也未调用 admin 项目详情接口；当前按 `GET /review-manager/projects?page=1&pageSize=1000` 后前端匹配 `projectId`
+- 项目详情独立加载项目摘要、专家评分列表、专家评分详情、评分汇总和合议记录；项目摘要不可用时不阻塞其他区域
+- 专家评分列表 / 详情调用 `/review-manager/projects/:projectId/expert-reviews*`，`not_started` 初始化记录显示“该专家尚未开始评分”
+- 仅 submitted 状态显示“退回”入口；退回原因 trim 后校验 1-1000 字，提交前二次确认，成功后刷新专家列表、评分汇总和当前详情
+- 评分汇总调用 `GET /review-manager/projects/:projectId/review-summary`，只读展示后端汇总；average/min/max 为空显示“暂无”，perItemAverageScores 为空显示空态
+- 合议记录调用 `GET /review-manager/projects/:projectId/consensus`，404 转为“暂无合议草稿”，不作为页面级错误
+- 生成合议草稿调用 `POST /review-manager/projects/:projectId/consensus/draft`，默认不传 force；已有 draft 时按后端 409 提示二次确认后 `force=true` 覆盖；confirmed 不提供覆盖草稿入口
+- 人工确认合议调用 `POST /review-manager/projects/:projectId/consensus/confirm`，校验 finalOpinion、finalScore、finalLevel；`review_level` 为空时使用 A/B/C/D 兜底；confirmed 再次提交前提示会覆盖当前最终结论
+- 本阶段未修改 backend，未新增后端接口，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件
+- 本阶段未实现申诉、甲方看板、腾讯会议、真实 AI、文件预览、材料上传 / 删除、批量退回或批量合议
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ## 2026-06-23
 
 ### ReviewX 小修：专家分配移除规则收紧为无评分记录才可物理删除

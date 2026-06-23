@@ -148,12 +148,39 @@
 - 专家评分提交前按客户端当前时间和 `project.reviewTime` 做体验层禁用：评审未开始时显示“评审尚未开始，暂不能提交评分；可先保存草稿。”，保存草稿仍可用；后端服务器时间仍是最终约束。
 - `submitted` 评分只读且不显示保存 / 提交按钮；`returned` 显示退回时间和原因，可保存草稿并重新提交。
 
+## 3.3 Review Manager API
+
+文件：`frontend/src/features/review-manager/api.ts`
+
+| 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
+| --- | --- | --- | --- |
+| `listReviewManagerProjects` | `GET /review-manager/projects` | 分页对象；提交 `page/pageSize/keyword/batchId/statusId/reviewSchemeId`；后端按当前 review_manager 过滤负责项目，admin 虽可访问接口但前端入口只面向 `review_manager` 角色 | `/review-manager/projects` |
+| `getReviewManagerProjectSummary` | `GET /review-manager/projects?page=1&pageSize=1000` | 当前无 `GET /review-manager/projects/:id`，详情页摘要临时用小数据量大页列表按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不调用 admin 项目详情接口 | `/review-manager/projects/[projectId]` |
+| `listProjectExpertReviews` | `GET /review-manager/projects/:projectId/expert-reviews` | 专家评分列表；展示 expert、status、totalScore、submittedAt、returnedAt；状态保持后端 `not_started/draft/submitted/returned` 口径 | `/review-manager/projects/[projectId]` |
+| `getProjectExpertReview` | `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId` | 专家评分详情；`not_started` 初始化记录按“该专家尚未开始评分”展示，不作为错误 | `/review-manager/projects/[projectId]` |
+| `returnProjectExpertReview` | `POST /review-manager/projects/:projectId/expert-reviews/:expertUserId/return` | 请求 `{ returnReason }`，trim 后 1-1000；仅 submitted 状态显示退回按钮；提交前二次确认；成功后刷新专家列表、评分汇总和当前详情 | `/review-manager/projects/[projectId]` |
+| `getProjectReviewSummary` | `GET /review-manager/projects/:projectId/review-summary` | 只读展示 assigned/submitted/draft/returned/notStarted、平均分、最高分、最低分和 perItemAverageScores；空分数显示“暂无” | `/review-manager/projects/[projectId]` |
+| `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；其他错误继续抛出 | `/review-manager/projects/[projectId]` |
+| `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]` |
+| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求 `finalOpinion/finalScore/finalLevel/useDraftAsBase?`；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论 | `/review-manager/projects/[projectId]` |
+| `loadReviewManagerReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=project_owner`；不调用 admin-only 基础数据接口 | `/review-manager/projects`、`/review-manager/projects/[projectId]` |
+
+评审负责人合议口径：
+
+- `/workspace` 仅对拥有 `review_manager` 角色的用户放开评审负责人入口；只有 admin 角色的用户不会被默认引导到 `/review-manager`。
+- 项目详情摘要不调用不存在的 `GET /review-manager/projects/:id`，也不调用 `/admin/projects/:id`；临时适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按当前 `projectId` 匹配。
+- 合议草稿生成只使用后端 `rule_based` draft，不做真实 AI 或大模型调用。
+- `GET /consensus` 的 404 表示暂无合议记录，展示“暂无合议草稿”。
+- 已有 draft 时覆盖生成必须经后端 409 提示后用户二次确认，再以 `force=true` 重试。
+- 已 confirmed 时前端不展示“覆盖草稿”入口；仍允许按后端能力重新确认最终意见、最终分数和最终等级，并提示“重新确认会覆盖当前最终结论”。
+- 本阶段不接入申诉、甲方看板、腾讯会议、文件预览、材料上传 / 删除或真实 AI。
+
 ## 4. 错误处理
 
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配移除返回 `EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 时单个移除展示“该专家已产生评分记录，不能移除。”，替换展示“部分已分配专家已产生评分记录，不能被替换移除。”；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”
+- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配移除返回 `EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 时单个移除展示“该专家已产生评分记录，不能移除。”，替换展示“部分已分配专家已产生评分记录，不能被替换移除。”；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径
@@ -192,13 +219,14 @@
 - 专家提交评分前校验：score 必填且在 `0..maxScore`，评价描述必填，score 严格低于 `maxScore * suggestionRequiredThresholdRatio` 或存在重大问题时改进建议必填；评审时间未到时禁用提交但允许保存草稿；草稿保存只校验已填写 score 范围。
 - 专家评分详情页仅在 `review.status === 'draft'` 时显示“删除草稿”，删除前二次确认；`not_started/submitted/returned` 不显示；删除失败时 `404` 展示“未找到可删除的评分草稿。”，`409` 展示“只有未提交的评分草稿可以删除。”。
 - 专家材料列表材料类型展示优先使用材料响应内联 `materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”。
+- 评审负责人项目列表和详情通过 `/portal/reference-data/*` 构造批次、项目状态、项目类型、单位、项目负责人、评审方案和评审等级名称映射；未命中时显示“未知项（短ID）”类兜底，不调用 admin-only 主数据接口。
+- 评审负责人专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；只有 submitted 显示退回入口。
+- 评审负责人合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时使用 A/B/C/D 兜底。
 
 ## 5. 当前未对接的后端接口
 
 - 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
 - `/review-manager/projects/:id/materials*`
-- `/review-manager/projects/:id/expert-reviews*`
-- `/review-manager/projects/:id/consensus*`
 - `/review-manager/projects/:id/appeals*`
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`

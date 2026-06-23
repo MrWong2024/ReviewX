@@ -39,6 +39,7 @@ frontend/
 │  ├─ expert/
 │  ├─ login/
 │  ├─ project-owner/
+│  ├─ review-manager/
 │  ├─ workspace/
 │  ├─ layout.tsx
 │  ├─ not-found.tsx
@@ -52,7 +53,8 @@ frontend/
 │  │  ├─ admin/
 │  │  ├─ auth/
 │  │  ├─ expert/
-│  │  └─ project-owner/
+│  │  ├─ project-owner/
+│  │  └─ review-manager/
 │  ├─ lib/
 │  │  ├─ api/
 │  │  └─ format/
@@ -83,7 +85,7 @@ frontend/
 
 - `/login`：品牌化登录页，手机号 + 密码登录，已登录访问自动回 `/workspace`
 - `/workspace`：现代化角色入口，展示 admin、client、review_manager、expert、project_owner 中文角色状态
-- `/workspace` 当前放开 admin、project_owner 和 expert；client、review_manager 仍显示“后续建设”
+- `/workspace` 当前放开 admin、project_owner、expert 和 review_manager；client 仍显示“后续建设”
 - `/admin`：管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织信息；AdminShell 正常顶部栏显示当前用户、手机号、管理员 Badge、“返回工作台”和“退出登录”
 - `/admin/batches`：批次列表、新增、编辑、停用
 - `/admin/dictionaries`：普通字典列表、固定字典类型筛选、新增、编辑、停用；筛选仅支持项目状态、材料类型和评审等级，默认项目状态，不支持全部浏览或自定义 dictType
@@ -108,10 +110,16 @@ frontend/
 - 专家评分：调用 `/expert/review-tasks/:projectId` 保存草稿，调用 `/expert/review-tasks/:projectId/draft` 删除本人未提交草稿，调用 `/expert/review-tasks/:projectId/submit` 提交评分；前端做 score 范围、评价描述、低分 / 重大问题改进建议必填、评审时间未到时禁用提交和提交二次确认
 - 专家材料查看 / 下载：只调用 `/expert/projects/:id/materials` 和 `/expert/projects/:id/materials/:materialId/download-url`；仅展示 submitted 材料，不拼接 OSS objectKey，不提供删除、上传或预览
 - 专家评分状态：`not_started` 初始化空表单，`draft` 可继续编辑并删除草稿，`submitted` 只读，`returned` 显示退回原因并可修改重提；项目 `reviewTime` 未到时可保存草稿和删除草稿但不可提交，`reviewTime` 为空时兼容允许提交
+- `/review-manager`：评审负责人工作台首页，展示负责项目、专家评分、评分汇总和合议确认流程入口
+- `/review-manager/projects`：评审负责人负责项目列表，调用 `/review-manager/projects`，支持 keyword、批次、项目状态、评审方案筛选、分页和 portal reference-data 名称映射
+- `/review-manager/projects/[projectId]`：评审负责人项目合议详情页，独立加载项目摘要、专家评分列表、专家评分详情、评分汇总和合议记录
+- 评审负责人项目摘要：当前无 `GET /review-manager/projects/:id`，详情页使用 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不影响专家评分、汇总和合议区域
+- 评审负责人专家评分：调用 `/review-manager/projects/:projectId/expert-reviews*` 查看列表和详情；`not_started` 初始化记录显示“该专家尚未开始评分”；仅 submitted 状态显示退回入口，退回原因 trim 后 1-1000 并二次确认
+- 评审负责人评分汇总：调用 `/review-manager/projects/:projectId/review-summary`，只读展示后端计算的专家数量、平均分、最高分、最低分和评分项平均分；空分数显示“暂无”
+- 评审负责人合议：调用 `/review-manager/projects/:projectId/consensus*`；`GET /consensus` 404 视为暂无合议记录；生成草稿只调用后端 `rule_based` draft；已有 draft 时按后端 409 提示二次确认后 `force=true` 覆盖；confirmed 状态不提供覆盖草稿入口，但允许重新确认最终意见、分数和等级，并提示会覆盖当前最终结论
 
 ## 7. 当前未实现
 
-- 合议确认页面
 - 申诉页面
 - 甲方看板
 - 腾讯会议直播、回看、推流或 API 集成
@@ -188,4 +196,11 @@ frontend/
 - 专家评分 `draft` 状态显示“删除草稿”危险按钮，删除前二次确认；删除成功后调用后端 DELETE 并重新拉取详情，状态回到 `not_started`，不只在前端手动清空；删除失败时显示友好错误，不清空当前表单
 - 专家评分 `submitted` 状态前端只读且不显示保存 / 提交 / 删除草稿按钮；`returned` 状态显示退回时间和原因，并允许保存草稿与重新提交，但不显示删除草稿按钮
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案；专家提交评分返回 `409 REVIEW_NOT_STARTED` 或“评审尚未开始”时固定提示“评审尚未开始，暂不能提交评分。”
-- 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、评审负责人合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI
+- 当前未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI
+- 评审负责人前端 API 封装位于 `frontend/src/features/review-manager/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
+- 评审负责人页面通过 `/portal/reference-data/*` 构造批次、项目状态、项目类型、单位、项目负责人、评审方案和评审等级名称映射；不调用 `/admin/*` 主数据接口补详情摘要或基础数据
+- `GET /review-manager/projects/:id` 当前不存在，前端不得调用；详情页摘要适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 匹配
+- `GET /review-manager/projects/:projectId/consensus` 返回 404 时前端转换为 `null`，展示“暂无合议草稿”，不作为页面级错误
+- 合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时 fallback A/B/C/D
+- 已 confirmed 的合议不展示覆盖草稿入口；重新提交确认表单前必须二次确认，并提示“本操作会覆盖当前最终合议结论”
+- 本阶段未实现申诉、甲方看板、腾讯会议 API、文件预览、材料上传 / 删除、真实 AI 汇总、批量退回或批量合议

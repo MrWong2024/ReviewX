@@ -7,6 +7,7 @@
 | `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、返回工作台和退出登录 |
 | `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、返回工作台和退出登录 |
 | `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、返回工作台和退出登录 |
+| `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、侧边栏、review_manager 前端守卫、返回工作台和退出登录 |
 
 ## 2. UI 组件
 
@@ -81,6 +82,15 @@
 | `ExpertMaterialsPanel` | `frontend/src/features/expert/components/ExpertMaterialsPanel.tsx` | 展示专家可见 submitted 材料列表，支持调用专家材料 download-url 获取签名 URL 下载；不提供删除、上传或预览 |
 | `ExpertReviewForm` | `frontend/src/features/expert/components/ExpertReviewForm.tsx` | 管理专家评分表单状态、实时总分、草稿保存校验、draft 删除草稿按钮与二次确认、提交校验、提交二次确认、评审未开始时禁用提交但保留保存草稿和删除草稿、submitted 只读和 returned 重提提示 |
 | `ExpertReviewItemEditor` | `frontend/src/features/expert/components/ExpertReviewItemEditor.tsx` | 单个评分项编辑器，提供 score、评价描述、改进建议、重大问题 checkbox、评分说明和低分 / 重大问题提示 |
+| `ReviewManagerHomePage` | `frontend/src/features/review-manager/pages/ReviewManagerHomePage.tsx` | 评审负责人工作台首页，提供负责项目、专家评分、评分汇总和合议确认入口 |
+| `ReviewManagerProjectsPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectsPage.tsx` | 评审负责人负责项目列表，加载 `/review-manager/projects` 和 portal reference-data，支持 keyword、批次、项目状态、评审方案筛选和分页 |
+| `ReviewManagerProjectDetailPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectDetailPage.tsx` | 评审负责人项目合议详情页，独立加载项目摘要、专家评分列表 / 详情、评分汇总和合议记录，串联退回、生成草稿和确认合议 |
+| `ReviewManagerProjectStatusBadge` | `frontend/src/features/review-manager/components/ReviewManagerProjectStatusBadge.tsx` | 评审负责人专家评分状态标签，显示未开始、草稿、已提交和已退回 |
+| `ReviewManagerExpertReviewsPanel` | `frontend/src/features/review-manager/components/ReviewManagerExpertReviewsPanel.tsx` | 专家评分列表面板，展示专家、单位、状态、总分、提交 / 退回时间；submitted 状态提供退回入口 |
+| `ReviewManagerExpertReviewDetailModal` | `frontend/src/features/review-manager/components/ReviewManagerExpertReviewDetailModal.tsx` | 专家评分详情弹窗，展示专家信息、评分方案快照、评分项明细、退回原因和 not_started 空态 |
+| `ReturnExpertReviewModal` | `frontend/src/features/review-manager/components/ReturnExpertReviewModal.tsx` | 退回专家评分弹窗，校验 1-1000 字退回原因，提交前二次确认，提交中禁用重复操作 |
+| `ReviewSummaryPanel` | `frontend/src/features/review-manager/components/ReviewSummaryPanel.tsx` | 专家评分汇总面板，只读展示专家数量统计、平均分 / 最高分 / 最低分和各评分项平均分 |
+| `ConsensusReviewPanel` | `frontend/src/features/review-manager/components/ConsensusReviewPanel.tsx` | 合议草稿与最终确认面板，处理 404 空态、rule_based 草稿生成、draft force 覆盖确认、confirmed 重新确认提示和最终确认表单 |
 
 ## 5. 工具
 
@@ -106,6 +116,9 @@
 | expert API | `frontend/src/features/expert/api.ts` | 专家评分任务、专家材料列表 / 下载 URL、删除本人 draft 草稿，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin / project_owner / review_manager 材料接口 |
 | expert types | `frontend/src/features/expert/types.ts` | 专家任务、任务详情、评分方案快照、评分项、专家材料、保存 / 提交输入、portal reference-data 摘要、lookup map 类型和 `ExpertReviewManagerSummary` |
 | expert utils | `frontend/src/features/expert/utils.ts` | 专家评分状态文案、操作文案、draft 草稿可删除判断、`reviewTime` 未开始判断、score 范围校验、低分 / 重大问题改进建议必填判断、实时总分、文件大小格式化、lookup map 构造、评审负责人显示优先级和专家错误文案映射 |
+| review-manager API | `frontend/src/features/review-manager/api.ts` | 评审负责人项目列表、项目摘要适配、专家评分列表 / 详情 / 退回、评分汇总、合议草稿 / 确认，以及 `/portal/reference-data/*` 只读数据 API 封装；`GET /consensus` 404 转 `null` |
+| review-manager types | `frontend/src/features/review-manager/types.ts` | 评审负责人项目、专家评分、评分方案快照、评分汇总、合议记录、确认 payload、portal reference-data 摘要和 lookup map 类型 |
+| review-manager utils | `frontend/src/features/review-manager/utils.ts` | 专家评分状态文案、退回 / 确认长度限制、score 格式化和解析、review_level 兜底、lookup map 构造、合议冲突识别和错误文案映射 |
 
 ## 6. 当前 UI 基线
 

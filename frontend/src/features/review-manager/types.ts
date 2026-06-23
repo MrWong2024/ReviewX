@@ -1,0 +1,253 @@
+import type { QueryParams } from '@/src/lib/api/types';
+
+export type PortalListResponse<T> = {
+  items: T[];
+};
+
+export type PortalDictionarySummary = {
+  id: string;
+  dictType: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type PortalTreeDictionarySummary = {
+  id: string;
+  treeType: string;
+  parentId?: string | null;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type PortalBatchSummary = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PortalOrganizationSummary = {
+  id: string;
+  name: string;
+  regionId?: string | null;
+  isActive: boolean;
+};
+
+export type PortalReviewSchemeSummary = {
+  id: string;
+  name: string;
+  totalScore?: number;
+  isActive: boolean;
+};
+
+export type PortalUserSummary = {
+  id: string;
+  name: string;
+  phone?: string;
+  roles: string[];
+  organizationIds: string[];
+  disciplineIds: string[];
+  isActive: boolean;
+};
+
+export type ReviewManagerReferenceData = {
+  batches: PortalBatchSummary[];
+  dictionaries: PortalDictionarySummary[];
+  organizations: PortalOrganizationSummary[];
+  projectOwners: PortalUserSummary[];
+  projectStatuses: PortalDictionarySummary[];
+  reviewLevels: PortalDictionarySummary[];
+  reviewSchemes: PortalReviewSchemeSummary[];
+  treeDictionaries: PortalTreeDictionarySummary[];
+};
+
+export type ReviewManagerLookupMaps = {
+  batchNameById: Map<string, string>;
+  dictionaryNameById: Map<string, string>;
+  organizationNameById: Map<string, string>;
+  reviewLevelLabelByValue: Map<string, string>;
+  reviewSchemeNameById: Map<string, string>;
+  treeNameById: Map<string, string>;
+  userNameById: Map<string, string>;
+};
+
+export type ReviewSchemeSnapshotItem = {
+  name: string;
+  maxScore: number;
+  scoringGuide?: string;
+  sortOrder: number;
+  suggestionRequiredThresholdRatio?: number;
+};
+
+export type ReviewSchemeSnapshot = {
+  id?: string;
+  name?: string;
+  totalScore: number;
+  items: ReviewSchemeSnapshotItem[];
+};
+
+export type ReviewManagerProjectListItem = {
+  allocatedFunding?: number | null;
+  batchId: string;
+  cooperationOrganizationIds: string[];
+  createdAt: string;
+  departmentId?: string | null;
+  disciplineIds: string[];
+  finalLevel?: string;
+  followUpNeeds?: string;
+  id: string;
+  importedFromJobId?: string;
+  isActive: boolean;
+  leadOrganizationId?: string | null;
+  meetingUrl?: string;
+  name: string;
+  originalLevel?: string;
+  ownerUserId?: string | null;
+  projectNo: string;
+  projectTypeId?: string | null;
+  reviewLocation?: string;
+  reviewManagerId?: string | null;
+  reviewSchemeId?: string | null;
+  reviewSchemeSnapshot?: ReviewSchemeSnapshot | Record<string, unknown> | null;
+  reviewTime?: string | null;
+  statusId?: string | null;
+  totalFunding?: number | null;
+  updatedAt: string;
+};
+
+export type ReviewManagerProjectsResponse = {
+  items: ReviewManagerProjectListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+};
+
+export type QueryReviewManagerProjectsParams = QueryParams & {
+  batchId?: string;
+  isActive?: boolean;
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+  reviewSchemeId?: string;
+  statusId?: string;
+};
+
+export type ExpertReviewViewStatus =
+  | 'draft'
+  | 'not_started'
+  | 'returned'
+  | 'submitted';
+
+export type ExpertBasicSummary = {
+  id: string;
+  phone: string;
+  name: string;
+  organizationIds: string[];
+  organizationNames?: string[];
+  disciplineIds: string[];
+};
+
+export type ExpertReviewListItem = {
+  expert: ExpertBasicSummary;
+  assignmentId?: string | null;
+  status: ExpertReviewViewStatus;
+  totalScore?: number | null;
+  submittedAt?: string | null;
+  returnedAt?: string | null;
+};
+
+export type ExpertReviewItem = {
+  itemSnapshot: ReviewSchemeSnapshotItem;
+  score?: number | null;
+  evaluationDescription: string;
+  improvementSuggestion: string;
+  hasMajorIssue: boolean;
+};
+
+export type ExpertReviewDetail = {
+  id?: string;
+  projectId: string;
+  expertUserId: string;
+  assignmentId?: string | null;
+  reviewSchemeSnapshot: ReviewSchemeSnapshot;
+  items: ExpertReviewItem[];
+  totalScore: number;
+  status: ExpertReviewViewStatus;
+  submittedAt?: string | null;
+  returnedAt?: string | null;
+  returnedByUserId?: string | null;
+  returnReason?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type PerItemAverageScore = {
+  name: string;
+  sortOrder: number;
+  maxScore: number;
+  averageScore: number | null;
+};
+
+export type ReviewSummaryResponse = {
+  assignedExpertCount: number;
+  submittedExpertCount: number;
+  draftExpertCount: number;
+  returnedExpertCount: number;
+  notStartedExpertCount: number;
+  averageScore: number | null;
+  minScore: number | null;
+  maxScore: number | null;
+  perItemAverageScores: PerItemAverageScore[] | null;
+};
+
+export type ConsensusReviewStatus = 'confirmed' | 'draft' | 'reopened';
+
+export type ConsensusDraftSource = 'ai' | 'manual' | 'rule_based';
+
+export type ConsensusReviewResponse = {
+  id: string;
+  projectId: string;
+  reviewSchemeSnapshot: ReviewSchemeSnapshot;
+  draftGeneratedAt?: string | null;
+  draftGeneratedByUserId?: string | null;
+  draftSource: ConsensusDraftSource;
+  draftOpinion?: string;
+  draftScore?: number | null;
+  finalOpinion?: string;
+  finalScore?: number | null;
+  finalLevel?: string;
+  originalLevel?: string;
+  confirmedByUserId?: string | null;
+  confirmedAt?: string | null;
+  confirmedByUser?: {
+    id: string;
+    name: string;
+    phone?: string;
+  } | null;
+  status: ConsensusReviewStatus;
+  expertReviewStats: {
+    expertCount: number;
+    submittedCount: number;
+    averageScore?: number | null;
+    minScore?: number | null;
+    maxScore?: number | null;
+  };
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GenerateConsensusDraftOptions = {
+  force?: boolean;
+};
+
+export type ConfirmConsensusReviewPayload = {
+  finalOpinion: string;
+  finalScore: number;
+  finalLevel: string;
+  useDraftAsBase?: boolean;
+};

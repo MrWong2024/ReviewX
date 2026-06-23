@@ -154,6 +154,14 @@ npm run build
 
 注意：无 `expert_reviews` 记录的专家分配可物理删除；存在 `draft/submitted/returned` 任意评分记录时单个移除和 replace 隐含移除均由后端返回 `409`，前端已分配专家表格禁用移除并显示评分状态。
 
+本次 ReviewX 前端第六阶段：评审负责人合议工作台已执行并通过：
+
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+
+注意：评审负责人项目详情摘要使用 `GET /review-manager/projects?page=1&pageSize=1000` 前端匹配；`GET /consensus` 404 按暂无合议记录展示；已有 draft 覆盖生成需二次确认后 `force=true`，confirmed 不提供覆盖草稿入口。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -227,11 +235,13 @@ npm run build
 2. 点击管理员入口进入 `/admin`
 3. 点击项目负责人入口进入 `/project-owner`
 4. 点击专家入口进入 `/expert`
-5. 已开通但未实现角色卡片显示“后续建设”
-6. 未开通角色显示“未开通”
-7. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
-8. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
-9. 无 expert 角色访问 `/expert` 应显示 403 状态或回工作台
+5. 点击评审负责人入口进入 `/review-manager`
+6. 已开通但未实现角色卡片显示“后续建设”（当前主要为 client）
+7. 未开通角色显示“未开通”
+8. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
+9. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
+10. 无 expert 角色访问 `/expert` 应显示 403 状态或回工作台
+11. 无 review_manager 角色访问 `/review-manager` 应显示 403 状态或回工作台
 
 ## 5. 管理员后台人工验证
 
@@ -640,14 +650,117 @@ submitted 和 returned：
 
 回归边界：
 
-1. 不实现评审负责人合议
-2. 不实现评审负责人退回评分前端
-3. 不实现 admin 查看专家评分前端
-4. 不实现 AI 合议、申诉、甲方看板、腾讯会议 API 或文件预览
-5. admin 项目材料查看 / 删除仍正常
-6. project_owner 材料上传 / 提交 / 删除草稿仍正常
+1. 评审负责人合议已在 `/review-manager` 接入，专家端仍不调用 review_manager 接口
+2. 不实现 admin 查看专家评分前端
+3. 不实现 AI 合议、申诉、甲方看板、腾讯会议 API 或文件预览
+4. admin 项目材料查看 / 删除仍正常
+5. project_owner 材料上传 / 提交 / 删除草稿仍正常
 
-## 10. 用户管理人工验证
+## 10. 评审负责人合议工作台人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 使用具有 `review_manager` 角色的用户登录
+4. 管理员已为至少一个项目分配该评审负责人和评审方案
+5. 项目已分配专家；至少准备 submitted、draft、returned、not_started 中的若干评分状态用于验证
+6. 系统中存在 active 批次、`project_status`、`review_level`、评审方案、单位、项目负责人等 portal reference-data
+
+Workspace 和守卫：
+
+1. review_manager 登录后进入 `/workspace`
+2. 评审负责人卡片显示“可进入”和“进入评审负责人工作台”
+3. 点击进入 `/review-manager`
+4. `/review-manager` 显示评审负责人工作台标题、说明和“进入负责项目”入口
+5. 只有 admin 角色且没有 review_manager 角色的用户不应在 workspace 看到可进入的评审负责人入口
+6. 无 review_manager 角色访问 `/review-manager`、`/review-manager/projects` 或详情页应显示 403，不白屏
+
+负责项目列表：
+
+1. 进入 `/review-manager/projects`
+2. Network 使用 `GET /review-manager/projects`
+3. 列表只展示当前评审负责人负责的项目
+4. 表格展示项目编号、项目名称、项目类型、承担单位、项目负责人、项目状态、评审方案、评审时间和评审地点
+5. keyword 筛选项目编号或名称可用
+6. 批次、项目状态、评审方案筛选可用
+7. 分页可用
+8. 名称映射优先使用 portal reference-data，映射缺失时显示“未知项（短ID）”
+9. reference-data 加载失败时主列表仍可用，并提示部分名称将使用短 ID 兜底
+10. 点击“进入合议”进入 `/review-manager/projects/[projectId]`
+
+项目详情：
+
+1. 进入 `/review-manager/projects/[projectId]`
+2. 项目摘要 Network 不应出现 `GET /review-manager/projects/:id`
+3. 项目摘要不应调用 `/admin/projects/:id`
+4. 项目摘要通过 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 匹配
+5. 摘要匹配成功时展示项目编号、名称、批次、类型、状态、承担单位、合作单位、项目负责人、评审方案、评审时间地点和评分方案总分
+6. 摘要未匹配时显示“项目摘要不可用或无权限”，专家评分、汇总和合议区域仍继续加载
+7. 各区域加载失败时只显示该区域错误，不拖死整页
+
+专家评分：
+
+1. 专家评分列表 Network 使用 `GET /review-manager/projects/:projectId/expert-reviews`
+2. 列表展示专家姓名、手机号、单位、状态、总分、提交时间和退回时间
+3. 状态显示为未开始、草稿、已提交、已退回
+4. 只有 submitted 状态显示“退回”按钮
+5. 点击“查看详情”调用 `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId`
+6. 详情展示专家基本信息、评分方案、每个评分项的满分、得分、评价描述、改进建议和是否重大问题
+7. 后端返回 not_started 初始化记录时显示“该专家尚未开始评分”，不作为错误
+8. 详情中的退回原因、提交时间和退回时间按后端返回展示
+
+退回评分：
+
+1. 点击 submitted 专家的“退回”打开退回弹窗
+2. 退回原因为空或 trim 后为空时不能提交
+3. 退回原因超过 1000 字时不能提交
+4. 提交前出现二次确认
+5. 确认后调用 `POST /review-manager/projects/:projectId/expert-reviews/:expertUserId/return`
+6. 成功后关闭弹窗并重新加载专家评分列表、评分汇总和当前专家评分详情
+7. 后端返回 403、404、409 或 400 时显示后端错误消息，不吞错，不乐观修改列表
+
+评分汇总：
+
+1. Network 使用 `GET /review-manager/projects/:projectId/review-summary`
+2. 展示 assignedExpertCount、submittedExpertCount、draftExpertCount、returnedExpertCount、notStartedExpertCount
+3. averageScore、minScore、maxScore 为空时显示“暂无”
+4. perItemAverageScores 为空时显示空态
+5. 前端不自行计算后覆盖后端汇总结果
+
+合议草稿：
+
+1. 首次进入调用 `GET /review-manager/projects/:projectId/consensus`
+2. 返回 404 时页面显示“暂无合议草稿”，不作为页面级错误
+3. 点击“生成合议草稿”调用 `POST /review-manager/projects/:projectId/consensus/draft`，默认不带 `force`
+4. 生成成功后显示 draftOpinion、draftScore、draftGeneratedAt、draftSource 和 expertReviewStats，并刷新合议与评分汇总
+5. 已有 draft 时再次生成，先由后端返回 409，再提示用户确认覆盖
+6. 用户确认覆盖后重新调用 draft 接口并携带 `force=true`
+7. 已 confirmed 状态不显示覆盖草稿入口
+8. confirmed 状态若后端返回不可覆盖错误，页面展示错误，不继续 force
+
+确认合议：
+
+1. finalOpinion 必填，trim 后为空不能提交
+2. finalOpinion 超过 10000 字不能提交
+3. finalScore 必填且必须是数字
+4. 能获取评分方案总分时，finalScore 必须在 `0..totalScore`
+5. finalLevel 必填
+6. finalLevel 优先使用 active `review_level` 字典项，提交值为 code，显示 name；字典为空时使用 A/B/C/D
+7. 有 draft 时可点击“使用草稿填入”
+8. 提交调用 `POST /review-manager/projects/:projectId/consensus/confirm`
+9. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
+10. 已 confirmed 后再次提交前必须二次确认，并提示会覆盖当前最终合议结论
+
+回归边界：
+
+1. project_owner 页面仍可访问
+2. expert 页面仍可访问
+3. admin 页面仍可访问
+4. Network 中不得出现 `/admin/projects/:id` 用于评审负责人项目摘要
+5. 不出现申诉、甲方看板、腾讯会议、真实 AI、文件预览、材料上传 / 删除或批量操作入口
+
+## 11. 用户管理人工验证
 
 - `/admin/users` 可访问，侧边栏“用户管理”入口正常显示并可选中
 - 用户列表加载成功，不显示 `passwordHash`
@@ -664,7 +777,7 @@ submitted 和 returned：
 - 使用重置后的密码登录成功
 - 原有 `/admin/dictionaries`、`/admin/tree-dictionaries`、`/admin/organizations`、`/admin/review-schemes`、`/admin/projects` 仍正常
 
-## 11. 项目导入人工验证
+## 12. 项目导入人工验证
 
 前提：
 
@@ -700,7 +813,7 @@ submitted 和 returned：
 22. 删除未确认导入任务后，到 `/admin/projects` 确认正式项目没有被误删
 23. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
-## 12. Excel 字段映射配置人工验证
+## 13. Excel 字段映射配置人工验证
 
 前提：
 
@@ -729,14 +842,13 @@ submitted 和 returned：
 16. 与项目导入页面联动验证：给 `projectNo` 配置新别名后上传对应表头 Excel，导入任务详情 `fieldMapping` 应映射到 `projectNo`；删除配置后默认表头仍能识别
 17. 后端停止、401、403、400、404、409、500 等错误态应显示友好错误，不应白屏
 
-## 13. 当前不验证
+## 14. 当前不验证
 
 - 用户自助改密
 - 忘记密码
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 合议
 - 申诉
 - 甲方看板
 - 腾讯会议直播 / 推流 / 回看 / API 集成

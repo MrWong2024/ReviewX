@@ -41,5 +41,5 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   client: '甲方工作台将在后续阶段建设。',
   expert: '查看评审任务、项目材料并完成专家评分。',
   project_owner: '查看本人负责项目、评审安排和材料提交情况。',
-  review_manager: '评审组织工作台将在后续阶段建设。',
+  review_manager: '查看负责项目、专家评分并确认最终合议。',
 };
