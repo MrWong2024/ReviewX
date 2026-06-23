@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import {
+  ExpertReview,
+  ExpertReviewSchema,
+} from '../expert-reviews/schemas/expert-review.schema';
 import { ProjectsModule } from '../projects/projects.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import {
@@ -23,6 +27,7 @@ import { ProjectExpertAssignmentsService } from './services/project-expert-assig
         name: ProjectExpertAssignment.name,
         schema: ProjectExpertAssignmentSchema,
       },
+      { name: ExpertReview.name, schema: ExpertReviewSchema },
       { name: User.name, schema: UserSchema },
     ]),
   ],

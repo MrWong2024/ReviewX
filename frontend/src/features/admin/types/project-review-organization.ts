@@ -68,6 +68,8 @@ export type UpdateProjectScheduleInput = {
   meetingUrl?: string;
 };
 
+export type ExpertReviewStatus = 'draft' | 'submitted' | 'returned';
+
 export type ExpertBasic = {
   id: string;
   phone: string;
@@ -75,6 +77,8 @@ export type ExpertBasic = {
   organizationIds: string[];
   disciplineIds: string[];
   assigned?: boolean;
+  hasReviewRecord?: boolean;
+  reviewStatus?: ExpertReviewStatus | null;
 };
 
 export type ExpertCandidatePage = {

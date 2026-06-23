@@ -59,10 +59,10 @@
 | `batchUpdateProjectReviewAssignment` | `PATCH /admin/projects/review-assignment/batch` | `{ successCount, failedCount, failures }`；部分失败显示明细 | `/admin/projects` |
 | `updateProjectSchedule` | `PATCH /admin/projects/:id/schedule` | `Project`；只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API | `/admin/projects/[projectId]/review-organization` |
 | `listProjectExpertCandidates` | `GET /admin/projects/:id/expert-candidates` | `{ items, page, pageSize, total, reason? }`；候选由后端按学科匹配并回避承担单位/合作单位 | `/admin/projects/[projectId]/review-organization` |
-| `listAssignedProjectExperts` | `GET /review-manager/projects/:id/experts` | `ExpertBasic[]`；admin 角色可访问 | `/admin/projects/[projectId]/review-organization` |
+| `listAssignedProjectExperts` | `GET /review-manager/projects/:id/experts` | `ExpertBasic[]`；admin 角色可访问；已分配专家可带 `hasReviewRecord/reviewStatus`，用于禁用已有评分记录专家的移除操作 | `/admin/projects/[projectId]/review-organization` |
 | `appendProjectExperts` | `POST /review-manager/projects/:id/experts` | `{ assignedExperts, successCount, failedCount, failures }`；逐专家返回失败原因 | `/admin/projects/[projectId]/review-organization` |
-| `replaceProjectExperts` | `PUT /review-manager/projects/:id/experts` | `{ assignedExperts, addedOrRestoredCount, removedCount }` | `/admin/projects/[projectId]/review-organization` |
-| `removeProjectExpert` | `DELETE /review-manager/projects/:id/experts/:expertUserId` | `{ removed, alreadyRemoved }` | `/admin/projects/[projectId]/review-organization` |
+| `replaceProjectExperts` | `PUT /review-manager/projects/:id/experts` | `{ assignedExperts, addedOrRestoredCount, removedCount }`；若替换会移除已有评分记录专家，后端返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，前端显示替换移除受限提示 | `/admin/projects/[projectId]/review-organization` |
+| `removeProjectExpert` | `DELETE /review-manager/projects/:id/experts/:expertUserId` | `{ removed, alreadyRemoved }`；仅无评分记录专家可物理移除；`409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 映射为“该专家已产生评分记录，不能移除。” | `/admin/projects/[projectId]/review-organization` |
 | `batchUpdateProjectExperts` | `PUT /review-manager/projects/experts/batch` | `{ successCount, failedCount, results }`；逐项目返回成功/失败和专家规则失败原因 | `/admin/projects` |
 | `uploadProjectImport` | `POST /admin/project-imports/upload` | `ProjectImportJob`；上传使用 `FormData`，字段名固定为 `file` 和 `batchId`，不手动设置 `Content-Type` | `/admin/project-imports` |
 | `listProjectImportJobs` | `GET /admin/project-imports` | 分页对象；支持 `page/pageSize/status/batchId/keyword` | `/admin/project-imports` |
@@ -153,7 +153,7 @@
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”
+- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配移除返回 `EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 时单个移除展示“该专家已产生评分记录，不能移除。”，替换展示“部分已分配专家已产生评分记录，不能被替换移除。”；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径
@@ -178,7 +178,8 @@
 - 字段映射停用和删除自定义配置均不是禁用标准字段，而是回退系统默认别名；reset-defaults 是创建或覆盖配置，使自定义别名等于默认别名
 - 项目评审组织页面读取 `review_manager` active 用户作为负责人选项，读取 active expert 用户作为批量专家设置通用选择源；真实专家候选优先使用 `/admin/projects/:id/expert-candidates`
 - 专家分配操作使用 `/review-manager/projects*` 系列接口，admin 角色按后端权限允许访问；前端不新增 `/admin/projects/:id/experts` 假接口
-- 专家候选和分配不在前端自行实现学科匹配或单位回避；页面只展示后端返回候选、assigned 标记和失败原因
+- 专家候选和分配不在前端自行实现学科匹配、单位回避或已评分专家替换判断；页面只展示后端返回候选、assigned 标记、`hasReviewRecord/reviewStatus` 和失败原因
+- 已分配专家评分状态展示为：`draft=草稿`、`submitted=已提交`、`returned=已退回`、空值=未开始；`hasReviewRecord=true` 时禁用移除并提示已产生评分记录，保存草稿误操作需专家本人先删除 draft 后再由管理员移除分配
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
 - 管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials`、`/admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`；删除必须提交 `reason`，不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称。
 - 管理员材料删除成功后刷新列表；`400` reason 问题、`403` 权限、`404` 已删除和 `500`/storage 删除失败均在材料卡片或删除弹窗内展示，不在成功前从列表乐观移除。

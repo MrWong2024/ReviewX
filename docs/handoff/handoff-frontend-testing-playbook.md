@@ -142,6 +142,18 @@ npm run build
 
 注意：专家删除评分草稿只调用 `DELETE /expert/review-tasks/:projectId/draft`；draft 可删除，submitted/returned 不显示删除按钮且后端返回 `409`，无草稿返回 `404`；删除不受 `reviewTime` 限制。
 
+本次 ReviewX 小修：专家分配移除规则收紧为无评分记录才可物理删除已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- backend `npm run build`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：无 `expert_reviews` 记录的专家分配可物理删除；存在 `draft/submitted/returned` 任意评分记录时单个移除和 replace 隐含移除均由后端返回 `409`，前端已分配专家表格禁用移除并显示评分状态。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -378,9 +390,13 @@ npm run build
 5. 项目缺少学科时显示“项目尚未维护学科，无法按学科筛选专家。请先修正项目学科。”
 6. 候选为空时显示暂无符合学科与回避规则的专家
 7. 选择候选专家后追加，页面提示成功 / 失败数量并刷新已分配专家
-8. 选择候选专家后替换，二次确认后刷新已分配专家
-9. 在已分配专家中点击移除，二次确认后刷新列表
-10. 后端返回学科不匹配或单位冲突 failures 时，页面显示中文原因
+8. 已分配专家表格展示评分状态：未开始、草稿、已提交或已退回
+9. 无 `expert_reviews` 评分记录的已分配专家，“移除”按钮可用；二次确认文案说明仅未产生评分记录的专家可移除，确认后刷新列表且专家分配记录应物理删除
+10. 有 `draft/submitted/returned` 评分记录的已分配专家，“移除”按钮禁用并提示“该专家已产生评分记录，不能移除”
+11. 绕过前端直接调用 `DELETE /review-manager/projects/:id/experts/:expertUserId` 移除已有评分记录专家时，后端应返回 `409`，assignment 和 `expert_reviews` 均保留
+12. 专家本人删除误保存的 draft 后，管理员刷新详情页，该专家移除按钮应恢复可用，移除后物理删除 assignment
+13. 选择候选专家后替换，二次确认后刷新已分配专家；如果替换会移除已有评分记录专家，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，原已分配专家不应被乐观移除
+14. 后端返回学科不匹配或单位冲突 failures 时，页面显示中文原因
 
 批量设置专家：
 

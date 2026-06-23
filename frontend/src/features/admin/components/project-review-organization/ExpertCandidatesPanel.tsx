@@ -10,7 +10,7 @@ import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
 import { Input } from '@/src/components/ui/Input';
 import { Pagination } from '@/src/components/ui/Pagination';
-import { getErrorMessage } from '@/src/lib/api/errors';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import { formatExpertFailureReasons } from '@/src/lib/labels/project-review-organization-labels';
 import {
   appendProjectExperts,
@@ -33,6 +33,8 @@ type ExpertCandidatesPanelProps = {
 };
 
 const PAGE_SIZE = 10;
+const ASSIGNMENT_HAS_REVIEW_RECORD_CODE =
+  'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD';
 
 export function ExpertCandidatesPanel({
   disciplineNameById,
@@ -143,7 +145,7 @@ export function ExpertCandidatesPanel({
       onChanged();
       await loadCandidates(candidates.page, keyword);
     } catch (submitError) {
-      setError(getErrorMessage(submitError));
+      setError(formatCandidateSubmitError(submitError));
     } finally {
       setSubmitting(false);
     }
@@ -306,4 +308,17 @@ function formatAppendNotice(
     .join('；');
 
   return `${base}${details}`;
+}
+
+function formatCandidateSubmitError(error: unknown): string {
+  if (
+    isApiError(error) &&
+    error.status === 409 &&
+    (error.code === ASSIGNMENT_HAS_REVIEW_RECORD_CODE ||
+      error.message.includes('已产生评分记录'))
+  ) {
+    return '部分已分配专家已产生评分记录，不能被替换移除。';
+  }
+
+  return getErrorMessage(error);
 }

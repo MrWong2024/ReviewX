@@ -94,7 +94,7 @@ frontend/
 - `/admin/project-imports/[jobId]`：项目导入任务详情页，支持任务统计、fieldMapping、Excel 行号行列表、行状态筛选、raw / normalized / resolved / issues 查看、待确认行修正、创建新单位、创建新项目负责人、单行确认、单行跳过和批量确认；查看 / 修正弹窗里的项目类型、受理处室和行政区划原生下拉使用统一树形 option 缩进
 - `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
 - `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，项目类型原生下拉使用统一树形 option 缩进，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
-- `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看项目材料、下载项目材料、填写原因删除项目材料、查看已分配专家、查看后端候选专家、追加 / 替换 / 移除专家
+- `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看项目材料、下载项目材料、填写原因删除项目材料、查看已分配专家、查看后端候选专家、追加 / 替换专家，以及仅对无评分记录专家移除分配
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
 - `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，项目类型原生下拉使用统一树形 option 缩进，不提交 `ownerUserId` 或 `keyword`
@@ -157,6 +157,8 @@ frontend/
 - `/admin/projects` 已接入评审负责人 active 用户、评审方案、批次、项目类型、项目状态、学科和单位映射；项目负责人优先使用用户列表映射，无法映射时保留 id 兜底
 - 项目评审组织 API 封装位于 `frontend/src/features/admin/api/project-review-organization.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 专家候选使用 `GET /admin/projects/:id/expert-candidates`；已分配、追加、替换、移除和批量设置专家使用 `/review-manager/projects*` 系列接口，admin 角色可访问
+- 已分配专家列表读取后端 `hasReviewRecord/reviewStatus`，展示 `未开始/草稿/已提交/已退回` 评分状态；有评分记录的专家禁用“移除”并提示“该专家已产生评分记录，不能移除”，移除确认文案说明仅未产生评分记录的专家可移除且成功后物理删除专家分配记录
+- 专家替换仍保留“替换为选中候选”能力；若后端返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，不乐观修改已分配专家列表
 - 管理员项目材料查看、下载和删除位于 `/admin/projects/[projectId]/review-organization` 的“项目材料”卡片；只调用 `GET /admin/projects/:id/materials`、`GET /admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`
 - 管理员删除材料必须填写 1-1000 字 `reason`，前端在弹窗中校验；删除成功后刷新材料列表，失败时不乐观移除；后端保留删除审计，前端不实现删除日志查询
 - 管理员材料下载只打开后端返回的签名 URL 或 fake storage URL，不拼接 OSS objectKey；材料状态显示 `draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`

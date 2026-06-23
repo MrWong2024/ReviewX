@@ -2,6 +2,17 @@
 
 ## 2026-06-23
 
+### ReviewX 小修：专家分配移除规则收紧为无评分记录才可物理删除
+
+- 后端 `ProjectExpertAssignmentsService` 注入 `ExpertReviewModel`，单个移除和 replace 隐含移除前批量检查 `expert_reviews(projectId, expertUserId)`
+- 无评分记录专家移除时物理删除 `project_expert_assignments`；存在任意 `draft/submitted/returned` 评分记录时返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，不删除 assignment，不删除 `expert_reviews`，不新写 `status=removed`
+- `replaceExperts` 在任一待移除专家已有评分记录时整体拒绝，避免先删后增的部分更新；batch replace 按项目继承该规则，其他项目不受影响
+- `GET /review-manager/projects/:id/experts` 为已分配专家返回 `hasReviewRecord/reviewStatus`，不返回评分内容、分数或提交/退回留痕
+- 前端 `AssignedExpertsPanel` 展示评分状态；有评分记录专家禁用“移除”并提示不能移除；确认文案说明仅未产生评分记录的专家可移除且移除会删除专家分配记录
+- 前端 `ExpertCandidatesPanel` 对替换时的 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 展示“部分已分配专家已产生评分记录，不能被替换移除。”；追加逻辑不变
+- 本小修未新增依赖、环境变量，未修改 `package.json` 或锁文件，未删除 `expert_reviews`，未新增 deleted 状态，未实现作废/替换/纠错流程、合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：backend `npm run lint`、`npm run test -- --runInBand`、`npm run test:e2e`、`npm run build` 通过；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过
+
 ### ReviewX 小修：专家可删除本人未提交评分草稿
 
 - 后端新增 `DELETE /expert/review-tasks/:projectId/draft`，要求 Session 登录、`expert` 角色，且当前专家仍是该项目 `assigned` 专家

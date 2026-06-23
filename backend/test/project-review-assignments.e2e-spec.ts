@@ -8,6 +8,8 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import type { ExpertReviewStatus } from '../src/modules/expert-reviews/constants/expert-review.constants';
+import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
 import { Project } from '../src/modules/projects/schemas/project.schema';
@@ -31,6 +33,7 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
   let reviewSchemeModel: Model<ReviewScheme>;
   let projectModel: Model<Project>;
   let assignmentModel: Model<ProjectExpertAssignment>;
+  let expertReviewModel: Model<ExpertReview>;
   let models: Model<unknown>[];
 
   beforeAll(async () => {
@@ -59,6 +62,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     assignmentModel = app.get<Model<ProjectExpertAssignment>>(
       getModelToken(ProjectExpertAssignment.name),
     );
+    expertReviewModel = app.get<Model<ExpertReview>>(
+      getModelToken(ExpertReview.name),
+    );
     models = [
       userModel,
       app.get<Model<Session>>(getModelToken(Session.name)),
@@ -68,6 +74,7 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       reviewSchemeModel,
       projectModel,
       assignmentModel,
+      expertReviewModel,
     ];
 
     for (const model of models) {
@@ -368,7 +375,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       .expect(200);
     expect(getJsonArray(listExpertsResponse)).toHaveLength(1);
     expect(getJsonArray(listExpertsResponse)[0]).toMatchObject({
+      hasReviewRecord: false,
       id: validExpert.id,
+      reviewStatus: null,
     });
 
     await request(httpServer)
@@ -395,6 +404,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       addedOrRestoredCount: 1,
       removedCount: 1,
     });
+    await expect(
+      findAssignment(data.project.id, validExpert.id),
+    ).resolves.toBeNull();
 
     await request(httpServer)
       .delete(
@@ -408,6 +420,31 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
           alreadyRemoved: false,
         });
       });
+    await expect(
+      findAssignment(data.project.id, secondExpert.id),
+    ).resolves.toBeNull();
+
+    await request(httpServer)
+      .delete(
+        `/review-manager/projects/${data.project.id}/experts/${secondExpert.id}`,
+      )
+      .set('Cookie', managerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          removed: false,
+          alreadyRemoved: false,
+        });
+      });
+
+    await assignmentModel.create({
+      projectId: new Types.ObjectId(data.project.id),
+      expertUserId: new Types.ObjectId(secondExpert.id),
+      assignedByUserId: new Types.ObjectId(data.reviewManager.id),
+      status: 'removed',
+      removedAt: new Date(),
+      removedByUserId: new Types.ObjectId(data.reviewManager.id),
+    });
     await request(httpServer)
       .delete(
         `/review-manager/projects/${data.project.id}/experts/${secondExpert.id}`,
@@ -435,6 +472,249 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       .exec();
     expect(restored).toMatchObject({ status: 'assigned' });
     expect(restored?.removedAt).toBeUndefined();
+  });
+
+  it('marks assigned experts with review records and blocks removing reviewed experts', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const freshExpert = await createAssignableExpert(
+      '+8613900000301',
+      data,
+      'Fresh Expert',
+    );
+    const draftExpert = await createAssignableExpert(
+      '+8613900000302',
+      data,
+      'Draft Expert',
+    );
+    const submittedExpert = await createAssignableExpert(
+      '+8613900000303',
+      data,
+      'Submitted Expert',
+    );
+    const returnedExpert = await createAssignableExpert(
+      '+8613900000304',
+      data,
+      'Returned Expert',
+    );
+
+    for (const expert of [
+      freshExpert,
+      draftExpert,
+      submittedExpert,
+      returnedExpert,
+    ]) {
+      await createAssignment(data.project.id, expert.id, data.reviewManager.id);
+    }
+
+    await createExpertReview(data.project.id, draftExpert.id, 'draft');
+    await createExpertReview(data.project.id, submittedExpert.id, 'submitted');
+    await createExpertReview(data.project.id, returnedExpert.id, 'returned');
+
+    const listResponse = await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/experts`)
+      .set('Cookie', managerCookie)
+      .expect(200);
+    const assignedById = new Map(
+      getJsonArray(listResponse).map((item) => [String(item.id), item]),
+    );
+    expect(assignedById.get(freshExpert.id)).toMatchObject({
+      hasReviewRecord: false,
+      reviewStatus: null,
+    });
+    expect(assignedById.get(draftExpert.id)).toMatchObject({
+      hasReviewRecord: true,
+      reviewStatus: 'draft',
+    });
+    expect(assignedById.get(submittedExpert.id)).toMatchObject({
+      hasReviewRecord: true,
+      reviewStatus: 'submitted',
+    });
+    expect(assignedById.get(returnedExpert.id)).toMatchObject({
+      hasReviewRecord: true,
+      reviewStatus: 'returned',
+    });
+    expect(assignedById.get(draftExpert.id)).not.toHaveProperty('items');
+    expect(assignedById.get(draftExpert.id)).not.toHaveProperty('totalScore');
+    expect(assignedById.get(draftExpert.id)).not.toHaveProperty('submittedAt');
+
+    for (const expert of [draftExpert, submittedExpert, returnedExpert]) {
+      const response = await request(httpServer)
+        .delete(
+          `/review-manager/projects/${data.project.id}/experts/${expert.id}`,
+        )
+        .set('Cookie', managerCookie)
+        .expect(409);
+      expect(getJsonBody(response)).toMatchObject({
+        code: 'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD',
+        message: '该专家已产生评分记录，不能移除。',
+      });
+      await expect(
+        findAssignment(data.project.id, expert.id),
+      ).resolves.toMatchObject({ status: 'assigned' });
+      await expect(
+        findExpertReview(data.project.id, expert.id),
+      ).resolves.toMatchObject({});
+    }
+  });
+
+  it('allows removing an expert assignment after the expert deletes a draft review', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const draftExpert = await createAssignableExpert(
+      '+8613900000311',
+      data,
+      'Draft Removal Expert',
+    );
+    const expertCookie = await login(draftExpert.phone);
+
+    await createAssignment(
+      data.project.id,
+      draftExpert.id,
+      data.reviewManager.id,
+    );
+    await createExpertReview(data.project.id, draftExpert.id, 'draft');
+
+    await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(204);
+    await expect(
+      findExpertReview(data.project.id, draftExpert.id),
+    ).resolves.toBeNull();
+
+    await request(httpServer)
+      .delete(
+        `/review-manager/projects/${data.project.id}/experts/${draftExpert.id}`,
+      )
+      .set('Cookie', managerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          removed: true,
+          alreadyRemoved: false,
+        });
+      });
+    await expect(
+      findAssignment(data.project.id, draftExpert.id),
+    ).resolves.toBeNull();
+  });
+
+  it('blocks replace when it would remove experts with review records without partial updates', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const lockedExpert = await createAssignableExpert(
+      '+8613900000321',
+      data,
+      'Locked Expert',
+    );
+    const replacementExpert = await createAssignableExpert(
+      '+8613900000322',
+      data,
+      'Replacement Expert',
+    );
+
+    await createAssignment(
+      data.project.id,
+      lockedExpert.id,
+      data.reviewManager.id,
+    );
+    await createExpertReview(data.project.id, lockedExpert.id, 'submitted');
+
+    const replaceResponse = await request(httpServer)
+      .put(`/review-manager/projects/${data.project.id}/experts`)
+      .set('Cookie', managerCookie)
+      .send({ expertUserIds: [replacementExpert.id] })
+      .expect(409);
+    expect(getJsonBody(replaceResponse)).toMatchObject({
+      code: 'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD',
+      message: '部分专家已产生评分记录，不能移除。',
+    });
+    await expect(
+      findAssignment(data.project.id, lockedExpert.id),
+    ).resolves.toMatchObject({ status: 'assigned' });
+    await expect(
+      findAssignment(data.project.id, replacementExpert.id),
+    ).resolves.toBeNull();
+    await expect(
+      findExpertReview(data.project.id, lockedExpert.id),
+    ).resolves.toMatchObject({ status: 'submitted' });
+  });
+
+  it('keeps batch replace project-level failures isolated when assignments have review records', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const lockedExpert = await createAssignableExpert(
+      '+8613900000331',
+      data,
+      'Batch Locked Expert',
+    );
+    const removableExpert = await createAssignableExpert(
+      '+8613900000332',
+      data,
+      'Batch Removable Expert',
+    );
+    const replacementExpert = await createAssignableExpert(
+      '+8613900000333',
+      data,
+      'Batch Replacement Expert',
+    );
+    const replaceableProject = await createProject({
+      batchId: data.batchId,
+      projectNo: 'P-BATCH-REPLACE',
+      name: 'Batch Replace Project',
+      disciplineIds: [data.disciplineAId],
+      reviewManagerId: data.reviewManager.id,
+    });
+
+    await createAssignment(
+      data.project.id,
+      lockedExpert.id,
+      data.reviewManager.id,
+    );
+    await createAssignment(
+      replaceableProject.id,
+      removableExpert.id,
+      data.reviewManager.id,
+    );
+    await createExpertReview(data.project.id, lockedExpert.id, 'returned');
+
+    const response = await request(httpServer)
+      .put('/review-manager/projects/experts/batch')
+      .set('Cookie', managerCookie)
+      .send({
+        projectIds: [data.project.id, replaceableProject.id],
+        expertUserIds: [replacementExpert.id],
+        mode: 'replace',
+      })
+      .expect(200);
+    const body = getJsonBody(response);
+    expect(body).toMatchObject({ successCount: 1, failedCount: 1 });
+    const results = getRecordArray(body, 'results');
+    expect(
+      results.find((item) => item.projectId === data.project.id),
+    ).toMatchObject({
+      success: false,
+      message: '部分专家已产生评分记录，不能移除。',
+    });
+    expect(
+      results.find((item) => item.projectId === replaceableProject.id),
+    ).toMatchObject({
+      success: true,
+      removedCount: 1,
+    });
+    await expect(
+      findAssignment(data.project.id, lockedExpert.id),
+    ).resolves.toMatchObject({ status: 'assigned' });
+    await expect(
+      findAssignment(data.project.id, replacementExpert.id),
+    ).resolves.toBeNull();
+    await expect(
+      findAssignment(replaceableProject.id, removableExpert.id),
+    ).resolves.toBeNull();
+    await expect(
+      findAssignment(replaceableProject.id, replacementExpert.id),
+    ).resolves.toMatchObject({ status: 'assigned' });
   });
 
   it('handles batch expert assignment per project', async () => {
@@ -637,6 +917,94 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     return { id: userId.toString(), phone: input.phone };
   }
 
+  async function createAssignableExpert(
+    phone: string,
+    data: {
+      disciplineAId: string;
+      otherOrganizationId: string;
+    },
+    name: string,
+  ): Promise<{ id: string; phone: string }> {
+    return createUser({
+      phone,
+      roles: ['expert'],
+      organizationIds: [data.otherOrganizationId],
+      disciplineIds: [data.disciplineAId],
+      name,
+    });
+  }
+
+  async function createAssignment(
+    projectId: string,
+    expertUserId: string,
+    assignedByUserId: string,
+  ): Promise<void> {
+    await assignmentModel.create({
+      projectId: new Types.ObjectId(projectId),
+      expertUserId: new Types.ObjectId(expertUserId),
+      assignedByUserId: new Types.ObjectId(assignedByUserId),
+      status: 'assigned',
+    });
+  }
+
+  async function createExpertReview(
+    projectId: string,
+    expertUserId: string,
+    status: ExpertReviewStatus,
+  ): Promise<void> {
+    const submittedFields =
+      status === 'submitted' || status === 'returned'
+        ? { submittedAt: new Date() }
+        : {};
+    const returnedFields =
+      status === 'returned'
+        ? {
+            returnedAt: new Date(),
+            returnedByUserId: new Types.ObjectId(),
+            returnReason: '需要补充说明',
+          }
+        : {};
+
+    await expertReviewModel.create({
+      projectId: new Types.ObjectId(projectId),
+      expertUserId: new Types.ObjectId(expertUserId),
+      reviewSchemeSnapshot: createReviewSchemeSnapshot(),
+      items: [],
+      totalScore: 0,
+      status,
+      ...submittedFields,
+      ...returnedFields,
+    });
+  }
+
+  async function findAssignment(
+    projectId: string,
+    expertUserId: string,
+  ): Promise<{ status: string; removedAt?: Date | null } | null> {
+    return assignmentModel
+      .findOne({
+        projectId: new Types.ObjectId(projectId),
+        expertUserId: new Types.ObjectId(expertUserId),
+      })
+      .select({ status: 1, removedAt: 1 })
+      .lean<{ status: string; removedAt?: Date | null } | null>()
+      .exec();
+  }
+
+  async function findExpertReview(
+    projectId: string,
+    expertUserId: string,
+  ): Promise<{ status: ExpertReviewStatus } | null> {
+    return expertReviewModel
+      .findOne({
+        projectId: new Types.ObjectId(projectId),
+        expertUserId: new Types.ObjectId(expertUserId),
+      })
+      .select({ status: 1 })
+      .lean<{ status: ExpertReviewStatus } | null>()
+      .exec();
+  }
+
   async function createProject(input: {
     batchId: string;
     projectNo: string;
@@ -726,6 +1094,34 @@ function getRecordArray(
   }
 
   return value.filter(isRecord);
+}
+
+function createReviewSchemeSnapshot(): {
+  totalScore: number;
+  items: Array<{
+    name: string;
+    maxScore: number;
+    sortOrder: number;
+    suggestionRequiredThresholdRatio: number;
+  }>;
+} {
+  return {
+    totalScore: 100,
+    items: [
+      {
+        name: 'Tech',
+        maxScore: 60,
+        sortOrder: 1,
+        suggestionRequiredThresholdRatio: 0.8,
+      },
+      {
+        name: 'Finance',
+        maxScore: 40,
+        sortOrder: 2,
+        suggestionRequiredThresholdRatio: 0.75,
+      },
+    ],
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

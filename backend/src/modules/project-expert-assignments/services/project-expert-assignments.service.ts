@@ -8,6 +8,8 @@ import { Model, Types } from 'mongoose';
 import { PaginatedResponse } from '../../../common/dto/pagination-query.dto';
 import { escapeRegExp, toObjectId } from '../../../common/utils/mongo-query';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
+import { ExpertReviewStatus } from '../../expert-reviews/constants/expert-review.constants';
+import { ExpertReview } from '../../expert-reviews/schemas/expert-review.schema';
 import {
   ProjectForReviewAssignment,
   ProjectsService,
@@ -35,6 +37,8 @@ export type ExpertBasicResponse = {
   organizationIds: string[];
   disciplineIds: string[];
   assigned?: boolean;
+  hasReviewRecord?: boolean;
+  reviewStatus?: ExpertReviewStatus | null;
 };
 
 export type ExpertCandidatePage = PaginatedResponse<ExpertBasicResponse> & {
@@ -61,6 +65,11 @@ export type ReplaceExpertsResult = {
 export type RemoveExpertResult = {
   removed: boolean;
   alreadyRemoved: boolean;
+};
+
+type AssignmentReviewFailure = {
+  expertUserId: string;
+  reviewStatus: ExpertReviewStatus;
 };
 
 export type BatchProjectExpertsResult = {
@@ -104,11 +113,21 @@ type ExpertUserLean = {
   status: UserStatus;
 };
 
+type ExpertReviewStatusLean = {
+  expertUserId: Types.ObjectId;
+  status: ExpertReviewStatus;
+};
+
+const EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD =
+  'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD';
+
 @Injectable()
 export class ProjectExpertAssignmentsService {
   constructor(
     @InjectModel(ProjectExpertAssignment.name)
     private readonly assignmentModel: Model<ProjectExpertAssignment>,
+    @InjectModel(ExpertReview.name)
+    private readonly expertReviewModel: Model<ExpertReview>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
     private readonly projectsService: ProjectsService,
     private readonly expertEligibilityService: ExpertEligibilityService,
@@ -226,28 +245,34 @@ export class ProjectExpertAssignmentsService {
     const toRemove = [...currentAssignedIds].filter(
       (expertUserId) => !nextAssignedIds.has(expertUserId),
     );
+    const blockedRemovals = await this.findReviewRecordFailures(
+      project._id,
+      toRemove,
+    );
+
+    if (blockedRemovals.length > 0) {
+      throw new ConflictException({
+        message: '部分专家已产生评分记录，不能移除。',
+        code: EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD,
+        failures: blockedRemovals,
+      });
+    }
+
+    let removedCount = 0;
 
     if (toRemove.length > 0) {
-      await this.assignmentModel
-        .updateMany(
-          {
-            projectId: project._id,
-            expertUserId: {
-              $in: toRemove.map((expertUserId) =>
-                toObjectId(expertUserId, 'expertUserId'),
-              ),
-            },
-            status: 'assigned',
+      const deleteResult = await this.assignmentModel
+        .deleteMany({
+          projectId: project._id,
+          expertUserId: {
+            $in: toRemove.map((expertUserId) =>
+              toObjectId(expertUserId, 'expertUserId'),
+            ),
           },
-          {
-            $set: {
-              status: 'removed',
-              removedAt: new Date(),
-              removedByUserId: toObjectId(currentUser.user.id, 'userId'),
-            },
-          },
-        )
+          status: 'assigned',
+        })
         .exec();
+      removedCount = deleteResult.deletedCount ?? 0;
     }
 
     for (const expertUserId of dto.expertUserIds) {
@@ -259,7 +284,7 @@ export class ProjectExpertAssignmentsService {
       addedOrRestoredCount: dto.expertUserIds.filter(
         (expertUserId) => !currentAssignedIds.has(expertUserId),
       ).length,
-      removedCount: toRemove.length,
+      removedCount,
     };
   }
 
@@ -283,20 +308,29 @@ export class ProjectExpertAssignmentsService {
       return { removed: false, alreadyRemoved: true };
     }
 
-    await this.assignmentModel
-      .updateOne(
-        { _id: existing._id },
-        {
-          $set: {
-            status: 'removed',
-            removedAt: new Date(),
-            removedByUserId: toObjectId(currentUser.user.id, 'userId'),
-          },
-        },
-      )
+    const reviewStatusByExpertId = await this.findReviewStatusesByExpertIds(
+      project._id,
+      [expertObjectId],
+    );
+    const reviewStatus = reviewStatusByExpertId.get(expertObjectId.toString());
+
+    if (reviewStatus) {
+      throw new ConflictException({
+        message: '该专家已产生评分记录，不能移除。',
+        code: EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD,
+        expertUserId,
+        reviewStatus,
+      });
+    }
+
+    const deleteResult = await this.assignmentModel
+      .deleteOne({ _id: existing._id, status: 'assigned' })
       .exec();
 
-    return { removed: true, alreadyRemoved: false };
+    return {
+      removed: deleteResult.deletedCount === 1,
+      alreadyRemoved: false,
+    };
   }
 
   async batchUpdateExperts(
@@ -498,6 +532,51 @@ export class ProjectExpertAssignmentsService {
     );
   }
 
+  private async findReviewRecordFailures(
+    projectId: Types.ObjectId,
+    expertUserIds: string[],
+  ): Promise<AssignmentReviewFailure[]> {
+    if (expertUserIds.length === 0) {
+      return [];
+    }
+
+    const reviewStatusByExpertId = await this.findReviewStatusesByExpertIds(
+      projectId,
+      expertUserIds.map((expertUserId) =>
+        toObjectId(expertUserId, 'expertUserId'),
+      ),
+    );
+
+    return expertUserIds
+      .map((expertUserId) => {
+        const reviewStatus = reviewStatusByExpertId.get(expertUserId);
+
+        return reviewStatus ? { expertUserId, reviewStatus } : null;
+      })
+      .filter(
+        (failure): failure is AssignmentReviewFailure => failure !== null,
+      );
+  }
+
+  private async findReviewStatusesByExpertIds(
+    projectId: Types.ObjectId,
+    expertIds: Types.ObjectId[],
+  ): Promise<Map<string, ExpertReviewStatus>> {
+    if (expertIds.length === 0) {
+      return new Map();
+    }
+
+    const reviews = await this.expertReviewModel
+      .find({ projectId, expertUserId: { $in: expertIds } })
+      .select({ expertUserId: 1, status: 1 })
+      .lean<ExpertReviewStatusLean[]>()
+      .exec();
+
+    return new Map(
+      reviews.map((review) => [review.expertUserId.toString(), review.status]),
+    );
+  }
+
   private async getAssignedExperts(
     projectId: Types.ObjectId,
   ): Promise<ExpertBasicResponse[]> {
@@ -529,11 +608,29 @@ export class ProjectExpertAssignmentsService {
     const expertById = new Map(
       experts.map((expert) => [expert._id.toString(), expert]),
     );
+    const reviewStatusByExpertId = await this.findReviewStatusesByExpertIds(
+      projectId,
+      expertIds,
+    );
 
     return assignments
-      .map((assignment) => expertById.get(assignment.expertUserId.toString()))
-      .filter((expert): expert is ExpertUserLean => expert !== undefined)
-      .map((expert) => this.toExpertResponse(expert));
+      .map((assignment): ExpertBasicResponse | null => {
+        const expertId = assignment.expertUserId.toString();
+        const expert = expertById.get(expertId);
+
+        if (!expert) {
+          return null;
+        }
+
+        const reviewStatus = reviewStatusByExpertId.get(expertId) ?? null;
+
+        return {
+          ...this.toExpertResponse(expert),
+          hasReviewRecord: reviewStatus !== null,
+          reviewStatus,
+        };
+      })
+      .filter((expert): expert is ExpertBasicResponse => expert !== null);
   }
 
   private toExpertResponse(expert: ExpertUserLean): ExpertBasicResponse {
