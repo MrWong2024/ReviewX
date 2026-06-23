@@ -91,6 +91,12 @@ export function submitExpertReview(
   );
 }
 
+export function deleteExpertReviewDraft(projectId: string): Promise<void> {
+  return apiRequest<void>(`/expert/review-tasks/${projectId}/draft`, {
+    method: 'DELETE',
+  });
+}
+
 export function listExpertProjectMaterials(
   projectId: string,
   params: QueryExpertProjectMaterialsParams = {},

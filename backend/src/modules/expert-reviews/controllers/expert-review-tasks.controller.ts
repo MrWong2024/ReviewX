@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -55,5 +57,17 @@ export class ExpertReviewTasksController {
     @CurrentUser() currentUser: AuthenticatedUser,
   ) {
     return this.expertReviewsService.submitReview(projectId, dto, currentUser);
+  }
+
+  @Delete(':projectId/draft')
+  @HttpCode(204)
+  deleteDraft(
+    @Param('projectId') projectId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    return this.expertReviewsService.deleteDraftReviewForExpert(
+      projectId,
+      currentUser.user.id,
+    );
   }
 }

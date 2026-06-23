@@ -105,9 +105,9 @@ frontend/
 - `/expert`：专家工作台首页，展示专家评审流程提示和“我的评审任务”入口
 - `/expert/review-tasks`：专家评审任务列表，调用 `/expert/review-tasks`，支持状态、批次、评审负责人、评审方案筛选、分页、刷新、portal reference-data 名称映射和评分状态 Badge；评审负责人优先显示任务响应内联 `project.reviewManager`
 - `/expert/review-tasks/[projectId]`：专家评审任务详情，并发加载任务详情、submitted 材料和 portal reference-data，展示项目基础信息、评审安排、会议链接、后续推进需求、材料下载、评审方案快照和评分表单；评审负责人优先显示详情响应内联 `project.reviewManager`
-- 专家评分：调用 `/expert/review-tasks/:projectId` 保存草稿，调用 `/expert/review-tasks/:projectId/submit` 提交评分；前端做 score 范围、评价描述、低分 / 重大问题改进建议必填、评审时间未到时禁用提交和提交二次确认
+- 专家评分：调用 `/expert/review-tasks/:projectId` 保存草稿，调用 `/expert/review-tasks/:projectId/draft` 删除本人未提交草稿，调用 `/expert/review-tasks/:projectId/submit` 提交评分；前端做 score 范围、评价描述、低分 / 重大问题改进建议必填、评审时间未到时禁用提交和提交二次确认
 - 专家材料查看 / 下载：只调用 `/expert/projects/:id/materials` 和 `/expert/projects/:id/materials/:materialId/download-url`；仅展示 submitted 材料，不拼接 OSS objectKey，不提供删除、上传或预览
-- 专家评分状态：`not_started` 初始化空表单，`draft` 可继续编辑，`submitted` 只读，`returned` 显示退回原因并可修改重提；项目 `reviewTime` 未到时可保存草稿但不可提交，`reviewTime` 为空时兼容允许提交
+- 专家评分状态：`not_started` 初始化空表单，`draft` 可继续编辑并删除草稿，`submitted` 只读，`returned` 显示退回原因并可修改重提；项目 `reviewTime` 未到时可保存草稿和删除草稿但不可提交，`reviewTime` 为空时兼容允许提交
 
 ## 7. 当前未实现
 
@@ -183,6 +183,7 @@ frontend/
 - 专家材料下载只使用 `/expert/projects/:id/materials/:materialId/download-url` 返回的 `string/url/downloadUrl`，无法解析时展示错误；不调用 admin / project_owner / review_manager 材料接口，不前端拼接 OSS objectKey
 - 专家页面通过 `/portal/reference-data/*` 构造批次、项目状态、评审负责人、评审方案和材料类型名称映射；评审负责人优先使用 `/expert/review-tasks*` 响应内联 `project.reviewManager`，再 fallback 到 portal `review_manager` 用户映射和短 ID；不调用 `/admin/*` 主数据接口
 - 专家评分保存草稿允许空 score、评价描述和改进建议，但已填写 score 必须在 `0..maxScore`；保存草稿不受 `reviewTime` 限制；提交要求所有 score 和评价描述必填，低分或重大问题项改进建议必填，且评审时间未到时提交按钮禁用并提示可先保存草稿
-- 专家评分 `submitted` 状态前端只读且不显示保存 / 提交按钮；`returned` 状态显示退回时间和原因，并允许保存草稿与重新提交
+- 专家评分 `draft` 状态显示“删除草稿”危险按钮，删除前二次确认；删除成功后调用后端 DELETE 并重新拉取详情，状态回到 `not_started`，不只在前端手动清空；删除失败时显示友好错误，不清空当前表单
+- 专家评分 `submitted` 状态前端只读且不显示保存 / 提交 / 删除草稿按钮；`returned` 状态显示退回时间和原因，并允许保存草稿与重新提交，但不显示删除草稿按钮
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案；专家提交评分返回 `409 REVIEW_NOT_STARTED` 或“评审尚未开始”时固定提示“评审尚未开始，暂不能提交评分。”
 - 本阶段未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、评审负责人合议、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI

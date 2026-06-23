@@ -1,5 +1,18 @@
 # ReviewX 前端变更记录
 
+## 2026-06-23
+
+### ReviewX 小修：专家可删除本人未提交评分草稿
+
+- 后端新增 `DELETE /expert/review-tasks/:projectId/draft`，要求 Session 登录、`expert` 角色，且当前专家仍是该项目 `assigned` 专家
+- 删除接口仅允许物理删除当前专家本人 `status=draft` 的 `expert_reviews` 记录；无记录返回 `404` 和“未找到可删除的评分草稿。”，`submitted/returned` 返回 `409 EXPERT_REVIEW_DRAFT_NOT_DELETABLE` 和“只有未提交的评分草稿可以删除。”
+- 删除草稿不受 `Project.reviewTime` 限制，不删除项目、材料、专家分配，不新增 `deleted` 状态，不改变保存草稿、提交评分、submitted 只读或 returned 重提逻辑
+- 前端新增 `deleteExpertReviewDraft(projectId)`，只调用 `/expert/review-tasks/:projectId/draft`，不调用 `/admin/*`、project_owner 或 review_manager 接口
+- `ExpertReviewForm` 仅在 `review.status === 'draft'` 时显示危险样式“删除草稿”按钮，点击后通过确认弹窗二次确认；submitted、returned、not_started 不显示删除按钮
+- 删除成功后专家详情页显示“评分草稿已删除。”并重新拉取详情和材料，使表单回到未开始评分状态；删除失败显示 404/409 友好文案，不清空当前表单、不跳转
+- 本小修未新增依赖、环境变量，未修改 `package.json` 或锁文件，未实现第六阶段合议、AI 合议、申诉、甲方看板或腾讯会议 API
+- 本次验证：backend `npm run lint`、`npm run test -- --runInBand`、`npm run test:e2e`、`npm run build` 通过；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过
+
 ## 2026-06-16
 
 ### ReviewX 小修：专家评分提交增加评审时间窗口校验

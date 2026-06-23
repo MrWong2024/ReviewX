@@ -20,6 +20,7 @@ import { Project } from '../../projects/schemas/project.schema';
 import { User } from '../../users/schemas/user.schema';
 import {
   DEFAULT_SUGGESTION_REQUIRED_THRESHOLD_RATIO,
+  EXPERT_REVIEW_DRAFT_NOT_DELETABLE,
   ExpertReviewStatus,
   ExpertReviewViewStatus,
 } from '../constants/expert-review.constants';
@@ -459,6 +460,36 @@ export class ExpertReviewsService {
     });
 
     return this.toReviewResponse(saved);
+  }
+
+  async deleteDraftReviewForExpert(
+    projectId: string,
+    expertUserId: string,
+  ): Promise<void> {
+    const { project } = await this.assertExpertAssignedAccess(
+      projectId,
+      expertUserId,
+    );
+    const existing = await this.findExpertReview(project._id, expertUserId);
+
+    if (!existing) {
+      throw new NotFoundException('未找到可删除的评分草稿。');
+    }
+
+    if (existing.status !== 'draft') {
+      throw new ConflictException({
+        message: '只有未提交的评分草稿可以删除。',
+        code: EXPERT_REVIEW_DRAFT_NOT_DELETABLE,
+      });
+    }
+
+    const deleteResult = await this.expertReviewModel
+      .deleteOne({ _id: existing._id, status: 'draft' })
+      .exec();
+
+    if (deleteResult.deletedCount === 0) {
+      throw new NotFoundException('未找到可删除的评分草稿。');
+    }
   }
 
   async listProjectExpertReviews(

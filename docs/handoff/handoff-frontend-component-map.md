@@ -79,7 +79,7 @@
 | `ExpertTaskStatusBadge` | `frontend/src/features/expert/components/ExpertTaskStatusBadge.tsx` | 专家评分状态标签，显示未开始、草稿、已提交和已退回及说明 |
 | `ExpertProjectInfoPanel` | `frontend/src/features/expert/components/ExpertProjectInfoPanel.tsx` | 使用 lookup maps 展示项目编号、项目名称、批次、项目状态、评审负责人、评审方案、评审时间、地点、会议链接和后续推进需求；评审负责人优先展示详情响应内联 `project.reviewManager` |
 | `ExpertMaterialsPanel` | `frontend/src/features/expert/components/ExpertMaterialsPanel.tsx` | 展示专家可见 submitted 材料列表，支持调用专家材料 download-url 获取签名 URL 下载；不提供删除、上传或预览 |
-| `ExpertReviewForm` | `frontend/src/features/expert/components/ExpertReviewForm.tsx` | 管理专家评分表单状态、实时总分、草稿保存校验、提交校验、二次确认、评审未开始时禁用提交但保留保存草稿、submitted 只读和 returned 重提提示 |
+| `ExpertReviewForm` | `frontend/src/features/expert/components/ExpertReviewForm.tsx` | 管理专家评分表单状态、实时总分、草稿保存校验、draft 删除草稿按钮与二次确认、提交校验、提交二次确认、评审未开始时禁用提交但保留保存草稿和删除草稿、submitted 只读和 returned 重提提示 |
 | `ExpertReviewItemEditor` | `frontend/src/features/expert/components/ExpertReviewItemEditor.tsx` | 单个评分项编辑器，提供 score、评价描述、改进建议、重大问题 checkbox、评分说明和低分 / 重大问题提示 |
 
 ## 5. 工具
@@ -103,9 +103,9 @@
 | project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 提交 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口或 admin 材料删除接口 |
 | project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、材料、`draft/submitted/active/deleted` 状态、提交结果、上传结果、删除结果、下载 URL、查询参数、portal reference-data 摘要和 lookup map 类型 |
 | project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化、材料状态展示 / 可提交 / 可删除判断、skipped reason 中文化、reference-data lookup map 构造和“未知项（短ID）”名称兜底展示辅助 |
-| expert API | `frontend/src/features/expert/api.ts` | 专家评分任务、专家材料列表 / 下载 URL，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin / project_owner / review_manager 材料接口 |
+| expert API | `frontend/src/features/expert/api.ts` | 专家评分任务、专家材料列表 / 下载 URL、删除本人 draft 草稿，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin / project_owner / review_manager 材料接口 |
 | expert types | `frontend/src/features/expert/types.ts` | 专家任务、任务详情、评分方案快照、评分项、专家材料、保存 / 提交输入、portal reference-data 摘要、lookup map 类型和 `ExpertReviewManagerSummary` |
-| expert utils | `frontend/src/features/expert/utils.ts` | 专家评分状态文案、操作文案、`reviewTime` 未开始判断、score 范围校验、低分 / 重大问题改进建议必填判断、实时总分、文件大小格式化、lookup map 构造、评审负责人显示优先级和专家错误文案映射 |
+| expert utils | `frontend/src/features/expert/utils.ts` | 专家评分状态文案、操作文案、draft 草稿可删除判断、`reviewTime` 未开始判断、score 范围校验、低分 / 重大问题改进建议必填判断、实时总分、文件大小格式化、lookup map 构造、评审负责人显示优先级和专家错误文案映射 |
 
 ## 6. 当前 UI 基线
 

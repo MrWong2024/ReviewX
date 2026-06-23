@@ -6,6 +6,7 @@ import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { ExpertShell } from '@/src/components/layout/ExpertShell';
 import {
+  deleteExpertReviewDraft,
   getExpertReviewTask,
   listExpertProjectMaterials,
   loadExpertReferenceData,
@@ -51,6 +52,7 @@ export function ExpertReviewTaskDetailPage({
   const [referenceDataError, setReferenceDataError] = useState<string | null>(
     null,
   );
+  const [deletingDraft, setDeletingDraft] = useState(false);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -161,6 +163,23 @@ export function ExpertReviewTaskDetailPage({
     }
   }
 
+  async function handleDeleteDraft() {
+    setDeletingDraft(true);
+    setNotice(null);
+    setOperationError(null);
+
+    try {
+      await deleteExpertReviewDraft(projectId);
+      setNotice('评分草稿已删除。');
+      await refreshDetailAndMaterials();
+    } catch (error) {
+      setOperationError(formatExpertErrorMessage(error));
+      throw error;
+    } finally {
+      setDeletingDraft(false);
+    }
+  }
+
   useEffect(() => {
     void loadInitialData();
   }, [projectId]);
@@ -224,8 +243,10 @@ export function ExpertReviewTaskDetailPage({
           />
 
           <ExpertReviewForm
+            deletingDraft={deletingDraft}
             disableSubmitReason={disableSubmitReason}
             error={operationError}
+            onDeleteDraft={handleDeleteDraft}
             onSaveDraft={handleSaveDraft}
             onSubmitReview={handleSubmitReview}
             review={detail.review}

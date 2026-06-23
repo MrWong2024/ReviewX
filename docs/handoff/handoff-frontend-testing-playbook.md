@@ -130,6 +130,18 @@ npm run build
 
 注意：专家材料查看和下载只调用 `/expert/projects/:id/materials` 系列接口；专家评分只调用 `/expert/review-tasks` 系列接口；不得调用 admin / project_owner / review_manager 材料接口。
 
+本次 ReviewX 小修：专家可删除本人未提交评分草稿已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- backend `npm run build`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：专家删除评分草稿只调用 `DELETE /expert/review-tasks/:projectId/draft`；draft 可删除，submitted/returned 不显示删除按钮且后端返回 `409`，无草稿返回 `404`；删除不受 `reviewTime` 限制。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -556,6 +568,22 @@ Workspace 和守卫：
 9. 保存失败显示后端错误，不清空表单
 10. 即使项目 `reviewTime` 在未来，保存草稿按钮仍可用，保存成功仍调用 `PUT /expert/review-tasks/:projectId`
 
+删除草稿：
+
+1. not_started 任务进入详情时不显示“删除草稿”
+2. 保存草稿成功后显示“删除草稿”危险按钮
+3. 点击“删除草稿”出现二次确认，标题为“删除评分草稿”
+4. 确认正文说明删除后已填写的评分、评价描述和改进建议会被清空，需要重新填写
+5. 确认后调用 `DELETE /expert/review-tasks/:projectId/draft`
+6. 删除中按钮禁用，避免重复点击
+7. 删除成功显示“评分草稿已删除。”，并重新拉取任务详情和材料
+8. 删除成功后详情状态回到 `not_started`，表单按评审方案快照初始化为空
+9. 删除失败时显示友好错误，不清空当前表单，不跳转
+10. 后端返回 `404` 时显示“未找到可删除的评分草稿。”
+11. 后端返回 `409` 时显示“只有未提交的评分草稿可以删除。”
+12. 项目 `reviewTime` 在未来时，保存草稿可用，删除草稿可用，提交评分仍禁用
+13. Network 中不得出现 `/admin/*`、project_owner 或 review_manager 接口
+
 提交评分：
 
 1. 当项目 `reviewTime` 在未来时，页面显示“评审尚未开始，暂不能提交评分；可先保存草稿。”，提交按钮禁用，保存草稿按钮仍可用
@@ -585,13 +613,14 @@ Workspace 和守卫：
 submitted 和 returned：
 
 1. submitted 详情页表单只读
-2. submitted 不显示“保存草稿”和“提交评分”按钮
+2. submitted 不显示“保存草稿”“提交评分”和“删除草稿”按钮
 3. submitted 显示提交时间和最终提交分
 4. returned 详情页显示退回时间和退回原因
-5. returned 表单可编辑
+5. returned 表单可编辑但不显示“删除草稿”
 6. returned 可保存草稿
 7. returned 在 `reviewTime` 未到时仍可保存草稿，但“重新提交评分”禁用并显示评审未开始提示
 8. 重新提交成功后状态变为 submitted
+9. 直接调用 submitted 或 returned 记录的 DELETE 草稿接口应返回 `409`，评分记录仍存在且状态不变
 
 回归边界：
 

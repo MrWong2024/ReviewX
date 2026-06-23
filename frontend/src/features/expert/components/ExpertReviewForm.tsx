@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import {
   calculateExpertReviewTotalScore,
+  canDeleteExpertReviewDraft,
   formatScore,
   getExpertReviewStatusView,
   isExpertReviewReadonly,
@@ -27,8 +28,10 @@ import {
 import { ExpertTaskStatusBadge } from './ExpertTaskStatusBadge';
 
 type ExpertReviewFormProps = {
+  deletingDraft: boolean;
   disableSubmitReason?: string | null;
   error?: string | null;
+  onDeleteDraft: () => Promise<void>;
   onSaveDraft: (input: SaveExpertReviewInput) => Promise<void>;
   onSubmitReview: (input: SaveExpertReviewInput) => Promise<void>;
   review: ExpertReview;
@@ -40,8 +43,10 @@ type ExpertReviewFormProps = {
 type FormErrors = Record<string, ExpertReviewItemEditorErrors>;
 
 export function ExpertReviewForm({
+  deletingDraft,
   disableSubmitReason,
   error,
+  onDeleteDraft,
   onSaveDraft,
   onSubmitReview,
   review,
@@ -50,6 +55,7 @@ export function ExpertReviewForm({
   submitting,
 }: ExpertReviewFormProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [items, setItems] = useState<ExpertReviewItemEditorValue[]>(
     createFormItems(review),
@@ -62,9 +68,11 @@ export function ExpertReviewForm({
     setErrors({});
     setPendingSubmitInput(null);
     setConfirmOpen(false);
+    setDeleteConfirmOpen(false);
   }, [review]);
 
   const readOnly = isExpertReviewReadonly(review.status);
+  const canDeleteDraft = canDeleteExpertReviewDraft(review);
   const statusView = getExpertReviewStatusView(review.status);
   const draftTotalScore = useMemo(
     () =>
@@ -77,7 +85,8 @@ export function ExpertReviewForm({
   );
   const displayTotalScore =
     review.status === 'submitted' ? review.totalScore : draftTotalScore;
-  const submitDisabled = saving || submitting || Boolean(disableSubmitReason);
+  const submitDisabled =
+    saving || submitting || deletingDraft || Boolean(disableSubmitReason);
 
   function updateItem(index: number, nextItem: ExpertReviewItemEditorValue) {
     setItems((currentItems) =>
@@ -88,7 +97,7 @@ export function ExpertReviewForm({
   }
 
   async function handleSaveDraft() {
-    if (readOnly || saving || submitting) {
+    if (readOnly || saving || submitting || deletingDraft) {
       return;
     }
 
@@ -120,6 +129,20 @@ export function ExpertReviewForm({
     await onSubmitReview(pendingSubmitInput);
     setConfirmOpen(false);
     setPendingSubmitInput(null);
+  }
+
+  async function handleConfirmDeleteDraft() {
+    if (deletingDraft) {
+      return;
+    }
+
+    try {
+      await onDeleteDraft();
+      setDeleteConfirmOpen(false);
+    } catch {
+      setDeleteConfirmOpen(false);
+      return;
+    }
   }
 
   function validateForm(requireSubmit: boolean): boolean {
@@ -264,28 +287,53 @@ export function ExpertReviewForm({
         </div>
 
         {readOnly ? null : (
-          <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-            <Button
-              disabled={saving || submitting}
-              onClick={handleSaveDraft}
-              variant="secondary"
-            >
-              {saving ? '保存中...' : '保存草稿'}
-            </Button>
-            <Button
-              disabled={submitDisabled}
-              onClick={handleSubmitClick}
-              variant="primary"
-            >
-              {submitting
-                ? '提交中...'
-                : review.status === 'returned'
-                  ? '重新提交评分'
-                  : '提交评分'}
-            </Button>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              {canDeleteDraft ? (
+                <Button
+                  disabled={saving || submitting || deletingDraft}
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  variant="danger"
+                >
+                  {deletingDraft ? '删除中...' : '删除草稿'}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Button
+                disabled={saving || submitting || deletingDraft}
+                onClick={handleSaveDraft}
+                variant="secondary"
+              >
+                {saving ? '保存中...' : '保存草稿'}
+              </Button>
+              <Button
+                disabled={submitDisabled}
+                onClick={handleSubmitClick}
+                variant="primary"
+              >
+                {submitting
+                  ? '提交中...'
+                  : review.status === 'returned'
+                    ? '重新提交评分'
+                    : '提交评分'}
+              </Button>
+            </div>
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        confirmLabel="删除草稿"
+        description="确定删除当前评分草稿吗？删除后已填写的评分、评价描述和改进建议将被清空，需要重新填写。"
+        loading={deletingDraft}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        onConfirm={() => {
+          void handleConfirmDeleteDraft();
+        }}
+        open={deleteConfirmOpen}
+        title="删除评分草稿"
+      />
 
       <ConfirmDialog
         confirmLabel={

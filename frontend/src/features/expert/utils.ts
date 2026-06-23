@@ -1,5 +1,6 @@
 import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import type {
+  ExpertReview,
   ExpertLookupMaps,
   ExpertReferenceData,
   ExpertReviewItem,
@@ -72,6 +73,12 @@ export function getExpertTaskActionLabel(status: ExpertReviewViewStatus): string
 
 export function isExpertReviewReadonly(status: ExpertReviewViewStatus): boolean {
   return status === 'submitted';
+}
+
+export function canDeleteExpertReviewDraft(
+  review?: Pick<ExpertReview, 'status'> | null,
+): boolean {
+  return review?.status === 'draft';
 }
 
 export function isBeforeReviewTime(reviewTime?: string | null): boolean {
@@ -309,7 +316,21 @@ export function formatExpertErrorMessage(error: unknown): string {
         return REVIEW_NOT_STARTED_MESSAGE;
       }
 
+      if (
+        error.code === 'EXPERT_REVIEW_DRAFT_NOT_DELETABLE' ||
+        error.message.includes('只有未提交的评分草稿可以删除')
+      ) {
+        return '只有未提交的评分草稿可以删除。';
+      }
+
       return '评分已提交，不能修改。';
+    }
+
+    if (
+      error.status === 404 &&
+      error.message.includes('未找到可删除的评分草稿')
+    ) {
+      return '未找到可删除的评分草稿。';
     }
 
     if (error.status === 400) {

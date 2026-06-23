@@ -8,6 +8,7 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import type { ExpertReviewStatus } from '../src/modules/expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
 import { ProjectMaterial } from '../src/modules/project-materials/schemas/project-material.schema';
@@ -334,6 +335,144 @@ describe('Expert review APIs (e2e)', () => {
       .expect(201);
   });
 
+  it('deletes draft reviews and returns task detail to not_started', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    await request(httpServer)
+      .put(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .send({
+        items: [
+          {
+            name: '技术',
+            score: 50,
+            evaluationDescription: '阶段性成果较好',
+          },
+          { name: '财务', score: 35 },
+        ],
+      })
+      .expect(200);
+
+    const savedReview = await findReview(data.project.id, data.expert.id);
+    expect(savedReview).toMatchObject({ status: 'draft' });
+
+    await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(204);
+
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toBeNull();
+
+    const detailResponse = await request(httpServer)
+      .get(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .expect(200);
+    const detailReview = getRecordValue(getJsonBody(detailResponse), 'review');
+    expect(detailReview).toMatchObject({
+      status: 'not_started',
+      totalScore: 0,
+    });
+    expect(getRecordArray(detailReview, 'items')[0]).toMatchObject({
+      score: null,
+      evaluationDescription: '',
+      improvementSuggestion: '',
+    });
+  });
+
+  it('rejects deleting submitted and returned reviews', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+    const managerCookie = await login(data.reviewManager.phone);
+
+    await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(201);
+
+    const submittedDeleteResponse = await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(409);
+    expect(getJsonBody(submittedDeleteResponse)).toMatchObject({
+      code: 'EXPERT_REVIEW_DRAFT_NOT_DELETABLE',
+      message: '只有未提交的评分草稿可以删除。',
+    });
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toMatchObject({ status: 'submitted' });
+
+    await request(httpServer)
+      .post(
+        `/review-manager/projects/${data.project.id}/expert-reviews/${data.expert.id}/return`,
+      )
+      .set('Cookie', managerCookie)
+      .send({ returnReason: '需要补充说明' })
+      .expect(201);
+
+    const returnedDeleteResponse = await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(409);
+    expect(getJsonBody(returnedDeleteResponse)).toMatchObject({
+      code: 'EXPERT_REVIEW_DRAFT_NOT_DELETABLE',
+      message: '只有未提交的评分草稿可以删除。',
+    });
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toMatchObject({ status: 'returned' });
+  });
+
+  it('returns 404 when deleting without an expert review record', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    const response = await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(404);
+
+    expect(getJsonBody(response)).toMatchObject({
+      message: '未找到可删除的评分草稿。',
+    });
+  });
+
+  it('blocks unassigned or removed experts from deleting draft reviews', async () => {
+    const data = await seedData();
+    const unassignedExpertCookie = await login(data.unassignedExpert.phone);
+    const removedExpertCookie = await login(data.removedExpert.phone);
+
+    await createReviewRecord({
+      expertUserId: data.unassignedExpert.id,
+      projectId: data.project.id,
+      status: 'draft',
+    });
+    await createReviewRecord({
+      expertUserId: data.removedExpert.id,
+      projectId: data.project.id,
+      status: 'draft',
+    });
+
+    await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', unassignedExpertCookie)
+      .expect(403);
+    await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', removedExpertCookie)
+      .expect(403);
+
+    await expect(
+      findReview(data.project.id, data.unassignedExpert.id),
+    ).resolves.toMatchObject({ status: 'draft' });
+    await expect(
+      findReview(data.project.id, data.removedExpert.id),
+    ).resolves.toMatchObject({ status: 'draft' });
+  });
+
   it('blocks submit before review time while allowing drafts', async () => {
     const data = await seedData();
     const expertCookie = await login(data.expert.phone);
@@ -391,6 +530,57 @@ describe('Expert review APIs (e2e)', () => {
       .exec();
     expect(persistedReview).toMatchObject({ status: 'draft' });
     expect(persistedReview?.submittedAt ?? null).toBeNull();
+  });
+
+  it('allows deleting drafts before review time while submit remains blocked', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+    const futureReviewTime = new Date(Date.now() + 60 * 60 * 1000);
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, {
+        $set: { reviewTime: futureReviewTime },
+      })
+      .exec();
+
+    await request(httpServer)
+      .put(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .send({
+        items: [
+          {
+            name: '技术',
+            score: 50,
+            evaluationDescription: '提前准备技术意见',
+          },
+          {
+            name: '财务',
+            score: 35,
+            evaluationDescription: '提前准备财务意见',
+          },
+        ],
+      })
+      .expect(200);
+
+    await request(httpServer)
+      .delete(`/expert/review-tasks/${data.project.id}/draft`)
+      .set('Cookie', expertCookie)
+      .expect(204);
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toBeNull();
+
+    const blockedResponse = await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(409);
+    expect(getJsonBody(blockedResponse)).toMatchObject({
+      code: 'REVIEW_NOT_STARTED',
+    });
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toBeNull();
   });
 
   it('allows submit after review time', async () => {
@@ -676,6 +866,45 @@ describe('Expert review APIs (e2e)', () => {
       await model.deleteMany({}).exec();
     }
   }
+
+  async function findReview(projectId: string, expertUserId: string) {
+    return expertReviewModel
+      .findOne({
+        projectId: new Types.ObjectId(projectId),
+        expertUserId: new Types.ObjectId(expertUserId),
+      })
+      .lean<{ status: string; submittedAt?: Date | null } | null>()
+      .exec();
+  }
+
+  async function createReviewRecord(input: {
+    expertUserId: string;
+    projectId: string;
+    status: ExpertReviewStatus;
+  }): Promise<void> {
+    const project = await projectModel
+      .findById(input.projectId)
+      .select({ reviewSchemeSnapshot: 1 })
+      .lean<{ reviewSchemeSnapshot?: Record<string, unknown> | null } | null>()
+      .exec();
+    const reviewSchemeSnapshot =
+      project?.reviewSchemeSnapshot ?? createReviewSchemeSnapshot();
+
+    await expertReviewModel.create({
+      projectId: new Types.ObjectId(input.projectId),
+      expertUserId: new Types.ObjectId(input.expertUserId),
+      assignmentId: null,
+      reviewSchemeSnapshot,
+      items: createReviewItems(),
+      totalScore: 85,
+      status: input.status,
+      submittedAt:
+        input.status === 'submitted' || input.status === 'returned'
+          ? new Date()
+          : null,
+      returnedAt: input.status === 'returned' ? new Date() : null,
+    });
+  }
 });
 
 function getSessionCookie(response: Response): string {
@@ -724,6 +953,19 @@ function getRecordArray(
   return value.filter(isRecord);
 }
 
+function getRecordValue(
+  record: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
+  const value = record[key];
+
+  if (!isRecord(value)) {
+    throw new Error(`${key} must be an object`);
+  }
+
+  return value;
+}
+
 function getStringValue(record: Record<string, unknown>, key: string): string {
   const value = record[key];
 
@@ -751,6 +993,60 @@ function createValidSubmitPayload(): {
       },
     ],
   };
+}
+
+function createReviewSchemeSnapshot(): {
+  totalScore: number;
+  items: Array<{
+    maxScore: number;
+    name: string;
+    scoringGuide: string;
+    sortOrder: number;
+    suggestionRequiredThresholdRatio: number;
+  }>;
+} {
+  return {
+    totalScore: 100,
+    items: [
+      {
+        name: '技术',
+        maxScore: 60,
+        scoringGuide: '技术评分',
+        sortOrder: 1,
+        suggestionRequiredThresholdRatio: 0.8,
+      },
+      {
+        name: '财务',
+        maxScore: 40,
+        scoringGuide: '财务评分',
+        sortOrder: 2,
+        suggestionRequiredThresholdRatio: 0.75,
+      },
+    ],
+  };
+}
+
+function createReviewItems(): Array<{
+  evaluationDescription: string;
+  hasMajorIssue: boolean;
+  improvementSuggestion: string;
+  itemSnapshot: {
+    maxScore: number;
+    name: string;
+    scoringGuide: string;
+    sortOrder: number;
+    suggestionRequiredThresholdRatio: number;
+  };
+  score: number;
+}> {
+  return createReviewSchemeSnapshot().items.map((item) => ({
+    itemSnapshot: item,
+    score: item.name === '技术' ? 50 : 35,
+    evaluationDescription:
+      item.name === '技术' ? '技术路线清晰' : '预算安排基本合理',
+    improvementSuggestion: '',
+    hasMajorIssue: false,
+  }));
 }
 
 function expectResponseHasNoForbiddenFields(value: unknown): void {

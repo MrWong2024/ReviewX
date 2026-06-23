@@ -36,7 +36,7 @@
 - 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
 - 当前已实现第四阶段补丁一门户端只读基础数据接口：`/portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users`，供 `project_owner/expert/review_manager/client/admin` 登录后读取展示型最小摘要；不提供写接口，不替代 `/admin/*` 主数据 CRUD
-- 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、提交评分评审时间窗口校验、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
+- 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、专家本人删除未提交 draft 草稿、提交评分评审时间窗口校验、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
 - 当前专家任务列表 `/expert/review-tasks` 和详情 `/expert/review-tasks/:projectId` 的 `project` 摘要会内联当前项目 `reviewManager` 最小摘要 `{ id, name, phone? }`；该摘要只按项目 `reviewManagerId` 查询对应用户，不受 portal reference-data users 排除 admin 多角色用户规则影响，且不返回 `passwordHash`、token 等敏感字段
 - 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志
 - 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
@@ -307,6 +307,7 @@ backend/
 - 当前 `ExpertReview.status` 取值：`draft/submitted/returned`；无记录时接口返回视图状态 `not_started`，不入库
 - 当前专家评分必须使用 `Project.reviewSchemeSnapshot`；保存时复制项目快照到 `ExpertReview.reviewSchemeSnapshot`；不直接读取当前 `ReviewScheme.items`；项目快照缺失时专家评分接口返回 `409`
 - 当前专家评分提交校验：若项目 `reviewTime` 存在且服务器当前时间早于该时间，`POST /expert/review-tasks/:projectId/submit` 返回 `409 REVIEW_NOT_STARTED`，不写 `submitted/submittedAt`；`reviewTime` 缺失时兼容允许提交；保存草稿不受 `reviewTime` 限制；评分项仍要求每项 `score` 必填且在 `0..maxScore`，`evaluationDescription` 必填；`improvementSuggestion` 在 `score < maxScore * suggestionRequiredThresholdRatio` 或 `hasMajorIssue=true` 时必填，阈值缺失默认 `0.8`；非满分但未低于阈值只建议填写，不硬阻断；`totalScore` 由后端计算
+- 当前专家可调用 `DELETE /expert/review-tasks/:projectId/draft` 物理删除本人 `status=draft` 的 `expert_reviews` 记录；删除前必须仍是该项目 `status=assigned` 专家；无评分记录返回 `404` 和“未找到可删除的评分草稿。”，`submitted/returned` 返回 `409 EXPERT_REVIEW_DRAFT_NOT_DELETABLE` 和“只有未提交的评分草稿可以删除。”；删除不受 `reviewTime` 限制，不删除 `project_expert_assignments`、项目、材料或 submitted/returned 历史评分记录，不新增 `deleted` 状态
 - 当前已创建 `consensus_reviews` 集合，用于保存项目合议结果，字段包括 `projectId`、`reviewSchemeSnapshot`、`draftGeneratedAt`、`draftGeneratedByUserId`、`draftSource`、`draftOpinion`、`draftScore`、`finalOpinion`、`finalScore`、`finalLevel`、`originalLevel`、`confirmedByUserId`、`confirmedAt`、`status`、`expertReviewStats` 和 timestamps
 - 当前 `consensus_reviews` 索引：`projectId` unique、`status`、`confirmedAt`
 - 当前 `ConsensusReview.status` 取值：`draft/confirmed/reopened`；`reopened` 仅预留，当前阶段不使用
@@ -385,7 +386,7 @@ backend/
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
 - 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成、多文件 failures 返回规范化后的 `originalFilename`，以及 draft/submitted 状态机、角色可见性、提交统计、物理删除、删除审计和 storage 删除失败保护
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复和既有接口轻量回归
-- 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、提交校验、评审开始前提交返回 `409 REVIEW_NOT_STARTED` 且不写 `submittedAt`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
+- 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
