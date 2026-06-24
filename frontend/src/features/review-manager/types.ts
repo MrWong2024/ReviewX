@@ -1,4 +1,21 @@
 import type { QueryParams } from '@/src/lib/api/types';
+import type {
+  HandleProjectAppealInput,
+  ProjectAppeal,
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentDownloadUrlResponse,
+  ProjectAppealDetail,
+} from '@/src/lib/project-appeals/types';
+
+export type {
+  HandleProjectAppealInput,
+  ProjectAppeal,
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentDownloadUrlResponse,
+  ProjectAppealDetail,
+};
+
+export type HandleReviewManagerAppealInput = HandleProjectAppealInput;
 
 export type PortalListResponse<T> = {
   items: T[];

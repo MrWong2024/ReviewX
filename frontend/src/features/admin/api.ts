@@ -162,5 +162,6 @@ export function deleteReviewScheme(id: string) {
 
 export * from './api/users';
 export * from './api/project-review-organization';
+export * from './api/project-appeals';
 export * from './api/project-imports';
 export * from './api/project-import-field-mappings';

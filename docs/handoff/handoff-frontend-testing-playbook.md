@@ -187,6 +187,14 @@ npm run build
 
 注意：`/review-manager/projects/[projectId]` 是项目总览 / 工作入口；专家分配只在 `/review-manager/projects/[projectId]/review-organization`；合议处理只在 `/review-manager/projects/[projectId]/consensus`。专家名单锁定由后端最终判断，锁定条件包括评审时间已到、已有专家评分、已有合议记录、已有最终等级 / 最终结论，返回 `409 EXPERT_ASSIGNMENT_LOCKED` 和 `reasons`。
 
+本次 ReviewX 前端第七阶段：申诉闭环前端已执行并通过：
+
+- frontend `npm run lint`：通过
+- frontend `npm run typecheck`：通过
+- frontend `npm run build`：通过
+
+注意：项目负责人申诉只调用 `/project-owner/projects/:id/appeals*`，评审负责人申诉只调用 `/review-manager/projects/:id/appeals*`，管理员申诉只调用 `/admin/projects/:id/appeals*`；评审负责人侧不调用不存在的 `level-history`，申诉附件下载只打开后端 `download-url` 返回 URL。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -680,7 +688,7 @@ submitted 和 returned：
 
 1. 评审负责人合议已在 `/review-manager` 接入，专家端仍不调用 review_manager 接口
 2. 不实现 admin 查看专家评分前端
-3. 不实现 AI 合议、申诉、甲方看板、腾讯会议 API 或文件预览
+3. 不实现 AI 合议、甲方看板、腾讯会议 API 或文件预览
 4. admin 项目材料查看 / 删除仍正常
 5. project_owner 材料上传 / 提交 / 删除草稿仍正常
 
@@ -809,7 +817,72 @@ Workspace 和守卫：
 2. expert 页面仍可访问
 3. admin 页面仍可访问
 4. Network 中不得出现 `/admin/projects/:id` 用于评审负责人项目摘要
-5. 不出现申诉、甲方看板、腾讯会议、真实 AI、文件预览、材料上传 / 删除或批量操作入口
+5. 合议页不出现甲方看板、腾讯会议、真实 AI、文件预览、材料上传 / 删除或批量操作入口；申诉处理入口应位于项目总览或申诉页，不混入合议表单
+
+## 10.1 申诉闭环人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 存在一个已 confirmed 合议且包含 `finalLevel` 的项目
+4. 系统中存在 active `review_level` 字典项；为空时前端使用 A/B/C/D 兜底
+5. 准备 project_owner、review_manager 和 admin 三类账号；review_manager 必须是该项目负责人
+
+项目负责人查看结果与提交申诉：
+
+1. project_owner 登录后进入 `/project-owner/projects/[projectId]`
+2. 点击“查看评审结果与申诉”，进入 `/project-owner/projects/[projectId]/review-result`
+3. Network 使用 `GET /project-owner/projects/:id/consensus`、`GET /project-owner/projects/:id/level-history`、`GET /project-owner/projects/:id/appeals`
+4. `GET /consensus` 返回 404 时页面显示暂无已确认合议，不应白屏
+5. 已 confirmed 且有 finalLevel 时展示最终意见、最终分数、最终等级和专家统计
+6. 无 confirmed 合议、无 finalLevel、已有 3 次申诉或存在 submitted / processing 申诉时，提交申诉入口禁用并显示原因
+7. 填写 1-2000 字申诉理由，可选择附件，点击提交前出现确认
+8. 提交 Network 使用 `POST /project-owner/projects/:id/appeals`，FormData 字段为 `reason` 和可选 `files`
+9. 成功后关闭弹窗，重新拉取申诉列表、等级历史和项目详情，不只在前端追加假数据
+
+项目负责人申诉附件：
+
+1. 从申诉列表进入 `/project-owner/projects/[projectId]/appeals/[appealId]`
+2. Network 使用 `GET /project-owner/projects/:id/appeals/:appealId`、`GET /attachments`
+3. submitted 状态显示上传附件入口和删除附件入口
+4. 上传附件调用 `POST /project-owner/projects/:id/appeals/:appealId/attachments`，FormData 字段为 `files` 和可选 `remark`
+5. 删除附件调用 `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId`，删除前二次确认，成功后刷新附件列表
+6. accepted / rejected 状态附件只读，不显示上传或删除
+7. 下载附件只调用 project-owner 命名空间 `download-url`，只打开后端返回 URL，不拼接 OSS objectKey
+
+评审负责人处理申诉：
+
+1. review_manager 登录后进入 `/review-manager/projects/[projectId]`
+2. 点击“申诉处理”进入 `/review-manager/projects/[projectId]/appeals`
+3. Network 使用 `GET /review-manager/projects/:id/appeals`，不得调用 `/admin/projects/:id/appeals`
+4. 进入详情 `/review-manager/projects/[projectId]/appeals/[appealId]`
+5. 附件列表和下载只调用 review-manager 命名空间，页面不提供上传或删除
+6. submitted / processing 状态显示处理表单；accepted / rejected 状态只读
+7. 选择 rejected 时必须填写 1-2000 字处理意见，不提交 `newFinalLevel`
+8. 选择 accepted 时必须填写处理意见并选择新最终等级，提交值优先为 active `review_level.code`
+9. 提交调用 `POST /review-manager/projects/:id/appeals/:appealId/handle`
+10. 成功后重新拉取申诉详情、附件和项目摘要，不调用不存在的 `/review-manager/projects/:id/level-history`
+
+管理员处理申诉：
+
+1. admin 登录后进入 `/admin/projects/[projectId]/review-organization`
+2. 点击“查看申诉”进入 `/admin/projects/[projectId]/appeals`
+3. Network 使用 `GET /admin/projects/:id/appeals` 和 `GET /admin/projects/:id/level-history`
+4. 进入详情 `/admin/projects/[projectId]/appeals/[appealId]`
+5. 附件只读下载，下载只调用 admin 命名空间 `download-url`
+6. submitted / processing 状态可 accepted / rejected；accepted 必须选择新最终等级，rejected 不提交新等级
+7. 提交调用 `POST /admin/projects/:id/appeals/:appealId/handle`
+8. 成功后重新拉取申诉详情、附件、等级历史和项目详情
+9. 等级变更历史只展示后端 `level-history` 返回数据，前端不得自行生成等级变更记录
+
+回归边界：
+
+1. 三类角色申诉接口命名空间不得混用
+2. 申诉附件下载不得拼接 OSS objectKey
+3. project_owner 只能看到本人项目和本人申诉
+4. review_manager 只能处理自己负责项目的申诉
+5. admin 仍通过 admin 命名空间处理项目申诉
 
 ## 11. 用户管理人工验证
 
@@ -900,7 +973,6 @@ Workspace 和守卫：
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 申诉
 - 甲方看板
 - 腾讯会议直播 / 推流 / 回看 / API 集成
 - 真实 AI

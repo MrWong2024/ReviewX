@@ -97,6 +97,19 @@
 | `ReturnExpertReviewModal` | `frontend/src/features/review-manager/components/ReturnExpertReviewModal.tsx` | 退回专家评分弹窗，校验 1-1000 字退回原因，提交前二次确认，提交中禁用重复操作 |
 | `ReviewSummaryPanel` | `frontend/src/features/review-manager/components/ReviewSummaryPanel.tsx` | 专家评分汇总面板，只读展示专家数量统计、平均分 / 最高分 / 最低分和各评分项平均分 |
 | `ConsensusReviewPanel` | `frontend/src/features/review-manager/components/ConsensusReviewPanel.tsx` | 合议草稿与最终确认面板，处理 404 空态、rule_based 草稿生成、draft force 覆盖确认、confirmed 重新确认提示和最终确认表单；确认提交只发送 `finalOpinion/finalScore/finalLevel`，“使用草稿填入”仅填充表单，不再显示 `useDraftAsBase` 复选框 |
+| `AppealStatusBadge` | `frontend/src/components/project-appeals/AppealStatusBadge.tsx` | 申诉状态标签，按后端 `submitted/processing/accepted/rejected/canceled` 状态展示 |
+| `AppealListPanel` | `frontend/src/components/project-appeals/AppealListPanel.tsx` | 通用项目申诉列表组件，展示申诉状态、等级变化、附件数、处理意见和详情入口；详情链接由调用方传入 |
+| `AppealDetailPanel` | `frontend/src/components/project-appeals/AppealDetailPanel.tsx` | 通用申诉详情组件，展示申诉说明、处理结果、等级变化和关联合议摘要；project-owner 可传入独立 confirmed 合议摘要 |
+| `AppealAttachmentsPanel` | `frontend/src/components/project-appeals/AppealAttachmentsPanel.tsx` | 通用申诉附件组件，下载通过调用方 action 获取 download-url，submitted 状态下可启用项目负责人附件上传和软删除 |
+| `AppealHandleForm` | `frontend/src/components/project-appeals/AppealHandleForm.tsx` | 通用申诉处理表单，提交 `decision/handlingOpinion/newFinalLevel`；accepted 且调整等级时二次确认明确提示等级调整 |
+| `LevelHistoryPanel` | `frontend/src/components/project-appeals/LevelHistoryPanel.tsx` | 等级变更历史展示组件，展示 from/to 等级、来源、原因、操作人和时间 |
+| `ProjectOwnerCreateAppealDialog` | `frontend/src/components/project-appeals/ProjectOwnerCreateAppealDialog.tsx` | 项目负责人发起申诉弹窗，展示申诉规则、校验 reason、可选附件并在提交前二次确认 |
+| `ProjectOwnerReviewResultPage` | `frontend/src/features/project-owner/pages/ProjectOwnerReviewResultPage.tsx` | 项目负责人评审结果与申诉页，加载项目详情、confirmed 合议、等级历史、本人申诉列表和 reference-data，可发起申诉 |
+| `ProjectOwnerAppealDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerAppealDetailPage.tsx` | 项目负责人申诉详情页，查看处理结果和附件，submitted 状态可上传或删除申诉附件 |
+| `ReviewManagerProjectAppealsPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectAppealsPage.tsx` | 评审负责人项目申诉列表页，只调用 review-manager 命名空间申诉接口 |
+| `ReviewManagerProjectAppealDetailPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectAppealDetailPage.tsx` | 评审负责人申诉详情 / 处理页，查看附件并处理 submitted / processing 申诉 |
+| `ProjectAdminAppealsPage` | `frontend/src/features/admin/pages/ProjectAdminAppealsPage.tsx` | 管理员项目申诉列表页，展示项目申诉和等级变更历史 |
+| `ProjectAdminAppealDetailPage` | `frontend/src/features/admin/pages/ProjectAdminAppealDetailPage.tsx` | 管理员申诉详情 / 处理页，使用 admin 命名空间查看附件、处理申诉并刷新等级历史 |
 
 ## 5. 工具
 
@@ -126,6 +139,9 @@
 | review-manager types | `frontend/src/features/review-manager/types.ts` | 评审负责人项目、评审安排 payload、材料、专家分配、专家评分、评分方案快照、评分汇总、合议记录、确认 payload、portal reference-data 摘要和 lookup map 类型；确认 payload 不含 `useDraftAsBase` |
 | review-manager utils | `frontend/src/features/review-manager/utils.ts` | 专家评分状态文案、退回 / 确认长度限制、score 格式化和解析、review_level 兜底、lookup map 构造、合议冲突识别和错误文案映射 |
 | expert assignment lock helper | `frontend/src/lib/project-review/expert-assignment-lock.ts` | admin 与 review-manager 共用的专家名单锁定原因计算、文案格式化和 `EXPERT_ASSIGNMENT_LOCKED` 错误识别工具 |
+| project appeals types | `frontend/src/lib/project-appeals/types.ts` | 三端申诉前端共享类型，覆盖申诉、申诉详情、附件、等级变更历史、创建 / 上传 / 处理输入和下载 URL 响应 |
+| project appeals utils | `frontend/src/lib/project-appeals/utils.ts` | 申诉状态、处理权限、附件变更权限、等级展示、下载 URL 解析、错误文案、附件文件校验和 review_level 兜底工具 |
+| admin project appeals API | `frontend/src/features/admin/api/project-appeals.ts` | 管理员项目申诉列表 / 详情 / 附件 / 下载 URL / 处理 / 等级历史 API 封装，只使用 `/admin/projects/:id` 命名空间 |
 
 ## 6. 当前 UI 基线
 

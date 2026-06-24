@@ -96,7 +96,16 @@
 | `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
 | `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
-| `listPortalDictionaries` | `GET /portal/reference-data/dictionaries` | `{ items }`；读取 `dictTypes=material_type,project_status`，用于材料类型、项目状态和普通字典名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
+| `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，不作为整页错误 | `/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，展示原等级、变更后等级、原因、来源、时间和操作人 | `/project-owner/projects/[projectId]/review-result` |
+| `listProjectOwnerAppeals` | `GET /project-owner/projects/:id/appeals` | 获取当前项目负责人对该项目提交的本人申诉列表 | `/project-owner/projects/[projectId]/review-result` |
+| `getProjectOwnerAppeal` | `GET /project-owner/projects/:id/appeals/:appealId` | 获取本人申诉详情；附件列表另行调用附件接口 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `createProjectOwnerAppeal` | `POST /project-owner/projects/:id/appeals` | `FormData`，字段名 `reason/files`；前端展示最多 3 次、confirmed 合议、finalLevel 和未处理互斥规则，后端最终校验 | `/project-owner/projects/[projectId]/review-result` |
+| `uploadProjectOwnerAppealAttachments` | `POST /project-owner/projects/:id/appeals/:appealId/attachments` | `FormData`，字段名 `files`，批次备注 `remark` 选填；仅 submitted 状态可追加，成功后重新拉取详情和附件 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `listProjectOwnerAppealAttachments` | `GET /project-owner/projects/:id/appeals/:appealId/attachments` | 获取本人申诉 active 附件列表 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `getProjectOwnerAppealAttachmentDownloadUrl` | `GET /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `deleteProjectOwnerAppealAttachment` | `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` | 软删除申诉附件；仅 submitted 状态允许，删除前二次确认，成功后重新拉取附件 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `listPortalDictionaries` | `GET /portal/reference-data/dictionaries` | `{ items }`；读取 `dictTypes=material_type,project_status,review_level`，用于材料类型、项目状态、评审等级和普通字典名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result` |
 | `listPortalTreeDictionaries` | `GET /portal/reference-data/tree-dictionaries` | `{ items }`；读取 `treeTypes=project_type,discipline,department,administrative_division`，用于项目类型、学科、受理处室和行政区划名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
 | `listPortalBatches` | `GET /portal/reference-data/batches` | `{ items }`；用于批次筛选和名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
 | `listPortalOrganizations` | `GET /portal/reference-data/organizations` | `{ items }`；只使用单位名称和 `regionId` 摘要，不期待联系人字段 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
@@ -106,7 +115,7 @@
 
 材料类型读取口径：
 
-- 项目负责人页面通过 `GET /portal/reference-data/dictionaries?dictTypes=material_type,project_status` 读取材料类型和项目状态。
+- 项目负责人页面通过 `GET /portal/reference-data/dictionaries?dictTypes=material_type,project_status,review_level` 读取材料类型、项目状态和评审等级。
 - 上传区域只使用 active `material_type` 选项；为空时提示维护普通字典 `material_type` 并禁用上传。
 - reference-data 加载失败时详情页仍可展示项目原始信息兜底，但上传禁用并显示错误。
 - 项目负责人页面不调用 admin-only 字典接口，不写死材料类型 ID，不使用 mock 材料类型作为真实数据源。
@@ -172,7 +181,12 @@
 | `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；其他错误继续抛出 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
 | `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]/consensus` |
 | `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论 | `/review-manager/projects/[projectId]/consensus` |
-| `loadReviewManagerReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level,material_type`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=project_owner`、`users?role=review_manager`；不调用 admin-only 基础数据接口 | `/review-manager/projects`、`/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
+| `listReviewManagerAppeals` | `GET /review-manager/projects/:projectId/appeals` | 当前评审负责人负责项目的申诉列表；只读展示状态、原因摘要、等级前后变化和附件数量 | `/review-manager/projects/[projectId]/appeals` |
+| `getReviewManagerAppeal` | `GET /review-manager/projects/:projectId/appeals/:appealId` | 当前评审负责人负责项目的申诉详情；附件另行调用附件接口 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
+| `listReviewManagerAppealAttachments` | `GET /review-manager/projects/:projectId/appeals/:appealId/attachments` | 只读获取申诉附件列表；评审负责人不提供上传、删除 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
+| `getReviewManagerAppealAttachmentDownloadUrl` | `GET /review-manager/projects/:projectId/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/review-manager/projects/[projectId]/appeals/[appealId]` |
+| `handleReviewManagerAppeal` | `POST /review-manager/projects/:projectId/appeals/:appealId/handle` | 请求 `{ handlingResult, handlingOpinion, newFinalLevel? }`；accepted 必须选择新最终等级，rejected 不提交新等级；成功后重新拉取申诉、附件和项目摘要 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
+| `loadReviewManagerReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level,material_type`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=project_owner`、`users?role=review_manager`；不调用 admin-only 基础数据接口 | `/review-manager/projects`、`/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus`、`/review-manager/projects/[projectId]/appeals*` |
 
 评审负责人项目页口径：
 
@@ -186,7 +200,29 @@
 - `GET /consensus` 的 404 表示暂无合议记录，展示“暂无合议草稿”。
 - 已有 draft 时覆盖生成必须经后端 409 提示后用户二次确认，再以 `force=true` 重试。
 - 已 confirmed 时前端不展示“覆盖草稿”入口；仍允许按后端能力重新确认最终意见、最终分数和最终等级，并提示“重新确认会覆盖当前最终结论”。
-- 本阶段不接入申诉、甲方看板、腾讯会议、文件预览、材料上传 / 删除或真实 AI。
+- `/review-manager/projects/[projectId]/appeals` 和 `/review-manager/projects/[projectId]/appeals/[appealId]` 只调用 review-manager 命名空间的申诉接口；不调用 admin 或 project_owner 申诉接口。
+- 评审负责人当前无 `GET /review-manager/projects/:projectId/level-history`，前端不得伪造或调用该接口；等级变更历史只在 project-owner 和 admin 侧读取。
+- 评审负责人申诉处理支持 accepted / rejected；accepted 需提交 active `review_level.code`，rejected 不提交 `newFinalLevel`。
+- 本阶段不接入甲方看板、腾讯会议、文件预览、材料上传 / 删除或真实 AI。
+
+## 3.4 Admin Project Appeals API
+
+文件：`frontend/src/features/admin/api/project-appeals.ts`
+
+| 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
+| --- | --- | --- | --- |
+| `listAdminProjectAppeals` | `GET /admin/projects/:projectId/appeals` | 管理员项目申诉列表；展示状态、原因摘要、等级前后变化、附件数量和处理信息 | `/admin/projects/[projectId]/appeals` |
+| `getAdminProjectAppeal` | `GET /admin/projects/:projectId/appeals/:appealId` | 管理员项目申诉详情；附件另行调用附件接口 | `/admin/projects/[projectId]/appeals/[appealId]` |
+| `listAdminProjectAppealAttachments` | `GET /admin/projects/:projectId/appeals/:appealId/attachments` | 只读获取申诉附件列表；管理员不提供上传、删除 | `/admin/projects/[projectId]/appeals/[appealId]` |
+| `getAdminProjectAppealAttachmentDownloadUrl` | `GET /admin/projects/:projectId/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/admin/projects/[projectId]/appeals/[appealId]` |
+| `handleAdminProjectAppeal` | `POST /admin/projects/:projectId/appeals/:appealId/handle` | 请求 `{ handlingResult, handlingOpinion, newFinalLevel? }`；accepted 必须选择新最终等级，rejected 不提交新等级；成功后重新拉取申诉、附件、等级历史和项目详情 | `/admin/projects/[projectId]/appeals/[appealId]` |
+| `listAdminProjectLevelHistory` | `GET /admin/projects/:projectId/level-history` | 管理员读取项目等级变更历史，展示申诉处理导致的等级变更留痕 | `/admin/projects/[projectId]/appeals`、`/admin/projects/[projectId]/appeals/[appealId]` |
+
+管理员项目申诉页口径：
+
+- `/admin/projects/[projectId]/appeals` 和 `/admin/projects/[projectId]/appeals/[appealId]` 只调用 admin 命名空间的申诉与等级历史接口，不调用 review-manager 或 project-owner 命名空间。
+- 管理员申诉附件只读下载，不提供上传或删除；项目负责人附件上传 / 删除能力只在 project-owner 命名空间开放。
+- 管理员处理申诉后重新拉取申诉详情、附件列表、等级历史和项目详情，不在前端乐观改写最终等级。
 
 ## 4. 错误处理
 
@@ -236,11 +272,13 @@
 - 评审负责人评审组织页只读查看 submitted 项目材料，下载只使用 `/review-manager/projects/:id/materials/:materialId/download-url` 返回 URL，不拼接 OSS objectKey，不提供上传、删除或预览。
 - 评审负责人专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；只有 submitted 显示退回入口。
 - 评审负责人合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时使用 A/B/C/D 兜底。
+- 申诉状态展示为：`submitted=已提交`、`processing=处理中`、`accepted=已通过`、`rejected=已驳回`；submitted / processing 为待处理状态。
+- 项目负责人发起申诉要求已确认合议且存在最终等级；最多 3 次申诉，存在 submitted / processing 申诉时禁用再次提交。
+- 申诉附件下载只使用各角色命名空间下 `download-url` 返回 URL；项目负责人仅 submitted 状态可上传 / 删除附件，评审负责人和管理员附件只读。
+- 申诉处理 accepted 必须选择新最终等级，rejected 不提交新等级；等级变更历史由后端 `level-history` 返回，前端只展示不自行生成。
 
 ## 5. 当前未对接的后端接口
 
 - 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
-- `/review-manager/projects/:id/appeals*`
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`
-- `/admin/projects/:id/appeals*`

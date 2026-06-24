@@ -48,6 +48,7 @@ frontend/
 │  ├─ components/
 │  │  ├─ feedback/
 │  │  ├─ layout/
+│  │  ├─ project-appeals/
 │  │  └─ ui/
 │  ├─ features/
 │  │  ├─ admin/
@@ -57,7 +58,8 @@ frontend/
 │  │  └─ review-manager/
 │  ├─ lib/
 │  │  ├─ api/
-│  │  └─ format/
+│  │  ├─ format/
+│  │  └─ project-appeals/
 │  └─ styles/
 ├─ .env.local.example
 ├─ eslint.config.mjs
@@ -97,10 +99,14 @@ frontend/
 - `/admin/project-import-field-mappings`：管理员 Excel 字段映射配置页，支持标准字段配置视图、默认别名、自定义别名、最终生效别名、keyword / isActive 筛选、保存配置、编辑配置、启用 / 停用、删除配置和重置默认
 - `/admin/projects`：管理员项目评审组织列表，支持项目核心信息和组织状态展示，支持 keyword、批次、项目类型、项目状态、评审负责人、评审方案、是否已分配负责人、是否已分配方案筛选，项目类型原生下拉使用统一树形 option 缩进，支持单项目分配负责人 / 方案、批量分配负责人 / 方案、批量设置专家和进入评审组织详情
 - `/admin/projects/[projectId]/review-organization`：管理员单项目评审组织详情页，支持展示项目基础信息、修改评审分配、设置评审时间 / 地点 / 会议链接、查看项目材料、下载项目材料、填写原因删除项目材料、查看已分配专家、查看后端候选专家，以及在专家名单未锁定时追加 / 替换 / 移除专家
+- `/admin/projects/[projectId]/appeals`：管理员项目申诉列表页，调用 admin 申诉和等级历史接口，展示申诉状态、等级前后变化、附件数量和等级变更留痕
+- `/admin/projects/[projectId]/appeals/[appealId]`：管理员项目申诉详情页，支持查看申诉原因、处理信息、只读下载附件，并对 submitted / processing 申诉执行 accepted / rejected 处理
 - `/admin/users`：管理员用户管理页，支持分页、姓名/手机号搜索、角色筛选、启用状态筛选、新增、编辑、启用/停用、重置密码；角色中文多选、单位多选、学科树形/缩进多选；不显示、不提交、不处理 `passwordHash`
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
 - `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，项目类型原生下拉使用统一树形 option 缩进，不提交 `ownerUserId` 或 `keyword`
 - `/project-owner/projects/[projectId]`：项目负责人项目详情页，并发加载项目、材料和 portal reference-data，展示名称映射后的基础信息、评审安排、会议链接、后续推进需求和材料管理
+- `/project-owner/projects/[projectId]/review-result`：项目负责人评审结果与申诉页，读取 confirmed 合议、最终等级、等级变更历史和本人申诉列表；满足 confirmed + finalLevel + 最多 3 次 + 无 pending 申诉时可提交新申诉
+- `/project-owner/projects/[projectId]/appeals/[appealId]`：项目负责人申诉详情页，查看本人申诉状态、处理信息和附件；submitted 状态可继续上传附件或删除附件
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
 - 项目负责人材料列表 / 下载 / 提交 / 删除：调用 project_owner 材料接口，材料类型显示名称，显示 `draft/submitted/legacy active` 状态，下载使用后端签名 URL，支持提交全部草稿材料，`draft/active` 可物理删除，`submitted` 禁用删除
 - 项目负责人材料上传闭环：使用 portal active `material_type` 启用上传；FormData 字段为 `files/materialTypeId/remark`，不手动设置 `Content-Type`；新上传材料提示草稿语义，提交前评审负责人和专家不可见；保留文件数量 / 大小 / 扩展名校验和 failures 明细展示
@@ -115,6 +121,8 @@ frontend/
 - `/review-manager/projects/[projectId]`：评审负责人项目总览 / 工作入口页，展示项目摘要、评审安排摘要、专家数量 / 评分提交情况、合议状态和进入评审组织 / 合议处理入口
 - `/review-manager/projects/[projectId]/review-organization`：评审负责人评审前组织页，支持维护评审时间 / 地点 / 会议链接，查看 submitted 材料并下载，查看已分配专家和候选专家，以及追加 / 替换 / 移除专家
 - `/review-manager/projects/[projectId]/consensus`：评审负责人评审后合议页，独立加载项目摘要、专家评分列表、专家评分详情、评分汇总和合议记录
+- `/review-manager/projects/[projectId]/appeals`：评审负责人项目申诉列表页，调用 review-manager 申诉接口查看负责项目申诉，不调用 admin/project-owner 命名空间
+- `/review-manager/projects/[projectId]/appeals/[appealId]`：评审负责人项目申诉详情页，支持只读下载附件，并对 submitted / processing 申诉执行 accepted / rejected 处理；当前不调用不存在的 review-manager level-history 接口
 - 评审负责人项目摘要：当前无 `GET /review-manager/projects/:id`，总览 / 评审组织 / 合议页均使用 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不调用 admin 项目详情接口
 - 评审负责人专家分配：只在 `/review-manager/projects/[projectId]/review-organization` 提供，调用 `/review-manager/projects/:projectId/expert-candidates` 和 `/review-manager/projects/:projectId/experts`；可查看已分配专家、搜索候选专家、追加到当前专家名单、用选中专家替换当前名单、移除专家；锁定时仅可查看
 - 评审负责人项目材料：只在评审组织页只读展示 submitted 材料，调用 `/review-manager/projects/:projectId/materials` 和 `/review-manager/projects/:projectId/materials/:materialId/download-url`；不提供上传、删除或预览
@@ -125,7 +133,6 @@ frontend/
 
 ## 7. 当前未实现
 
-- 申诉页面
 - 甲方看板
 - 腾讯会议直播、回看、推流或 API 集成
 - 真实 AI 接入
@@ -178,6 +185,8 @@ frontend/
 - 管理员材料下载只打开后端返回的签名 URL 或 fake storage URL，不拼接 OSS objectKey；材料状态显示 `draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`
 - 管理员项目材料卡片不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称；上传人优先使用材料响应内联用户，其次复用项目评审组织详情页已加载 users 映射，最后才使用短 ID 兜底
 - 管理员删除项目材料弹窗保留 reason 必填、1000 字限制和物理删除风险提示；使用通用 Portal Modal 避免被“评审安排”等页面卡片遮挡，长文件名换行，小屏 / 缩放时删除原因 textarea 和底部按钮应保持可操作
+- 管理员项目申诉 API 封装位于 `frontend/src/features/admin/api/project-appeals.ts`；只调用 `/admin/projects/:id/appeals*` 和 `/admin/projects/:id/level-history`，不调用 review-manager 或 project-owner 申诉接口
+- 管理员项目申诉附件只读下载，不提供上传或删除；处理申诉 accepted 必须选择新最终等级，rejected 不提交 `newFinalLevel`，处理成功后重新拉取申诉详情、附件列表、等级历史和项目详情
 - `/admin/projects` 批量设置专家完成后的逐项目结果标题优先显示项目编号和项目名称；失败明细优先显示专家姓名和手机号，专家或项目映射缺失时显示“未知专家 / 未知项目 + 短ID”兜底，避免把裸 ObjectId 作为主展示文案
 - 前端不自行实现专家学科匹配或承担单位 / 合作单位回避，只展示后端候选、assigned 标记和失败原因
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`；当前不接腾讯会议 API、直播、推流或回看
@@ -193,6 +202,10 @@ frontend/
 - 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
 - 项目负责人材料删除只调用 `DELETE /project-owner/projects/:id/materials/:materialId`；`draft/legacy active` 为物理删除并提示不可恢复，`submitted` 删除按钮禁用，异常触发后端 `409` 时显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
 - 项目负责人材料删除不调用 `/admin/*` 接口，不展示 `deletionLogId`，不前端拼接 OSS objectKey
+- 项目负责人评审结果与申诉只调用 `/project-owner/projects/:id/consensus`、`/project-owner/projects/:id/level-history`、`/project-owner/projects/:id/appeals*`；`GET /consensus` 的 404 按“暂无已确认合议结果”展示，不作为页面崩溃错误
+- 项目负责人提交申诉使用 `FormData`，字段为 `reason` 和可选 `files`；前端体验层限制 reason 1-2000、单次最多 5 个附件、每个附件不超过 20MB，最终规则以后端为准
+- 项目负责人发起申诉入口要求已有 confirmed 合议和 finalLevel；最多 3 次，存在 submitted / processing 申诉时禁用再次提交；成功后重新拉取申诉、等级历史和项目详情
+- 项目负责人申诉附件仅 submitted 状态可上传和删除；下载只使用 project-owner 命名空间 `download-url` 返回 URL，不拼接 OSS objectKey
 - 专家前端 API 封装位于 `frontend/src/features/expert/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 专家任务列表和详情只调用 `/expert/review-tasks*` 系列接口，保存草稿 / 提交评分不新增后端接口；提交评分受后端 `reviewTime` 最终约束，前端仅做体验层禁用提示
 - 专家详情页材料展示以 `/expert/projects/:id/materials` 返回的 submitted 材料为准；即使 `/expert/review-tasks/:projectId` 返回 `materials/materialCount`，页面材料区域也不把它作为主数据源
@@ -202,7 +215,7 @@ frontend/
 - 专家评分 `draft` 状态显示“删除草稿”危险按钮，删除前二次确认；删除成功后调用后端 DELETE 并重新拉取详情，状态回到 `not_started`，不只在前端手动清空；删除失败时显示友好错误，不清空当前表单
 - 专家评分 `submitted` 状态前端只读且不显示保存 / 提交 / 删除草稿按钮；`returned` 状态显示退回时间和原因，并允许保存草稿与重新提交，但不显示删除草稿按钮
 - 后端返回 400/403/409/500 等错误时，前端显示结构化错误中的 message 或默认友好文案；专家提交评分返回 `409 REVIEW_NOT_STARTED` 或“评审尚未开始”时固定提示“评审尚未开始，暂不能提交评分。”
-- 当前未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、申诉、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI
+- 当前未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、甲方看板、腾讯会议 API、文件预览、材料恢复、删除日志查询或真实 AI
 - 评审负责人前端 API 封装位于 `frontend/src/features/review-manager/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 评审负责人页面通过 `/portal/reference-data/*` 构造批次、项目状态、项目类型、单位、项目负责人、评审方案和评审等级名称映射；不调用 `/admin/*` 主数据接口补详情摘要或基础数据
 - `GET /review-manager/projects/:id` 当前不存在，前端不得调用；评审负责人项目总览、评审组织页和合议页摘要适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 匹配
@@ -212,4 +225,6 @@ frontend/
 - `GET /review-manager/projects/:projectId/consensus` 返回 404 时前端转换为 `null`，展示“暂无合议草稿”，不作为页面级错误
 - 合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时 fallback A/B/C/D
 - 已 confirmed 的合议不展示覆盖草稿入口；重新提交确认表单前必须二次确认，并提示“本操作会覆盖当前最终合议结论”；确认表单不再显示“本次确认以当前草稿为基础”复选框
-- 本阶段未实现申诉、甲方看板、腾讯会议 API、文件预览、材料上传 / 删除、真实 AI 汇总、批量退回或批量合议
+- 评审负责人申诉页面只调用 `/review-manager/projects/:id/appeals*`；附件只读下载，不提供上传或删除；处理 accepted 必须选择新最终等级，rejected 不提交 `newFinalLevel`
+- 评审负责人侧当前没有 `GET /review-manager/projects/:id/level-history`，前端不得调用或伪造该接口；等级历史在 project-owner 和 admin 侧展示
+- 本阶段未实现甲方看板、腾讯会议 API、文件预览、材料上传 / 删除、真实 AI 汇总、批量退回或批量合议

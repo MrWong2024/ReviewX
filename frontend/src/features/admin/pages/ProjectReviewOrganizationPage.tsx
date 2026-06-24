@@ -231,6 +231,12 @@ export function ProjectReviewOrganizationPage({
             {organizationStatus.label}
           </Badge>
           <Link
+            className="inline-flex min-h-10 items-center rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:shadow-md"
+            href={`/admin/projects/${project.id}/appeals`}
+          >
+            查看申诉
+          </Link>
+          <Link
             className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50"
             href="/admin/projects"
           >

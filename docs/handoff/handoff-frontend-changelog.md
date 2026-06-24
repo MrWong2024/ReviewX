@@ -2,6 +2,19 @@
 
 ## 2026-06-24
 
+### ReviewX 前端第七阶段：申诉闭环前端
+
+- 新增项目负责人评审结果与申诉入口：`/project-owner/projects/[projectId]/review-result`，展示 confirmed 合议、最终等级、等级变更历史和本人申诉列表
+- 新增项目负责人申诉详情：`/project-owner/projects/[projectId]/appeals/[appealId]`，支持查看处理状态、附件下载，并在 submitted 状态上传 / 删除附件
+- 新增评审负责人申诉列表与详情：`/review-manager/projects/[projectId]/appeals`、`/review-manager/projects/[projectId]/appeals/[appealId]`，只调用 review-manager 命名空间，支持附件只读下载和 accepted / rejected 处理
+- 新增管理员申诉列表与详情：`/admin/projects/[projectId]/appeals`、`/admin/projects/[projectId]/appeals/[appealId]`，只调用 admin 命名空间，展示等级历史并支持 accepted / rejected 处理
+- 新增共享申诉类型、工具函数和组件：状态 Badge、申诉列表、申诉详情、附件面板、处理表单、等级历史面板和项目负责人提交申诉弹窗
+- 项目负责人提交申诉按 confirmed 合议、finalLevel、最多 3 次、无 submitted / processing 申诉做体验层限制；最终约束以后端为准
+- 申诉附件下载只打开各角色命名空间 `download-url` 返回 URL，不前端拼接 OSS objectKey；项目负责人仅 submitted 状态可上传 / 删除附件
+- 申诉处理 accepted 必须选择新最终等级，rejected 不提交 `newFinalLevel`；处理成功后重新拉取后端权威数据
+- 本阶段未修改 backend，未新增依赖，未新增环境变量，未修改 `package.json` 或锁文件，未实现甲方看板、腾讯会议、真实 AI 或文件预览
+- 本次验证：`frontend` 下 `npm run lint`、`npm run typecheck`、`npm run build` 均通过
+
 ### ReviewX 第六阶段小修 2：评审负责人评审组织页独立、合议页拆分与专家分配时点锁定
 
 - 后端 `ProjectExpertAssignmentsService` 对 admin 和 review_manager 专家分配 mutation 统一增加项目级锁定：`reviewTime` 已到、已有任一 `ExpertReview`、已有任一 `ConsensusReview`、已有 `finalLevel/originalLevel` 时返回 `409 EXPERT_ASSIGNMENT_LOCKED`

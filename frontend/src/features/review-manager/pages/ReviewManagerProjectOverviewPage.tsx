@@ -130,7 +130,7 @@ export function ReviewManagerProjectOverviewPage({
             project={project}
             reviewSummary={reviewSummary}
           />
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-3">
             <WorkspaceEntry
               description="维护评审时间、地点、会议链接，查看项目材料，并执行专家追加、替换和移除。"
               href={`/review-manager/projects/${projectId}/review-organization`}
@@ -142,6 +142,12 @@ export function ReviewManagerProjectOverviewPage({
               href={`/review-manager/projects/${projectId}/consensus`}
               label="进入合议处理"
               title="合议处理"
+            />
+            <WorkspaceEntry
+              description="查看项目申诉列表、申诉详情和附件，并处理待处理申诉。"
+              href={`/review-manager/projects/${projectId}/appeals`}
+              label="进入申诉处理"
+              title="申诉处理"
             />
           </div>
         </div>

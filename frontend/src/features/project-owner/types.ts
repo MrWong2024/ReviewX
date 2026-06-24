@@ -1,4 +1,31 @@
 import type { QueryParams } from '@/src/lib/api/types';
+import type {
+  CreateProjectAppealInput,
+  DeleteProjectAppealAttachmentResult,
+  ProjectAppeal,
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentDownloadUrlResponse,
+  ProjectAppealAttachmentUploadResult,
+  ProjectAppealDetail,
+  ProjectLevelChangeLog,
+  ProjectOwnerConsensus,
+  ReviewLevelOption,
+  UploadProjectAppealAttachmentsInput,
+} from '@/src/lib/project-appeals/types';
+
+export type {
+  CreateProjectAppealInput,
+  DeleteProjectAppealAttachmentResult,
+  ProjectAppeal,
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentDownloadUrlResponse,
+  ProjectAppealAttachmentUploadResult,
+  ProjectAppealDetail,
+  ProjectLevelChangeLog,
+  ProjectOwnerConsensus,
+  ReviewLevelOption,
+  UploadProjectAppealAttachmentsInput,
+};
 
 export type PortalListResponse<T> = {
   items: T[];
@@ -61,6 +88,7 @@ export type ProjectOwnerReferenceData = {
   materialTypes: PortalDictionarySummary[];
   organizations: PortalOrganizationSummary[];
   projectStatuses: PortalDictionarySummary[];
+  reviewLevels: PortalDictionarySummary[];
   reviewManagers: PortalUserSummary[];
   reviewSchemes: PortalReviewSchemeSummary[];
   treeDictionaries: PortalTreeDictionarySummary[];
@@ -80,11 +108,13 @@ export type ProjectOwnerProject = {
   allocatedFunding?: number | null;
   disciplineIds: string[];
   departmentId?: string | null;
+  finalLevel?: string;
   reviewManagerId?: string | null;
   reviewSchemeId?: string | null;
   reviewTime?: string | null;
   reviewLocation?: string;
   meetingUrl?: string;
+  originalLevel?: string;
   followUpNeeds?: string;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   isActive: boolean;
@@ -207,6 +237,7 @@ export type ProjectOwnerLookupMaps = {
   dictionaryNameById: Map<string, string>;
   materialTypeNameById: Map<string, string>;
   organizationNameById: Map<string, string>;
+  reviewLevelLabelByValue: Map<string, string>;
   reviewSchemeNameById: Map<string, string>;
   treeNameById: Map<string, string>;
   userNameById: Map<string, string>;

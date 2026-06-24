@@ -6,6 +6,10 @@ import type {
   ProjectOwnerLookupMaps,
   ProjectOwnerReferenceData,
 } from './types';
+import {
+  buildReviewLevelLabelMap,
+  getReviewLevelOptions,
+} from '@/src/lib/project-appeals/utils';
 
 export const MAX_PROJECT_MATERIAL_FILES = 20;
 export const MAX_PROJECT_MATERIAL_FILE_SIZE_BYTES = 500 * 1024 * 1024;
@@ -254,6 +258,7 @@ export function createEmptyProjectOwnerLookupMaps(): ProjectOwnerLookupMaps {
     dictionaryNameById: new Map<string, string>(),
     materialTypeNameById: new Map<string, string>(),
     organizationNameById: new Map<string, string>(),
+    reviewLevelLabelByValue: new Map<string, string>(),
     reviewSchemeNameById: new Map<string, string>(),
     treeNameById: new Map<string, string>(),
     userNameById: new Map<string, string>(),
@@ -275,6 +280,9 @@ export function buildProjectOwnerLookupMaps(
     ),
     organizationNameById: new Map(
       referenceData.organizations.map((item) => [item.id, item.name]),
+    ),
+    reviewLevelLabelByValue: buildReviewLevelLabelMap(
+      getReviewLevelOptions(referenceData.reviewLevels),
     ),
     reviewSchemeNameById: new Map(
       referenceData.reviewSchemes.map((item) => [item.id, item.name]),

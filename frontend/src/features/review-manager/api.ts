@@ -9,6 +9,7 @@ import type {
   ExpertReviewDetail,
   ExpertReviewListItem,
   GenerateConsensusDraftOptions,
+  HandleReviewManagerAppealInput,
   ListReviewManagerExpertCandidatesParams,
   PortalBatchSummary,
   PortalDictionarySummary,
@@ -29,6 +30,10 @@ import type {
   ReviewManagerProjectsResponse,
   ReviewManagerReferenceData,
   ReviewSummaryResponse,
+  ProjectAppeal,
+  ProjectAppealAttachment,
+  ProjectAppealAttachmentDownloadUrlResponse,
+  ProjectAppealDetail,
   UpdateReviewManagerProjectExpertsInput,
 } from './types';
 
@@ -281,6 +286,63 @@ export function confirmProjectConsensus(
     `/review-manager/projects/${projectId}/consensus/confirm`,
     {
       body: payload,
+      method: 'POST',
+    },
+  );
+}
+
+export function listReviewManagerAppeals(projectId: string) {
+  return apiRequest<ProjectAppeal[]>(
+    `/review-manager/projects/${projectId}/appeals`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function getReviewManagerAppeal(projectId: string, appealId: string) {
+  return apiRequest<ProjectAppealDetail>(
+    `/review-manager/projects/${projectId}/appeals/${appealId}`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function listReviewManagerAppealAttachments(
+  projectId: string,
+  appealId: string,
+) {
+  return apiRequest<ProjectAppealAttachment[]>(
+    `/review-manager/projects/${projectId}/appeals/${appealId}/attachments`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function getReviewManagerAppealAttachmentDownloadUrl(
+  projectId: string,
+  appealId: string,
+  attachmentId: string,
+) {
+  return apiRequest<ProjectAppealAttachmentDownloadUrlResponse>(
+    `/review-manager/projects/${projectId}/appeals/${appealId}/attachments/${attachmentId}/download-url`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function handleReviewManagerAppeal(
+  projectId: string,
+  appealId: string,
+  input: HandleReviewManagerAppealInput,
+) {
+  return apiRequest<ProjectAppealDetail>(
+    `/review-manager/projects/${projectId}/appeals/${appealId}/handle`,
+    {
+      body: input,
       method: 'POST',
     },
   );

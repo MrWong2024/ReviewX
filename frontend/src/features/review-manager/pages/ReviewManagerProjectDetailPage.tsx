@@ -342,6 +342,12 @@ export function ReviewManagerProjectDetailPage({
           </Link>
           <Link
             className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+            href={`/review-manager/projects/${projectId}/appeals`}
+          >
+            查看申诉
+          </Link>
+          <Link
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
             href="/review-manager/projects"
           >
             返回项目列表
