@@ -27,7 +27,7 @@
 | `/expert/review-tasks/[projectId]` | `frontend/app/expert/review-tasks/[projectId]/page.tsx` | 需要登录 + expert 角色 | implemented | 专家评审任务详情，展示项目、评审安排、submitted 材料、评审方案快照和评分表单；支持草稿、提交、submitted 只读和 returned 重提 |
 | `/review-manager` | `frontend/app/review-manager/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人工作台首页，提供负责项目、专家评分、汇总和合议确认入口说明 |
 | `/review-manager/projects` | `frontend/app/review-manager/projects/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人负责项目列表，调用 `/review-manager/projects`；支持 keyword、批次、项目状态、评审方案筛选和分页 |
-| `/review-manager/projects/[projectId]` | `frontend/app/review-manager/projects/[projectId]/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人项目合议详情；项目摘要用项目列表 `pageSize=1000` 前端匹配，不调用不存在的详情接口；展示专家评分、详情、退回、汇总、合议草稿和最终确认 |
+| `/review-manager/projects/[projectId]` | `frontend/app/review-manager/projects/[projectId]/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人项目合议详情；项目摘要用项目列表 `pageSize=1000` 前端匹配，不调用不存在的详情接口；展示专家分配、专家评分、详情、退回、汇总、合议草稿和最终确认 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
 ## 2. 管理员 layout
@@ -62,7 +62,7 @@
 
 - 壳组件：`frontend/src/components/layout/ReviewManagerShell.tsx`
 - 顶部栏显示平台名、当前用户、评审负责人角色 Badge、返回工作台和退出登录
-- 侧边栏提供“评审负责人首页”“负责项目”和“返回工作台”入口，视觉基线与 AdminShell / ProjectOwnerShell / ExpertShell 保持同一产品气质，但不复用其他角色导航
+- 侧边栏提供“评审负责人首页”“负责项目”入口；“返回工作台”仅保留在顶部右侧，视觉基线与 AdminShell / ProjectOwnerShell / ExpertShell 保持同一产品气质，但不复用其他角色导航
 - 守卫为 client component 守卫：
   - 未登录访问 `/review-manager/*`：跳转 `/login`
   - 已登录但无 review_manager 角色：显示 403 状态并提供返回工作台入口

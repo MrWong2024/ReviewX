@@ -9,7 +9,7 @@ import { ProjectAppealsService } from '../services/project-appeals.service';
 
 @Controller('review-manager/projects/:id/appeals')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ReviewManagerAppealsController {
   constructor(private readonly projectAppealsService: ProjectAppealsService) {}
 

@@ -33,7 +33,7 @@
 - 当前项目导入支持管理员删除未确认入库的导入任务；删除只清理 `ProjectImportJob` 和对应 `ProjectImportRow`，不删除正式项目；`parsing` 或已有 confirmed 行的任务禁止删除
 - 当前项目导入学科字段使用专用多值拆分规则：英文逗号、中文逗号、分号和换行可分隔多个学科，学科名称内部顿号 `、` 不再被拆分；合作单位等通用多值字段仍保留顿号拆分。该修复只影响后续新上传或重新保存触发重新标准化的导入行，历史已解析 `ProjectImportRow.normalized.disciplineNames` 不自动迁移
 - 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
-- 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配；专家分配移除已收紧为无 `expert_reviews` 记录时才物理删除 assignment
+- 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配；`/review-manager/projects` 已收紧为当前评审负责人项目视角，admin 全局项目和专家分配能力保留在 `/admin` 命名空间；专家分配移除已收紧为无 `expert_reviews` 记录时才物理删除 assignment
 - 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
 - 当前已实现第四阶段补丁一门户端只读基础数据接口：`/portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users`，供 `project_owner/expert/review_manager/client/admin` 登录后读取展示型最小摘要；不提供写接口，不替代 `/admin/*` 主数据 CRUD
 - 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、专家本人删除未提交 draft 草稿、提交评分评审时间窗口校验、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
@@ -41,7 +41,7 @@
 - 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志
 - 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
-- 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 或 `admin` 角色；具体项目操作时非 admin 必须是该项目 `reviewManagerId`
+- 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 角色；具体项目操作必须是当前用户负责项目，admin 或 admin + review_manager 不在 review-manager 命名空间获得超管透视；管理员全局视角统一使用 `/admin/*`
 - 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
 - 当前分页列表口径：批次、单位、项目、导入任务、导入行列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
 - 当前已实现管理员用户列表与维护接口：`GET/POST /admin/users`、`GET/PATCH /admin/users/:id`、`PATCH /admin/users/:id/status`、`POST /admin/users/:id/reset-password`；列表分页沿用 `{ items, page, pageSize, total }`，`pageSize <= 1000`
@@ -187,7 +187,7 @@ backend/
 - 当前已有第三阶段评审专家分配模块：
   - `ProjectExpertAssignmentsModule`
   - `ProjectExpertAssignmentsController`
-  - `AdminProjectExpertCandidatesController`
+  - `AdminProjectExpertAssignmentsController`
   - `ProjectExpertAssignmentsService`
   - `ExpertEligibilityService`
 - 当前已有第四阶段对象存储模块：
@@ -296,7 +296,7 @@ backend/
 - 当前项目设置 `reviewSchemeId` 的第三阶段专用接口会同步写入 `reviewSchemeSnapshot`，快照包含方案 ID、名称、总分和评分项数组；仅设置 `reviewManagerId` 不更新快照；本阶段不实现清空 `reviewSchemeId`
 - 当前已创建 `project_expert_assignments` 集合，用于保存项目与专家分配关系，字段包括 `projectId`、`expertUserId`、`assignedByUserId`、`source`、`status`、`removedAt`、`removedByUserId` 和 timestamps
 - 当前 `project_expert_assignments` 索引：`projectId + expertUserId` unique、`projectId + status`、`expertUserId + status`、`assignedByUserId + createdAt`
-- 当前专家分配移除规则：不存在 `expert_reviews(projectId, expertUserId)` 时，`DELETE /review-manager/projects/:id/experts/:expertUserId` 物理删除 `project_expert_assignments`；存在任意 `draft/submitted/returned` 评分记录时返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，不删除 assignment，不删除 `expert_reviews`，不修改 assignment 状态；replace 隐含移除同样先整体检查，若任一待移除专家已有评分记录则该项目不做部分更新；历史 `status=removed` assignment 仍可兼容读取并在重新分配时恢复为 `assigned`
+- 当前专家分配移除规则：不存在 `expert_reviews(projectId, expertUserId)` 时，`DELETE /review-manager/projects/:id/experts/:expertUserId` 或 `DELETE /admin/projects/:id/experts/:expertUserId` 物理删除 `project_expert_assignments`；存在任意 `draft/submitted/returned` 评分记录时返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，不删除 assignment，不删除 `expert_reviews`，不修改 assignment 状态；replace 隐含移除同样先整体检查，若任一待移除专家已有评分记录则该项目不做部分更新；review-manager 专家分配 scope 只允许当前负责人项目，admin scope 允许管理员全局操作；历史 `status=removed` assignment 仍可兼容读取并在重新分配时恢复为 `assigned`
 - 当前已创建 `project_materials` 集合，用于保存项目材料文件引用和元数据，字段包括 `projectId`、`materialTypeId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`submittedAt`、`submittedByUserId`、legacy `deletedAt`、legacy `deletedByUserId` 和 timestamps
 - 当前 `project_materials` 索引：`projectId + status`、`projectId + materialTypeId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
 - 当前项目材料状态为 `draft/submitted/active`，其中新上传默认 `draft`，`submitted` 对评审负责人/专家可见，`active` 仅为 legacy 兼容并按草稿处理；schema 可读取旧 `deleted`，但业务不再新写 `deleted`
@@ -383,7 +383,7 @@ backend/
 - 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名兼容转发仍可用
 - 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
 - `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析、删除配置后默认内置别名 fallback 仍可用，以及包含顿号的完整学科名称在上传解析后按完整名称匹配 `treeType=discipline` 节点
-- 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、无评分记录时物理删除 assignment、有 `draft/submitted/returned` 评分记录时禁止移除、专家删除 draft 后可移除、replace 阻断部分更新、assigned 列表返回评分记录标记、历史 removed 后恢复和批量专家分配
+- 已包含 `test/project-review-assignments.e2e-spec.ts`，用于验证评审分配权限、review-manager 项目列表严格负责人视角、admin + review_manager 在 review-manager 命名空间只看自己负责项目、admin 全局项目视角、评审负责人/方案设置、方案快照、批量设置、评审安排、专家候选、学科匹配、承担单位/合作单位回避、专家追加/替换/移除、admin 命名空间专家分配、无评分记录时物理删除 assignment、有 `draft/submitted/returned` 评分记录时禁止移除、专家删除 draft 后可移除、replace 阻断部分更新、assigned 列表返回评分记录标记、历史 removed 后恢复和批量专家分配
 - 已包含 `src/modules/storage/storage.service.spec.ts`，用于验证 fake storage 行为和 oss 配置缺失错误口径
 - 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成、多文件 failures 返回规范化后的 `originalFilename`，以及 draft/submitted 状态机、角色可见性、提交统计、物理删除、删除审计和 storage 删除失败保护
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复和既有接口轻量回归

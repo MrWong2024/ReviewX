@@ -44,7 +44,6 @@ type ConfirmFormState = {
   finalLevel: string;
   finalOpinion: string;
   finalScore: string;
-  useDraftAsBase: boolean;
 };
 
 export function ConsensusReviewPanel({
@@ -120,7 +119,6 @@ export function ConsensusReviewPanel({
         consensus.draftScore === undefined || consensus.draftScore === null
           ? ''
           : String(consensus.draftScore),
-      useDraftAsBase: true,
     }));
   }
 
@@ -177,7 +175,6 @@ export function ConsensusReviewPanel({
       finalLevel,
       finalOpinion,
       finalScore,
-      useDraftAsBase: form.useDraftAsBase || undefined,
     });
   }
 
@@ -309,20 +306,6 @@ export function ConsensusReviewPanel({
                     </option>
                   ))}
                 </Select>
-                <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm font-semibold text-slate-600">
-                  <input
-                    checked={form.useDraftAsBase}
-                    className="mt-1 h-4 w-4 accent-cyan-700"
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        useDraftAsBase: event.target.checked,
-                      })
-                    }
-                    type="checkbox"
-                  />
-                  <span>本次确认以当前草稿为基础</span>
-                </label>
                 <ErrorAlert message={formError} />
                 <Button disabled={confirming} type="submit" variant="primary">
                   {confirming
@@ -470,7 +453,6 @@ function createFormState(
         consensus.finalScore === undefined || consensus.finalScore === null
           ? ''
           : String(consensus.finalScore),
-      useDraftAsBase: false,
     };
   }
 
@@ -482,7 +464,6 @@ function createFormState(
         consensus.draftScore === undefined || consensus.draftScore === null
           ? ''
           : String(consensus.draftScore),
-      useDraftAsBase: true,
     };
   }
 
@@ -490,6 +471,5 @@ function createFormState(
     finalLevel: defaultLevel,
     finalOpinion: '',
     finalScore: '',
-    useDraftAsBase: false,
   };
 }

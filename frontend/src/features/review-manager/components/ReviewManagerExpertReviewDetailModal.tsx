@@ -145,15 +145,15 @@ export function ReviewManagerExpertReviewDetailModal({
                               <div className="text-sm font-black text-slate-950">
                                 {item.itemSnapshot.name}
                               </div>
-                              {item.itemSnapshot.scoringGuide ? (
-                                <div className="mt-1 text-xs leading-5 text-slate-500">
-                                  {item.itemSnapshot.scoringGuide}
-                                </div>
-                              ) : null}
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge tone={statusView.tone}>
                                 {statusView.label}
+                              </Badge>
+                              <Badge
+                                tone={item.hasMajorIssue ? 'danger' : 'muted'}
+                              >
+                                {item.hasMajorIssue ? '重大问题' : '无重大问题'}
                               </Badge>
                               <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700">
                                 {formatScore(item.score)} /{' '}
@@ -161,7 +161,13 @@ export function ReviewManagerExpertReviewDetailModal({
                               </span>
                             </div>
                           </div>
-                          <div className="mt-4 grid gap-3 md:grid-cols-3">
+                          <div className="mt-4 grid gap-3">
+                            <DetailBlock
+                              label="打分说明"
+                              value={item.itemSnapshot.scoringGuide}
+                            />
+                          </div>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
                             <DetailBlock
                               label="评价描述"
                               value={item.evaluationDescription}
@@ -169,10 +175,6 @@ export function ReviewManagerExpertReviewDetailModal({
                             <DetailBlock
                               label="改进建议"
                               value={item.improvementSuggestion}
-                            />
-                            <DetailBlock
-                              label="重大问题"
-                              value={item.hasMajorIssue ? '是' : '否'}
                             />
                           </div>
                         </article>

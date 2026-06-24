@@ -61,9 +61,8 @@ export class ProjectsController {
   updateSchedule(
     @Param('id') id: string,
     @Body() dto: UpdateProjectScheduleDto,
-    @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ProjectResponse> {
-    return this.projectsService.updateSchedule(id, dto, currentUser);
+    return this.projectsService.updateScheduleForAdmin(id, dto);
   }
 
   @Patch(':id')
@@ -82,7 +81,7 @@ export class ProjectsController {
 
 @Controller('review-manager/projects')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ReviewManagerProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
@@ -100,6 +99,10 @@ export class ReviewManagerProjectsController {
     @Body() dto: UpdateProjectScheduleDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ProjectResponse> {
-    return this.projectsService.updateSchedule(id, dto, currentUser);
+    return this.projectsService.updateScheduleForReviewManager(
+      id,
+      dto,
+      currentUser,
+    );
   }
 }

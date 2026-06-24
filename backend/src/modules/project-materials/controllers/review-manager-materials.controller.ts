@@ -9,7 +9,7 @@ import { ProjectMaterialsService } from '../services/project-materials.service';
 
 @Controller('review-manager/projects/:id/materials')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ReviewManagerMaterialsController {
   constructor(
     private readonly projectMaterialsService: ProjectMaterialsService,

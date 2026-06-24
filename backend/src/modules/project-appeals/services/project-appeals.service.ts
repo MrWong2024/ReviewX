@@ -957,11 +957,10 @@ export class ProjectAppealsService {
   ): Promise<ProjectLean> {
     const project = await this.findActiveProject(projectId);
 
-    if (currentUser.user.roles.includes('admin')) {
-      return project;
-    }
-
-    if (project.reviewManagerId?.toString() !== currentUser.user.id) {
+    if (
+      !currentUser.user.roles.includes('review_manager') ||
+      project.reviewManagerId?.toString() !== currentUser.user.id
+    ) {
       throw new ForbiddenException();
     }
 

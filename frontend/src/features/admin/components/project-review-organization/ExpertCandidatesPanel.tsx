@@ -109,7 +109,7 @@ export function ExpertCandidatesPanel({
 
   function openConfirm(action: CandidateAction) {
     if (selectedIds.length === 0) {
-      setError('请选择至少一名候选专家。');
+      setError('请先选择候选专家。');
       return;
     }
 
@@ -204,14 +204,14 @@ export function ExpertCandidatesPanel({
               onClick={() => openConfirm('append')}
               variant="secondary"
             >
-              追加选中候选
+              追加到当前专家名单
             </Button>
             <Button
               disabled={selectedIds.length === 0 || submitting}
               onClick={() => openConfirm('replace')}
               variant="primary"
             >
-              替换为选中候选
+              用选中专家替换当前名单
             </Button>
           </div>
         </div>
@@ -259,8 +259,8 @@ export function ExpertCandidatesPanel({
         confirmLabel={confirmAction === 'replace' ? '确认替换' : '确认追加'}
         description={
           confirmAction === 'replace'
-            ? `确认将当前项目专家替换为选中的 ${selectedIds.length} 名候选专家？后端会再次校验学科匹配和单位回避规则。`
-            : `确认向当前项目追加选中的 ${selectedIds.length} 名候选专家？后端会再次校验学科匹配和单位回避规则。`
+            ? `当前专家名单将被替换为本次选中的 ${selectedIds.length} 名专家；未被选中的原专家会被移除；已产生评分记录的专家不能被移除，后端会拒绝。后端会再次校验学科匹配和单位回避规则。`
+            : `保留当前已分配专家，并新增本次选中的 ${selectedIds.length} 名候选专家。后端会再次校验学科匹配和单位回避规则。`
         }
         loading={submitting}
         onCancel={() => setConfirmAction(null)}

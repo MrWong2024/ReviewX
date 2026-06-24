@@ -30,7 +30,7 @@ import {
 
 @Controller('review-manager/projects')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ProjectExpertAssignmentsController {
   constructor(
     private readonly assignmentsService: ProjectExpertAssignmentsService,
@@ -41,7 +41,11 @@ export class ProjectExpertAssignmentsController {
     @Body() dto: BatchProjectExpertsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<BatchProjectExpertsResult> {
-    return this.assignmentsService.batchUpdateExperts(dto, currentUser);
+    return this.assignmentsService.batchUpdateExperts(
+      dto,
+      currentUser,
+      'review_manager',
+    );
   }
 
   @Get(':id/expert-candidates')
@@ -50,7 +54,12 @@ export class ProjectExpertAssignmentsController {
     @Query() query: QueryExpertCandidatesDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ExpertCandidatePage> {
-    return this.assignmentsService.listCandidates(id, query, currentUser);
+    return this.assignmentsService.listCandidates(
+      id,
+      query,
+      currentUser,
+      'review_manager',
+    );
   }
 
   @Get(':id/experts')
@@ -58,7 +67,11 @@ export class ProjectExpertAssignmentsController {
     @Param('id') id: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ExpertBasicResponse[]> {
-    return this.assignmentsService.listAssignedExperts(id, currentUser);
+    return this.assignmentsService.listAssignedExperts(
+      id,
+      currentUser,
+      'review_manager',
+    );
   }
 
   @Post(':id/experts')
@@ -67,7 +80,12 @@ export class ProjectExpertAssignmentsController {
     @Body() dto: AppendProjectExpertsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<AppendExpertsResult> {
-    return this.assignmentsService.appendExperts(id, dto, currentUser);
+    return this.assignmentsService.appendExperts(
+      id,
+      dto,
+      currentUser,
+      'review_manager',
+    );
   }
 
   @Put(':id/experts')
@@ -76,7 +94,12 @@ export class ProjectExpertAssignmentsController {
     @Body() dto: UpdateProjectExpertsDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ReplaceExpertsResult> {
-    return this.assignmentsService.replaceExperts(id, dto, currentUser);
+    return this.assignmentsService.replaceExperts(
+      id,
+      dto,
+      currentUser,
+      'review_manager',
+    );
   }
 
   @Delete(':id/experts/:expertUserId')
@@ -85,17 +108,34 @@ export class ProjectExpertAssignmentsController {
     @Param('expertUserId') expertUserId: string,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<RemoveExpertResult> {
-    return this.assignmentsService.removeExpert(id, expertUserId, currentUser);
+    return this.assignmentsService.removeExpert(
+      id,
+      expertUserId,
+      currentUser,
+      'review_manager',
+    );
   }
 }
 
 @Controller('admin/projects')
 @UseGuards(SessionAuthGuard, RolesGuard)
 @Roles('admin')
-export class AdminProjectExpertCandidatesController {
+export class AdminProjectExpertAssignmentsController {
   constructor(
     private readonly assignmentsService: ProjectExpertAssignmentsService,
   ) {}
+
+  @Put('experts/batch')
+  batchUpdateExperts(
+    @Body() dto: BatchProjectExpertsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<BatchProjectExpertsResult> {
+    return this.assignmentsService.batchUpdateExperts(
+      dto,
+      currentUser,
+      'admin',
+    );
+  }
 
   @Get(':id/expert-candidates')
   listCandidates(
@@ -103,6 +143,60 @@ export class AdminProjectExpertCandidatesController {
     @Query() query: QueryExpertCandidatesDto,
     @CurrentUser() currentUser: AuthenticatedUser,
   ): Promise<ExpertCandidatePage> {
-    return this.assignmentsService.listCandidates(id, query, currentUser);
+    return this.assignmentsService.listCandidates(
+      id,
+      query,
+      currentUser,
+      'admin',
+    );
+  }
+
+  @Get(':id/experts')
+  listAssignedExperts(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ExpertBasicResponse[]> {
+    return this.assignmentsService.listAssignedExperts(
+      id,
+      currentUser,
+      'admin',
+    );
+  }
+
+  @Post(':id/experts')
+  appendExperts(
+    @Param('id') id: string,
+    @Body() dto: AppendProjectExpertsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<AppendExpertsResult> {
+    return this.assignmentsService.appendExperts(id, dto, currentUser, 'admin');
+  }
+
+  @Put(':id/experts')
+  replaceExperts(
+    @Param('id') id: string,
+    @Body() dto: UpdateProjectExpertsDto,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<ReplaceExpertsResult> {
+    return this.assignmentsService.replaceExperts(
+      id,
+      dto,
+      currentUser,
+      'admin',
+    );
+  }
+
+  @Delete(':id/experts/:expertUserId')
+  removeExpert(
+    @Param('id') id: string,
+    @Param('expertUserId') expertUserId: string,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ): Promise<RemoveExpertResult> {
+    return this.assignmentsService.removeExpert(
+      id,
+      expertUserId,
+      currentUser,
+      'admin',
+    );
   }
 }

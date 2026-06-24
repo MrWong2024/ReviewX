@@ -112,11 +112,13 @@ frontend/
 - 专家评分状态：`not_started` 初始化空表单，`draft` 可继续编辑并删除草稿，`submitted` 只读，`returned` 显示退回原因并可修改重提；项目 `reviewTime` 未到时可保存草稿和删除草稿但不可提交，`reviewTime` 为空时兼容允许提交
 - `/review-manager`：评审负责人工作台首页，展示负责项目、专家评分、评分汇总和合议确认流程入口
 - `/review-manager/projects`：评审负责人负责项目列表，调用 `/review-manager/projects`，支持 keyword、批次、项目状态、评审方案筛选、分页和 portal reference-data 名称映射
-- `/review-manager/projects/[projectId]`：评审负责人项目合议详情页，独立加载项目摘要、专家评分列表、专家评分详情、评分汇总和合议记录
+- `/review-manager/projects/[projectId]`：评审负责人项目合议详情页，独立加载项目摘要、专家分配、专家评分列表、专家评分详情、评分汇总和合议记录
 - 评审负责人项目摘要：当前无 `GET /review-manager/projects/:id`，详情页使用 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不影响专家评分、汇总和合议区域
+- 评审负责人专家分配：调用 `/review-manager/projects/:projectId/expert-candidates` 和 `/review-manager/projects/:projectId/experts`；可查看已分配专家、搜索候选专家、追加到当前专家名单、用选中专家替换当前名单、移除无评分记录专家；替换和移除均二次确认，成功后刷新专家分配、专家评分、汇总和合议数据
 - 评审负责人专家评分：调用 `/review-manager/projects/:projectId/expert-reviews*` 查看列表和详情；`not_started` 初始化记录显示“该专家尚未开始评分”；仅 submitted 状态显示退回入口，退回原因 trim 后 1-1000 并二次确认
 - 评审负责人评分汇总：调用 `/review-manager/projects/:projectId/review-summary`，只读展示后端计算的专家数量、平均分、最高分、最低分和评分项平均分；空分数显示“暂无”
-- 评审负责人合议：调用 `/review-manager/projects/:projectId/consensus*`；`GET /consensus` 404 视为暂无合议记录；生成草稿只调用后端 `rule_based` draft；已有 draft 时按后端 409 提示二次确认后 `force=true` 覆盖；confirmed 状态不提供覆盖草稿入口，但允许重新确认最终意见、分数和等级，并提示会覆盖当前最终结论
+- 评审负责人评分详情弹窗：评分项“重大问题”以标题行紧凑 Badge 展示，不再占据大宽度列；打分说明、评价描述和改进建议保留正文展示
+- 评审负责人合议：调用 `/review-manager/projects/:projectId/consensus*`；`GET /consensus` 404 视为暂无合议记录；生成草稿只调用后端 `rule_based` draft；已有 draft 时按后端 409 提示二次确认后 `force=true` 覆盖；confirmed 状态不提供覆盖草稿入口，但允许重新确认最终意见、分数和等级，并提示会覆盖当前最终结论；确认请求 body 只包含 `finalOpinion/finalScore/finalLevel`，“使用草稿填入”只填表
 
 ## 7. 当前未实现
 
@@ -164,9 +166,9 @@ frontend/
 - 字段映射未配置、停用和删除自定义配置均回退默认内置别名；reset-defaults 会创建或覆盖配置，使自定义别名等于默认别名并启用
 - `/admin/projects` 已接入评审负责人 active 用户、评审方案、批次、项目类型、项目状态、学科和单位映射；项目负责人优先使用用户列表映射，无法映射时保留 id 兜底
 - 项目评审组织 API 封装位于 `frontend/src/features/admin/api/project-review-organization.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
-- 专家候选使用 `GET /admin/projects/:id/expert-candidates`；已分配、追加、替换、移除和批量设置专家使用 `/review-manager/projects*` 系列接口，admin 角色可访问
+- 管理员评审组织专家候选、已分配、追加、替换、移除和批量设置专家均使用 `/admin/projects*` 专家分配命名空间，不再依赖 `/review-manager/projects*` 专家接口
 - 已分配专家列表读取后端 `hasReviewRecord/reviewStatus`，展示 `未开始/草稿/已提交/已退回` 评分状态；有评分记录的专家禁用“移除”并提示“该专家已产生评分记录，不能移除”，移除确认文案说明仅未产生评分记录的专家可移除且成功后物理删除专家分配记录
-- 专家替换仍保留“替换为选中候选”能力；若后端返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，不乐观修改已分配专家列表
+- 专家候选面板按钮文案为“追加到当前专家名单”和“用选中专家替换当前名单”；替换确认明确提示未被选中的原专家会被移除，已产生评分记录的专家不能被移除；若后端返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，不乐观修改已分配专家列表
 - 管理员项目材料查看、下载和删除位于 `/admin/projects/[projectId]/review-organization` 的“项目材料”卡片；只调用 `GET /admin/projects/:id/materials`、`GET /admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`
 - 管理员删除材料必须填写 1-1000 字 `reason`，前端在弹窗中校验；删除成功后刷新材料列表，失败时不乐观移除；后端保留删除审计，前端不实现删除日志查询
 - 管理员材料下载只打开后端返回的签名 URL 或 fake storage URL，不拼接 OSS objectKey；材料状态显示 `draft=草稿`、`submitted=已提交评审`、`active=历史草稿`、`deleted=已删除/legacy 兜底`
@@ -200,7 +202,9 @@ frontend/
 - 评审负责人前端 API 封装位于 `frontend/src/features/review-manager/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 评审负责人页面通过 `/portal/reference-data/*` 构造批次、项目状态、项目类型、单位、项目负责人、评审方案和评审等级名称映射；不调用 `/admin/*` 主数据接口补详情摘要或基础数据
 - `GET /review-manager/projects/:id` 当前不存在，前端不得调用；详情页摘要适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 匹配
+- `/review-manager/projects` 后端已收紧为当前评审负责人负责项目列表；admin + review_manager 多角色进入 review-manager 工作台也只看自己作为 `reviewManagerId` 的项目，admin 全局项目管理使用 `/admin/projects`
+- 评审负责人项目详情专家分配只调用 review-manager 命名空间；如果当前用户无权访问该项目，专家分配、评分、汇总和合议接口按后端 403 展示无权限错误
 - `GET /review-manager/projects/:projectId/consensus` 返回 404 时前端转换为 `null`，展示“暂无合议草稿”，不作为页面级错误
 - 合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时 fallback A/B/C/D
-- 已 confirmed 的合议不展示覆盖草稿入口；重新提交确认表单前必须二次确认，并提示“本操作会覆盖当前最终合议结论”
+- 已 confirmed 的合议不展示覆盖草稿入口；重新提交确认表单前必须二次确认，并提示“本操作会覆盖当前最终合议结论”；确认表单不再显示“本次确认以当前草稿为基础”复选框
 - 本阶段未实现申诉、甲方看板、腾讯会议 API、文件预览、材料上传 / 删除、真实 AI 汇总、批量退回或批量合议

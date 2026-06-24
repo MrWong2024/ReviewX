@@ -2,11 +2,14 @@ import { apiRequest } from '@/src/lib/api/client';
 import { isApiError } from '@/src/lib/api/errors';
 import type { QueryParams } from '@/src/lib/api/types';
 import type {
+  AppendReviewManagerProjectExpertsInput,
+  AppendReviewManagerProjectExpertsResult,
   ConfirmConsensusReviewPayload,
   ConsensusReviewResponse,
   ExpertReviewDetail,
   ExpertReviewListItem,
   GenerateConsensusDraftOptions,
+  ListReviewManagerExpertCandidatesParams,
   PortalBatchSummary,
   PortalDictionarySummary,
   PortalListResponse,
@@ -15,10 +18,15 @@ import type {
   PortalTreeDictionarySummary,
   PortalUserSummary,
   QueryReviewManagerProjectsParams,
+  RemoveReviewManagerProjectExpertResult,
+  ReplaceReviewManagerProjectExpertsResult,
+  ReviewManagerAssignedExpert,
+  ReviewManagerExpertCandidatePage,
   ReviewManagerProjectListItem,
   ReviewManagerProjectsResponse,
   ReviewManagerReferenceData,
   ReviewSummaryResponse,
+  UpdateReviewManagerProjectExpertsInput,
 } from './types';
 
 type PortalDictionaryQueryParams = QueryParams & {
@@ -73,6 +81,66 @@ export async function getReviewManagerProjectSummary(
   });
 
   return response.items.find((project) => project.id === projectId) ?? null;
+}
+
+export function listReviewManagerProjectExpertCandidates(
+  projectId: string,
+  params: ListReviewManagerExpertCandidatesParams = {},
+) {
+  return apiRequest<ReviewManagerExpertCandidatePage>(
+    `/review-manager/projects/${projectId}/expert-candidates`,
+    {
+      method: 'GET',
+      params,
+    },
+  );
+}
+
+export function listReviewManagerAssignedProjectExperts(projectId: string) {
+  return apiRequest<ReviewManagerAssignedExpert[]>(
+    `/review-manager/projects/${projectId}/experts`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function appendReviewManagerProjectExperts(
+  projectId: string,
+  input: AppendReviewManagerProjectExpertsInput,
+) {
+  return apiRequest<AppendReviewManagerProjectExpertsResult>(
+    `/review-manager/projects/${projectId}/experts`,
+    {
+      body: input,
+      method: 'POST',
+    },
+  );
+}
+
+export function replaceReviewManagerProjectExperts(
+  projectId: string,
+  input: UpdateReviewManagerProjectExpertsInput,
+) {
+  return apiRequest<ReplaceReviewManagerProjectExpertsResult>(
+    `/review-manager/projects/${projectId}/experts`,
+    {
+      body: input,
+      method: 'PUT',
+    },
+  );
+}
+
+export function removeReviewManagerProjectExpert(
+  projectId: string,
+  expertUserId: string,
+) {
+  return apiRequest<RemoveReviewManagerProjectExpertResult>(
+    `/review-manager/projects/${projectId}/experts/${expertUserId}`,
+    {
+      method: 'DELETE',
+    },
+  );
 }
 
 export function listProjectExpertReviews(projectId: string) {

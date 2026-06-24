@@ -152,6 +152,80 @@ export type ExpertBasicSummary = {
   disciplineIds: string[];
 };
 
+export type ReviewManagerAssignmentReviewStatus =
+  | 'draft'
+  | 'returned'
+  | 'submitted';
+
+export type ReviewManagerExpertCandidate = {
+  id: string;
+  phone: string;
+  name: string;
+  organizationIds: string[];
+  disciplineIds: string[];
+  assigned?: boolean;
+  hasReviewRecord?: boolean;
+  reviewStatus?: ReviewManagerAssignmentReviewStatus | null;
+};
+
+export type ReviewManagerExpertCandidatePage = {
+  items: ReviewManagerExpertCandidate[];
+  page: number;
+  pageSize: number;
+  total: number;
+  reason?: string;
+};
+
+export type ReviewManagerAssignedExpert = {
+  id: string;
+  phone: string;
+  name: string;
+  organizationIds: string[];
+  disciplineIds: string[];
+  assigned?: boolean;
+  hasReviewRecord?: boolean;
+  reviewStatus?: ReviewManagerAssignmentReviewStatus | null;
+};
+
+export type AppendReviewManagerProjectExpertsInput = {
+  expertUserIds: string[];
+};
+
+export type UpdateReviewManagerProjectExpertsInput = {
+  expertUserIds: string[];
+};
+
+export type ReviewManagerProjectExpertFailure = {
+  expertUserId: string;
+  reasons: string[];
+  detail?: Record<string, unknown>;
+};
+
+export type AppendReviewManagerProjectExpertsResult = {
+  assignedExperts: ReviewManagerAssignedExpert[];
+  successCount: number;
+  failedCount: number;
+  failures: ReviewManagerProjectExpertFailure[];
+};
+
+export type ReplaceReviewManagerProjectExpertsResult = {
+  assignedExperts: ReviewManagerAssignedExpert[];
+  addedOrRestoredCount: number;
+  removedCount: number;
+};
+
+export type RemoveReviewManagerProjectExpertResult = {
+  removed: boolean;
+  alreadyRemoved: boolean;
+};
+
+export type ListReviewManagerExpertCandidatesParams = QueryParams & {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+  isActive?: boolean;
+};
+
 export type ExpertReviewListItem = {
   expert: ExpertBasicSummary;
   assignmentId?: string | null;
@@ -249,5 +323,4 @@ export type ConfirmConsensusReviewPayload = {
   finalOpinion: string;
   finalScore: number;
   finalLevel: string;
-  useDraftAsBase?: boolean;
 };

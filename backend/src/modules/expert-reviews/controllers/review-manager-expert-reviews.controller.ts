@@ -9,7 +9,7 @@ import { ExpertReviewsService } from '../services/expert-reviews.service';
 
 @Controller('review-manager/projects/:id')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ReviewManagerExpertReviewsController {
   constructor(private readonly expertReviewsService: ExpertReviewsService) {}
 

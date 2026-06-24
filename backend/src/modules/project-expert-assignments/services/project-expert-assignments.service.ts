@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -66,6 +67,8 @@ export type RemoveExpertResult = {
   removed: boolean;
   alreadyRemoved: boolean;
 };
+
+export type ProjectExpertAssignmentAccessScope = 'admin' | 'review_manager';
 
 type AssignmentReviewFailure = {
   expertUserId: string;
@@ -137,8 +140,13 @@ export class ProjectExpertAssignmentsService {
     projectId: string,
     query: QueryExpertCandidatesDto,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
   ): Promise<ExpertCandidatePage> {
-    const project = await this.getManageableProject(projectId, currentUser);
+    const project = await this.getManageableProject(
+      projectId,
+      currentUser,
+      scope,
+    );
 
     if (project.disciplineIds.length === 0) {
       return {
@@ -187,8 +195,13 @@ export class ProjectExpertAssignmentsService {
   async listAssignedExperts(
     projectId: string,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
   ): Promise<ExpertBasicResponse[]> {
-    const project = await this.getManageableProject(projectId, currentUser);
+    const project = await this.getManageableProject(
+      projectId,
+      currentUser,
+      scope,
+    );
     return this.getAssignedExperts(project._id);
   }
 
@@ -196,9 +209,14 @@ export class ProjectExpertAssignmentsService {
     projectId: string,
     dto: AppendProjectExpertsDto,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
     source: ProjectExpertAssignmentSource = 'manual',
   ): Promise<AppendExpertsResult> {
-    const project = await this.getManageableProject(projectId, currentUser);
+    const project = await this.getManageableProject(
+      projectId,
+      currentUser,
+      scope,
+    );
     const failures: AppendExpertsResult['failures'] = [];
     let successCount = 0;
 
@@ -235,9 +253,14 @@ export class ProjectExpertAssignmentsService {
     projectId: string,
     dto: UpdateProjectExpertsDto,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
     source: ProjectExpertAssignmentSource = 'manual',
   ): Promise<ReplaceExpertsResult> {
-    const project = await this.getManageableProject(projectId, currentUser);
+    const project = await this.getManageableProject(
+      projectId,
+      currentUser,
+      scope,
+    );
     await this.assertAllExpertsEligible(projectId, dto.expertUserIds, project);
 
     const currentAssignedIds = await this.findAssignedExpertIds(project._id);
@@ -292,8 +315,13 @@ export class ProjectExpertAssignmentsService {
     projectId: string,
     expertUserId: string,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
   ): Promise<RemoveExpertResult> {
-    const project = await this.getManageableProject(projectId, currentUser);
+    const project = await this.getManageableProject(
+      projectId,
+      currentUser,
+      scope,
+    );
     const expertObjectId = toObjectId(expertUserId, 'expertUserId');
     const existing = await this.assignmentModel
       .findOne({ projectId: project._id, expertUserId: expertObjectId })
@@ -336,6 +364,7 @@ export class ProjectExpertAssignmentsService {
   async batchUpdateExperts(
     dto: BatchProjectExpertsDto,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
   ): Promise<BatchProjectExpertsResult> {
     if (dto.mode === 'append' && dto.expertUserIds.length === 0) {
       throw new BadRequestException('expertUserIds must not be empty');
@@ -345,7 +374,11 @@ export class ProjectExpertAssignmentsService {
 
     for (const projectId of dto.projectIds) {
       try {
-        const project = await this.getManageableProject(projectId, currentUser);
+        const project = await this.getManageableProject(
+          projectId,
+          currentUser,
+          scope,
+        );
         const failures = await this.findExpertEligibilityFailures(
           projectId,
           dto.expertUserIds,
@@ -362,6 +395,7 @@ export class ProjectExpertAssignmentsService {
             projectId,
             { expertUserIds: dto.expertUserIds },
             currentUser,
+            scope,
             'batch',
           );
           results.push({
@@ -377,6 +411,7 @@ export class ProjectExpertAssignmentsService {
           projectId,
           { expertUserIds: dto.expertUserIds },
           currentUser,
+          scope,
           'batch',
         );
         results.push({
@@ -406,10 +441,23 @@ export class ProjectExpertAssignmentsService {
   private async getManageableProject(
     projectId: string,
     currentUser: AuthenticatedUser,
+    scope: ProjectExpertAssignmentAccessScope,
   ): Promise<ProjectForReviewAssignment> {
     const project =
       await this.projectsService.findActiveForReviewAssignment(projectId);
-    this.projectsService.assertCanManageProject(project, currentUser);
+
+    if (scope === 'review_manager') {
+      this.projectsService.assertCanReviewManagerManageProject(
+        project,
+        currentUser,
+      );
+      return project;
+    }
+
+    if (!currentUser.user.roles.includes('admin')) {
+      throw new ForbiddenException();
+    }
+
     return project;
   }
 

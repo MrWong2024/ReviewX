@@ -16,7 +16,6 @@ type ReviewManagerShellProps = {
 const NAV_ITEMS = [
   { href: '/review-manager', icon: '◇', label: '评审负责人首页' },
   { href: '/review-manager/projects', icon: '01', label: '负责项目' },
-  { href: '/workspace', icon: '↩', label: '返回工作台' },
 ];
 
 export function ReviewManagerShell({ children }: ReviewManagerShellProps) {
@@ -100,7 +99,7 @@ export function ReviewManagerShell({ children }: ReviewManagerShellProps) {
               const active =
                 item.href === '/review-manager'
                   ? pathname === item.href
-                  : item.href !== '/workspace' && pathname.startsWith(item.href);
+                  : pathname.startsWith(item.href);
 
               return (
                 <Link

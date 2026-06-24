@@ -12,7 +12,7 @@ import {
   ProjectExpertAssignmentSchema,
 } from './schemas/project-expert-assignment.schema';
 import {
-  AdminProjectExpertCandidatesController,
+  AdminProjectExpertAssignmentsController,
   ProjectExpertAssignmentsController,
 } from './controllers/project-expert-assignments.controller';
 import { ExpertEligibilityService } from './services/expert-eligibility.service';
@@ -33,7 +33,7 @@ import { ProjectExpertAssignmentsService } from './services/project-expert-assig
   ],
   controllers: [
     ProjectExpertAssignmentsController,
-    AdminProjectExpertCandidatesController,
+    AdminProjectExpertAssignmentsController,
   ],
   providers: [ProjectExpertAssignmentsService, ExpertEligibilityService],
   exports: [ProjectExpertAssignmentsService, ExpertEligibilityService],

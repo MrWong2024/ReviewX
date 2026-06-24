@@ -2,6 +2,18 @@
 
 ## 2026-06-24
 
+### ReviewX 第六阶段小修：评审负责人工作台权限收紧、专家分配接入与合议确认表单清理
+
+- 后端 `/review-manager/projects` 收紧为当前登录用户作为 `reviewManagerId` 的项目；admin + review_manager 多角色用户在 review-manager 命名空间也只看自己负责项目，admin 全局项目视角继续走 `/admin/projects`
+- 后端专家分配 service 增加明确 scope，review-manager 专家分配接口只允许当前负责人项目，admin 专家分配接口补齐 `/admin/projects/:id/experts*` 和 `/admin/projects/experts/batch`
+- 管理员评审组织前端 API 已切换到 `/admin` 专家分配命名空间，不再依赖 `/review-manager` 专家接口
+- `ReviewManagerShell` 左侧导航删除“返回工作台”，顶部右侧“返回工作台”入口保留
+- 评审负责人项目详情新增 `ReviewManagerExpertAssignmentsPanel`，支持查看已分配专家、搜索候选专家、追加到当前专家名单、用选中专家替换当前名单、移除无评分记录专家；成功后重新拉取专家分配、专家评分、汇总和合议数据
+- 管理员和评审负责人专家候选面板按钮文案改为“追加到当前专家名单”和“用选中专家替换当前名单”；替换确认明确提示未选中的原专家会被移除，已产生评分记录的专家不能被移除
+- 专家评分详情弹窗中“重大问题”改为评分项标题行紧凑 Badge，打分说明、评价描述和改进建议保留正文展示
+- 合议确认清理 `useDraftAsBase`：后端 DTO 删除字段，前端 payload 类型删除字段，`ConsensusReviewPanel` 删除“本次确认以当前草稿为基础”复选框；“使用草稿填入”仅把草稿内容填入表单
+- 本小修未新增依赖、环境变量，未修改 `package.json` 或锁文件，未新增申诉前端、甲方看板、腾讯会议、真实 AI 或文件预览
+
 ### ReviewX 前端第六阶段：评审负责人合议工作台
 
 - `/workspace` 放开 `review_manager` 角色入口，点击进入 `/review-manager`；只有 admin 角色的用户不会被默认引导到评审负责人工作台

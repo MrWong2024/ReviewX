@@ -21,6 +21,7 @@ import {
 } from '../api';
 import { ConsensusReviewPanel } from '../components/ConsensusReviewPanel';
 import { ReturnExpertReviewModal } from '../components/ReturnExpertReviewModal';
+import { ReviewManagerExpertAssignmentsPanel } from '../components/ReviewManagerExpertAssignmentsPanel';
 import { ReviewManagerExpertReviewDetailModal } from '../components/ReviewManagerExpertReviewDetailModal';
 import { ReviewManagerExpertReviewsPanel } from '../components/ReviewManagerExpertReviewsPanel';
 import { ReviewSummaryPanel } from '../components/ReviewSummaryPanel';
@@ -303,6 +304,17 @@ export function ReviewManagerProjectDetailPage({
     }
   }
 
+  async function handleExpertAssignmentsChanged() {
+    await Promise.all([
+      loadExpertReviews(),
+      loadReviewSummary(),
+      loadConsensus(),
+      selectedExpertReview
+        ? reloadSelectedExpertReviewDetail()
+        : Promise.resolve(),
+    ]);
+  }
+
   useEffect(() => {
     void Promise.all([
       loadProjectSummary(),
@@ -354,6 +366,13 @@ export function ReviewManagerProjectDetailPage({
           loading={projectSummaryLoading}
           lookupMaps={lookupMaps}
           project={projectSummary}
+        />
+
+        <ReviewManagerExpertAssignmentsPanel
+          disciplineNameById={lookupMaps.treeNameById}
+          onChanged={handleExpertAssignmentsChanged}
+          organizationNameById={lookupMaps.organizationNameById}
+          projectId={projectId}
         />
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">

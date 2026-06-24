@@ -162,6 +162,18 @@ npm run build
 
 注意：评审负责人项目详情摘要使用 `GET /review-manager/projects?page=1&pageSize=1000` 前端匹配；`GET /consensus` 404 按暂无合议记录展示；已有 draft 覆盖生成需二次确认后 `force=true`，confirmed 不提供覆盖草稿入口。
 
+本次 ReviewX 第六阶段小修：评审负责人工作台权限收紧、专家分配接入与合议确认表单清理已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test`
+- backend `npm run test:e2e`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：`/review-manager/projects` 只返回当前评审负责人负责项目，admin 全局视角走 `/admin/projects`；管理员评审组织专家分配使用 `/admin/projects*`，评审负责人项目详情专家分配使用 `/review-manager/projects*`；合议确认请求不得包含 `useDraftAsBase`。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -394,19 +406,21 @@ npm run build
 专家候选与分配：
 
 1. 在详情页查看专家候选
-2. 页面显示“候选专家由后端按项目学科匹配，并自动回避承担单位和合作单位”
-3. 候选专家显示姓名、手机号、单位、学科和是否已分配
-4. keyword 搜索候选专家和分页可用
-5. 项目缺少学科时显示“项目尚未维护学科，无法按学科筛选专家。请先修正项目学科。”
-6. 候选为空时显示暂无符合学科与回避规则的专家
-7. 选择候选专家后追加，页面提示成功 / 失败数量并刷新已分配专家
-8. 已分配专家表格展示评分状态：未开始、草稿、已提交或已退回
-9. 无 `expert_reviews` 评分记录的已分配专家，“移除”按钮可用；二次确认文案说明仅未产生评分记录的专家可移除，确认后刷新列表且专家分配记录应物理删除
-10. 有 `draft/submitted/returned` 评分记录的已分配专家，“移除”按钮禁用并提示“该专家已产生评分记录，不能移除”
-11. 绕过前端直接调用 `DELETE /review-manager/projects/:id/experts/:expertUserId` 移除已有评分记录专家时，后端应返回 `409`，assignment 和 `expert_reviews` 均保留
-12. 专家本人删除误保存的 draft 后，管理员刷新详情页，该专家移除按钮应恢复可用，移除后物理删除 assignment
-13. 选择候选专家后替换，二次确认后刷新已分配专家；如果替换会移除已有评分记录专家，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，原已分配专家不应被乐观移除
-14. 后端返回学科不匹配或单位冲突 failures 时，页面显示中文原因
+2. Network 使用 `GET /admin/projects/:id/expert-candidates`，已分配、追加、替换、移除和批量设置均使用 `/admin/projects*` 专家分配接口，不再调用 `/review-manager/projects*`
+3. 页面显示“候选专家由后端按项目学科匹配，并自动回避承担单位和合作单位”
+4. 候选专家显示姓名、手机号、单位、学科和是否已分配
+5. keyword 搜索候选专家和分页可用
+6. 项目缺少学科时显示“项目尚未维护学科，无法按学科筛选专家。请先修正项目学科。”
+7. 候选为空时显示暂无符合学科与回避规则的专家
+8. 选择候选专家后点击“追加到当前专家名单”，页面提示成功 / 失败数量并刷新已分配专家
+9. 已分配专家表格展示评分状态：未开始、草稿、已提交或已退回
+10. 无 `expert_reviews` 评分记录的已分配专家，“移除”按钮可用；二次确认文案说明仅未产生评分记录的专家可移除，确认后刷新列表且专家分配记录应物理删除
+11. 有 `draft/submitted/returned` 评分记录的已分配专家，“移除”按钮禁用并提示“该专家已产生评分记录，不能移除”
+12. 绕过前端直接调用 `DELETE /admin/projects/:id/experts/:expertUserId` 移除已有评分记录专家时，后端应返回 `409`，assignment 和 `expert_reviews` 均保留
+13. 专家本人删除误保存的 draft 后，管理员刷新详情页，该专家移除按钮应恢复可用，移除后物理删除 assignment
+14. 选择候选专家后点击“用选中专家替换当前名单”，二次确认文案应说明未被选中的原专家会被移除且已产生评分记录的专家不能被移除；确认后刷新已分配专家
+15. 如果替换会移除已有评分记录专家，页面显示“部分已分配专家已产生评分记录，不能被替换移除。”，原已分配专家不应被乐观移除
+16. 后端返回学科不匹配或单位冲突 failures 时，页面显示中文原因
 
 批量设置专家：
 
@@ -415,11 +429,12 @@ npm run build
 3. 点击“批量设置专家”
 4. 选择 active expert 用户和 append / replace 模式
 5. 二次确认后提交
-6. 页面展示 `successCount`、`failedCount` 和逐项目 results
-7. 逐项目 result 标题优先显示项目编号和项目名称
-8. 学科不匹配或单位冲突项目显示失败原因
-9. 失败明细优先显示专家姓名和手机号，不应只显示专家 ObjectId
-10. 专家映射缺失时显示“未知专家（短ID）”，不应显示一长串裸 ObjectId
+6. Network 调用 `PUT /admin/projects/experts/batch`
+7. 页面展示 `successCount`、`failedCount` 和逐项目 results
+8. 逐项目 result 标题优先显示项目编号和项目名称
+9. 学科不匹配或单位冲突项目显示失败原因
+10. 失败明细优先显示专家姓名和手机号，不应只显示专家 ObjectId
+11. 专家映射缺失时显示“未知专家（短ID）”，不应显示一长串裸 ObjectId
 
 ## 8. 项目负责人工作台人工验证
 
@@ -675,6 +690,7 @@ Workspace 和守卫：
 4. `/review-manager` 显示评审负责人工作台标题、说明和“进入负责项目”入口
 5. 只有 admin 角色且没有 review_manager 角色的用户不应在 workspace 看到可进入的评审负责人入口
 6. 无 review_manager 角色访问 `/review-manager`、`/review-manager/projects` 或详情页应显示 403，不白屏
+7. `/review-manager` 左侧导航不显示“返回工作台”，顶部右侧仍显示“返回工作台”
 
 负责项目列表：
 
@@ -688,6 +704,8 @@ Workspace 和守卫：
 8. 名称映射优先使用 portal reference-data，映射缺失时显示“未知项（短ID）”
 9. reference-data 加载失败时主列表仍可用，并提示部分名称将使用短 ID 兜底
 10. 点击“进入合议”进入 `/review-manager/projects/[projectId]`
+11. admin + review_manager 多角色用户进入该列表时，也只展示自己作为 `reviewManagerId` 的项目
+12. 只有 admin 角色直接请求 `/review-manager/projects` 不应返回全量项目
 
 项目详情：
 
@@ -698,6 +716,22 @@ Workspace 和守卫：
 5. 摘要匹配成功时展示项目编号、名称、批次、类型、状态、承担单位、合作单位、项目负责人、评审方案、评审时间地点和评分方案总分
 6. 摘要未匹配时显示“项目摘要不可用或无权限”，专家评分、汇总和合议区域仍继续加载
 7. 各区域加载失败时只显示该区域错误，不拖死整页
+8. admin + review_manager 多角色用户手动输入非自己负责项目详情时，review-manager 专家分配、评分、汇总和合议接口应显示 403 或无权限错误，不得展示/操作非本人负责项目
+
+专家分配：
+
+1. 页面显示“评审组织 / 专家分配”区块
+2. Network 使用 `GET /review-manager/projects/:projectId/experts` 加载已分配专家
+3. Network 使用 `GET /review-manager/projects/:projectId/expert-candidates` 加载候选专家
+4. 候选专家说明文案为“候选专家由后端按项目学科匹配，并自动回避承担单位和合作单位。”
+5. 候选专家 keyword 搜索和分页可用
+6. 未选择候选专家时“追加到当前专家名单”和“用选中专家替换当前名单”应禁用，异常触发时提示“请先选择候选专家。”
+7. 选择候选专家后点击“追加到当前专家名单”，确认文案说明会保留当前已分配专家并新增本次选中候选专家
+8. 追加成功后重新拉取已分配专家、候选专家、专家评分列表、评分汇总和合议记录
+9. 选择候选专家后点击“用选中专家替换当前名单”，确认文案说明未被选中的原专家会被移除，已产生评分记录的专家不能被移除
+10. 替换成功后重新拉取已分配专家、候选专家、专家评分列表、评分汇总和合议记录
+11. 无评分记录的已分配专家“移除”可用，移除前必须二次确认，成功后重新拉取权威数据
+12. 已产生 `draft/submitted/returned` 评分记录的专家“移除”禁用；绕过前端直接 DELETE 时后端应返回 `409`
 
 专家评分：
 
@@ -706,9 +740,10 @@ Workspace 和守卫：
 3. 状态显示为未开始、草稿、已提交、已退回
 4. 只有 submitted 状态显示“退回”按钮
 5. 点击“查看详情”调用 `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId`
-6. 详情展示专家基本信息、评分方案、每个评分项的满分、得分、评价描述、改进建议和是否重大问题
-7. 后端返回 not_started 初始化记录时显示“该专家尚未开始评分”，不作为错误
-8. 详情中的退回原因、提交时间和退回时间按后端返回展示
+6. 详情展示专家基本信息、评分方案、每个评分项的满分、得分、打分说明、评价描述、改进建议和重大问题 Badge
+7. “重大问题”不得作为三等分大列占据宽度；应在评分项标题行或得分旁以“重大问题 / 无重大问题”紧凑 Badge 展示
+8. 后端返回 not_started 初始化记录时显示“该专家尚未开始评分”，不作为错误
+9. 详情中的退回原因、提交时间和退回时间按后端返回展示
 
 退回评分：
 
@@ -748,9 +783,12 @@ Workspace 和守卫：
 5. finalLevel 必填
 6. finalLevel 优先使用 active `review_level` 字典项，提交值为 code，显示 name；字典为空时使用 A/B/C/D
 7. 有 draft 时可点击“使用草稿填入”
-8. 提交调用 `POST /review-manager/projects/:projectId/consensus/confirm`
-9. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
-10. 已 confirmed 后再次提交前必须二次确认，并提示会覆盖当前最终合议结论
+8. 页面不再显示“本次确认以当前草稿为基础”复选框
+9. 点击“使用草稿填入”只填入最终意见和最终分数
+10. 提交调用 `POST /review-manager/projects/:projectId/consensus/confirm`
+11. Network 请求 body 只包含 `finalOpinion/finalScore/finalLevel`，不得包含 `useDraftAsBase`
+12. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
+13. 已 confirmed 后再次提交前必须二次确认，并提示会覆盖当前最终合议结论
 
 回归边界：
 

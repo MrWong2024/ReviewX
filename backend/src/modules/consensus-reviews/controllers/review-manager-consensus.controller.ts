@@ -18,7 +18,7 @@ import { ConsensusReviewsService } from '../services/consensus-reviews.service';
 
 @Controller('review-manager/projects/:id/consensus')
 @UseGuards(SessionAuthGuard, RolesGuard)
-@Roles('review_manager', 'admin')
+@Roles('review_manager')
 export class ReviewManagerConsensusController {
   constructor(
     private readonly consensusReviewsService: ConsensusReviewsService,

@@ -127,7 +127,7 @@ export function resolveAdminProjectMaterialDownloadUrl(
 
 export function listAssignedProjectExperts(projectId: string) {
   return apiRequest<ExpertBasic[]>(
-    `/review-manager/projects/${projectId}/experts`,
+    `/admin/projects/${projectId}/experts`,
     {
       method: 'GET',
     },
@@ -139,7 +139,7 @@ export function appendProjectExperts(
   input: AppendProjectExpertsInput,
 ) {
   return apiRequest<AppendExpertsResult>(
-    `/review-manager/projects/${projectId}/experts`,
+    `/admin/projects/${projectId}/experts`,
     {
       body: input,
       method: 'POST',
@@ -152,7 +152,7 @@ export function replaceProjectExperts(
   input: UpdateProjectExpertsInput,
 ) {
   return apiRequest<ReplaceExpertsResult>(
-    `/review-manager/projects/${projectId}/experts`,
+    `/admin/projects/${projectId}/experts`,
     {
       body: input,
       method: 'PUT',
@@ -162,7 +162,7 @@ export function replaceProjectExperts(
 
 export function removeProjectExpert(projectId: string, expertUserId: string) {
   return apiRequest<RemoveExpertResult>(
-    `/review-manager/projects/${projectId}/experts/${expertUserId}`,
+    `/admin/projects/${projectId}/experts/${expertUserId}`,
     {
       method: 'DELETE',
     },
@@ -171,7 +171,7 @@ export function removeProjectExpert(projectId: string, expertUserId: string) {
 
 export function batchUpdateProjectExperts(input: BatchProjectExpertsInput) {
   return apiRequest<BatchProjectExpertsResult>(
-    '/review-manager/projects/experts/batch',
+    '/admin/projects/experts/batch',
     {
       body: input,
       method: 'PUT',

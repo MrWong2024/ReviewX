@@ -98,6 +98,25 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     const clientCookie = await login(data.client.phone);
     const managerCookie = await login(data.reviewManager.phone);
     const otherManagerCookie = await login(data.otherReviewManager.phone);
+    const multiRoleManager = await createUser({
+      phone: '+8613900000005',
+      roles: ['admin', 'review_manager'],
+    });
+    const multiRoleProject = await createProject({
+      batchId: data.batchId,
+      projectNo: 'P-MULTI-ROLE',
+      name: 'Multi Role Manager Project',
+      disciplineIds: [data.disciplineAId],
+      reviewManagerId: multiRoleManager.id,
+    });
+    await createProject({
+      batchId: data.batchId,
+      projectNo: 'P-OTHER-VIEW',
+      name: 'Other Manager Visible To Admin',
+      disciplineIds: [data.disciplineAId],
+      reviewManagerId: data.otherReviewManager.id,
+    });
+    const multiRoleCookie = await login(multiRoleManager.phone);
 
     await request(httpServer)
       .patch(`/admin/projects/${data.project.id}/review-assignment`)
@@ -116,9 +135,43 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       .expect(403);
 
     await request(httpServer)
+      .get('/review-manager/projects')
+      .set('Cookie', adminCookie)
+      .expect(403);
+
+    const multiRoleListResponse = await request(httpServer)
+      .get('/review-manager/projects')
+      .set('Cookie', multiRoleCookie)
+      .expect(200);
+    expect(getJsonBody(multiRoleListResponse)).toMatchObject({ total: 1 });
+    expect(getRecordArray(getJsonBody(multiRoleListResponse), 'items')).toEqual(
+      [expect.objectContaining({ id: multiRoleProject.id })],
+    );
+
+    await request(httpServer)
+      .get('/admin/projects')
+      .set('Cookie', adminCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonBody(response)).toMatchObject({ total: 3 });
+      });
+
+    await request(httpServer)
       .patch(`/admin/projects/${data.project.id}/review-assignment`)
       .set('Cookie', adminCookie)
       .send({ reviewManagerId: data.reviewManager.id })
+      .expect(200);
+
+    await request(httpServer)
+      .patch(`/review-manager/projects/${data.project.id}/schedule`)
+      .set('Cookie', adminCookie)
+      .send({ reviewLocation: 'Admin Should Not Override Here' })
+      .expect(403);
+
+    await request(httpServer)
+      .patch(`/admin/projects/${data.project.id}/schedule`)
+      .set('Cookie', adminCookie)
+      .send({ reviewLocation: 'Admin Room' })
       .expect(200);
 
     await request(httpServer)
@@ -472,6 +525,91 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       .exec();
     expect(restored).toMatchObject({ status: 'assigned' });
     expect(restored?.removedAt).toBeUndefined();
+  });
+
+  it('keeps admin expert assignment routes available under admin namespace', async () => {
+    const data = await seedReviewData();
+    const adminCookie = await login(data.admin.phone);
+    const managedProject = await createProject({
+      batchId: data.batchId,
+      projectNo: 'P-ADMIN-EXPERTS',
+      name: 'Admin Expert Project',
+      disciplineIds: [data.disciplineAId],
+      leadOrganizationId: data.leadOrganizationId,
+      cooperationOrganizationIds: [data.cooperationOrganizationId],
+      reviewManagerId: data.otherReviewManager.id,
+    });
+    const firstExpert = await createAssignableExpert(
+      '+8613900000111',
+      data,
+      'Admin First Expert',
+    );
+    const secondExpert = await createAssignableExpert(
+      '+8613900000112',
+      data,
+      'Admin Second Expert',
+    );
+
+    const candidatesResponse = await request(httpServer)
+      .get(`/admin/projects/${managedProject.id}/expert-candidates`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+    expect(getJsonBody(candidatesResponse)).toMatchObject({ total: 2 });
+
+    const appendResponse = await request(httpServer)
+      .post(`/admin/projects/${managedProject.id}/experts`)
+      .set('Cookie', adminCookie)
+      .send({ expertUserIds: [firstExpert.id] })
+      .expect(201);
+    expect(getJsonBody(appendResponse)).toMatchObject({
+      successCount: 1,
+      failedCount: 0,
+    });
+
+    await request(httpServer)
+      .get(`/admin/projects/${managedProject.id}/experts`)
+      .set('Cookie', adminCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toEqual([
+          expect.objectContaining({ id: firstExpert.id }),
+        ]);
+      });
+
+    const replaceResponse = await request(httpServer)
+      .put(`/admin/projects/${managedProject.id}/experts`)
+      .set('Cookie', adminCookie)
+      .send({ expertUserIds: [secondExpert.id] })
+      .expect(200);
+    expect(getJsonBody(replaceResponse)).toMatchObject({
+      addedOrRestoredCount: 1,
+      removedCount: 1,
+    });
+
+    await request(httpServer)
+      .delete(`/admin/projects/${managedProject.id}/experts/${secondExpert.id}`)
+      .set('Cookie', adminCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          removed: true,
+          alreadyRemoved: false,
+        });
+      });
+
+    const batchResponse = await request(httpServer)
+      .put('/admin/projects/experts/batch')
+      .set('Cookie', adminCookie)
+      .send({
+        projectIds: [data.project.id, managedProject.id],
+        expertUserIds: [firstExpert.id],
+        mode: 'append',
+      })
+      .expect(200);
+    expect(getJsonBody(batchResponse)).toMatchObject({
+      successCount: 2,
+      failedCount: 0,
+    });
   });
 
   it('marks assigned experts with review records and blocks removing reviewed experts', async () => {

@@ -197,11 +197,14 @@ export class ProjectsService {
     query: QueryReviewManagerProjectsDto,
     currentUser: AuthenticatedUser,
   ): Promise<PaginatedResponse<ProjectResponse>> {
-    const isAdmin = currentUser.user.roles.includes('admin');
+    if (!currentUser.user.roles.includes('review_manager')) {
+      throw new ForbiddenException();
+    }
+
     const filter = this.buildProjectFilter({
       ...query,
       isActive: true,
-      ...(isAdmin ? {} : { reviewManagerId: currentUser.user.id }),
+      reviewManagerId: currentUser.user.id,
     });
 
     const [items, total] = await Promise.all([
@@ -247,6 +250,20 @@ export class ProjectsService {
       return;
     }
 
+    if (
+      currentUser.user.roles.includes('review_manager') &&
+      project.reviewManagerId?.toString() === currentUser.user.id
+    ) {
+      return;
+    }
+
+    throw new ForbiddenException();
+  }
+
+  assertCanReviewManagerManageProject(
+    project: ProjectForReviewAssignment,
+    currentUser: AuthenticatedUser,
+  ): void {
     if (
       currentUser.user.roles.includes('review_manager') &&
       project.reviewManagerId?.toString() === currentUser.user.id
@@ -339,34 +356,27 @@ export class ProjectsService {
     const project = await this.findActiveLeanById(id);
     this.assertCanManageProject(project, currentUser);
 
-    const update: Record<string, unknown> = {};
+    return this.updateScheduleFields(project, dto);
+  }
 
-    if (dto.reviewTime !== undefined) {
-      update.reviewTime = dto.reviewTime;
-    }
+  async updateScheduleForReviewManager(
+    id: string,
+    dto: UpdateProjectScheduleDto,
+    currentUser: AuthenticatedUser,
+  ): Promise<ProjectResponse> {
+    const project = await this.findActiveLeanById(id);
+    this.assertCanReviewManagerManageProject(project, currentUser);
 
-    if (dto.reviewLocation !== undefined) {
-      update.reviewLocation = dto.reviewLocation;
-    }
+    return this.updateScheduleFields(project, dto);
+  }
 
-    if (dto.meetingUrl !== undefined) {
-      update.meetingUrl = dto.meetingUrl;
-    }
+  async updateScheduleForAdmin(
+    id: string,
+    dto: UpdateProjectScheduleDto,
+  ): Promise<ProjectResponse> {
+    const project = await this.findActiveLeanById(id);
 
-    const updatedProject = await this.projectModel
-      .findByIdAndUpdate(
-        project._id,
-        { $set: update },
-        { returnDocument: 'after' },
-      )
-      .lean<ProjectLean | null>()
-      .exec();
-
-    if (!updatedProject) {
-      throw new NotFoundException('Project not found');
-    }
-
-    return this.toResponse(updatedProject);
+    return this.updateScheduleFields(project, dto);
   }
 
   async upsertImportedProject(
@@ -426,6 +436,40 @@ export class ProjectsService {
 
     const project = await this.projectModel.create(update);
     return this.toResponse(project.toObject<ProjectLean>());
+  }
+
+  private async updateScheduleFields(
+    project: ProjectLean,
+    dto: UpdateProjectScheduleDto,
+  ): Promise<ProjectResponse> {
+    const update: Record<string, unknown> = {};
+
+    if (dto.reviewTime !== undefined) {
+      update.reviewTime = dto.reviewTime;
+    }
+
+    if (dto.reviewLocation !== undefined) {
+      update.reviewLocation = dto.reviewLocation;
+    }
+
+    if (dto.meetingUrl !== undefined) {
+      update.meetingUrl = dto.meetingUrl;
+    }
+
+    const updatedProject = await this.projectModel
+      .findByIdAndUpdate(
+        project._id,
+        { $set: update },
+        { returnDocument: 'after' },
+      )
+      .lean<ProjectLean | null>()
+      .exec();
+
+    if (!updatedProject) {
+      throw new NotFoundException('Project not found');
+    }
+
+    return this.toResponse(updatedProject);
   }
 
   private buildProjectFilter(query: {
