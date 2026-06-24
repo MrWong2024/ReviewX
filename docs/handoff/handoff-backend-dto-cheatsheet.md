@@ -62,6 +62,17 @@
 | `UploadProjectAppealAttachmentsDto` | project-appeals | 追加申诉补充材料 | `remark`；multipart `files` | `files` 必填；`remark` 可选 | string / file array | `remark` trim，最大 1000；文件字段名 `files`；单次最多 20 个、单文件最大 500MB、禁止空文件和危险扩展名 | 无 | multipart form-data | `POST /project-owner/projects/:id/appeals/:appealId/attachments` | 仅 `submitted` 申诉可追加；不使用 `material_type` 字典 |
 | `HandleProjectAppealDto` | project-appeals | 处理申诉 | `decision`、`handlingOpinion`、`newFinalLevel` | `decision/handlingOpinion` 必填；`newFinalLevel` 可选 | enum / string | `decision` 仅 `accepted/rejected`；`handlingOpinion` trim，1..10000；`newFinalLevel` 校验启用 `review_level` 字典 code/name，字典为空时允许 A/B/C/D | 无 | `{ decision: "accepted", handlingOpinion: "申诉有效", newFinalLevel: "B" }` | `POST /review-manager/projects/:id/appeals/:appealId/handle`、`POST /admin/projects/:id/appeals/:appealId/handle` | 已处理申诉不可重复处理；等级变更只写 `Project.finalLevel` 和 `ProjectLevelChangeLog` |
 
+## 3.1 专家分配锁定错误
+
+- `AppendProjectExpertsDto`、`UpdateProjectExpertsDto`、`BatchProjectExpertsDto` 本次未新增请求字段。
+- admin 和 review_manager 专家分配 mutation 在后端统一执行锁定校验；单项目锁定时返回 `409`。
+- 错误码：`EXPERT_ASSIGNMENT_LOCKED`。
+- 响应字段：
+  - `message`: 固定为“专家名单已锁定，不能继续调整。”
+  - `code`: `EXPERT_ASSIGNMENT_LOCKED`
+  - `reasons`: 字符串数组，可能包含 `REVIEW_TIME_REACHED`、`EXPERT_REVIEW_EXISTS`、`CONSENSUS_EXISTS`、`FINAL_LEVEL_EXISTS`
+- 该错误仅影响专家名单 mutation；专家候选、已分配专家、材料和项目摘要读取接口不使用该锁定错误。
+
 ## 4. 类型 / 状态
 
 | 名称           | 可选值 / 字段                                                                     | 含义              | 是否对前端暴露        | 是否可持久化 | 备注                       |

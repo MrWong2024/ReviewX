@@ -1,4 +1,4 @@
-import { ReviewManagerProjectDetailPage } from '@/src/features/review-manager/pages/ReviewManagerProjectDetailPage';
+import { ReviewManagerProjectOverviewPage } from '@/src/features/review-manager/pages/ReviewManagerProjectOverviewPage';
 
 type PageProps = {
   params: Promise<{
@@ -9,5 +9,5 @@ type PageProps = {
 export default async function Page({ params }: PageProps) {
   const { projectId } = await params;
 
-  return <ReviewManagerProjectDetailPage projectId={projectId} />;
+  return <ReviewManagerProjectOverviewPage projectId={projectId} />;
 }

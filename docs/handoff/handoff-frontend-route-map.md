@@ -27,7 +27,9 @@
 | `/expert/review-tasks/[projectId]` | `frontend/app/expert/review-tasks/[projectId]/page.tsx` | 需要登录 + expert 角色 | implemented | 专家评审任务详情，展示项目、评审安排、submitted 材料、评审方案快照和评分表单；支持草稿、提交、submitted 只读和 returned 重提 |
 | `/review-manager` | `frontend/app/review-manager/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人工作台首页，提供负责项目、专家评分、汇总和合议确认入口说明 |
 | `/review-manager/projects` | `frontend/app/review-manager/projects/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人负责项目列表，调用 `/review-manager/projects`；支持 keyword、批次、项目状态、评审方案筛选和分页 |
-| `/review-manager/projects/[projectId]` | `frontend/app/review-manager/projects/[projectId]/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人项目合议详情；项目摘要用项目列表 `pageSize=1000` 前端匹配，不调用不存在的详情接口；展示专家分配、专家评分、详情、退回、汇总、合议草稿和最终确认 |
+| `/review-manager/projects/[projectId]` | `frontend/app/review-manager/projects/[projectId]/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人项目总览 / 工作入口页；项目摘要用项目列表 `pageSize=1000` 前端匹配，不调用不存在的详情接口；只展示项目摘要、评审安排摘要、专家数量 / 合议状态摘要，并提供评审组织和合议处理入口 |
+| `/review-manager/projects/[projectId]/review-organization` | `frontend/app/review-manager/projects/[projectId]/review-organization/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人评审前组织页，维护评审时间 / 地点 / 会议链接，查看 submitted 材料，查看候选专家和已分配专家，并执行追加 / 替换 / 移除；无管理员治理能力 |
+| `/review-manager/projects/[projectId]/consensus` | `frontend/app/review-manager/projects/[projectId]/consensus/page.tsx` | 需要登录 + review_manager 角色 | implemented | 评审负责人评审后合议页，展示专家评分列表 / 详情、退回评分、评分汇总、合议草稿和最终确认；不包含专家分配和评审安排表单 |
 | `/_not-found` | `frontend/app/not-found.tsx` | 无 | implemented | 404 友好页 |
 
 ## 2. 管理员 layout

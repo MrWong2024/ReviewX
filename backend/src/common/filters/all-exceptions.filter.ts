@@ -11,6 +11,7 @@ type ErrorResponseBody = {
   code?: string;
   error?: string;
   message?: string | string[];
+  reasons?: string[];
   reviewTime?: Date | string | null;
   statusCode?: number;
 };
@@ -36,6 +37,13 @@ function toErrorResponseBody(value: unknown): ErrorResponseBody | null {
 
   if (typeof value.code === 'string') {
     responseBody.code = value.code;
+  }
+
+  if (
+    Array.isArray(value.reasons) &&
+    value.reasons.every((reason) => typeof reason === 'string')
+  ) {
+    responseBody.reasons = value.reasons;
   }
 
   if (
@@ -69,6 +77,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let code: string | undefined;
     let message = 'Internal server error';
+    let reasons: string[] | undefined;
     let reviewTime: Date | string | null | undefined;
 
     if (exception instanceof HttpException) {
@@ -90,6 +99,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
 
         code = parsedResponseBody?.code;
+        reasons = parsedResponseBody?.reasons;
         reviewTime = parsedResponseBody?.reviewTime;
       }
     } else if (exception instanceof Error && exception.message) {
@@ -102,6 +112,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: String(httpAdapter.getRequestUrl(request)),
       message,
       ...(code ? { code } : {}),
+      ...(reasons ? { reasons } : {}),
       ...(reviewTime !== undefined ? { reviewTime } : {}),
     };
 

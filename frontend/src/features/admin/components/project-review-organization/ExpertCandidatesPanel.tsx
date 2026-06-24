@@ -13,6 +13,11 @@ import { Pagination } from '@/src/components/ui/Pagination';
 import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import { formatExpertFailureReasons } from '@/src/lib/labels/project-review-organization-labels';
 import {
+  type ExpertAssignmentLockReason,
+  getExpertAssignmentLockMessage,
+  isExpertAssignmentLockedError,
+} from '@/src/lib/project-review/expert-assignment-lock';
+import {
   appendProjectExperts,
   listProjectExpertCandidates,
   replaceProjectExperts,
@@ -27,6 +32,9 @@ type CandidateAction = 'append' | 'replace';
 
 type ExpertCandidatesPanelProps = {
   disciplineNameById: Map<string, string>;
+  locked?: boolean;
+  lockMessage?: string;
+  lockReasons?: ExpertAssignmentLockReason[];
   onChanged: () => void;
   organizationNameById: Map<string, string>;
   projectId: string;
@@ -38,6 +46,9 @@ const ASSIGNMENT_HAS_REVIEW_RECORD_CODE =
 
 export function ExpertCandidatesPanel({
   disciplineNameById,
+  locked = false,
+  lockMessage,
+  lockReasons = [],
   onChanged,
   organizationNameById,
   projectId,
@@ -59,6 +70,8 @@ export function ExpertCandidatesPanel({
   const [submitting, setSubmitting] = useState(false);
 
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const effectiveLockMessage =
+    lockMessage || getExpertAssignmentLockMessage(lockReasons);
   const candidateNameById = useMemo(
     () =>
       new Map(
@@ -99,6 +112,10 @@ export function ExpertCandidatesPanel({
   }
 
   function toggleCandidate(candidateId: string) {
+    if (locked) {
+      return;
+    }
+
     if (selected.has(candidateId)) {
       setSelectedIds(selectedIds.filter((id) => id !== candidateId));
       return;
@@ -108,6 +125,11 @@ export function ExpertCandidatesPanel({
   }
 
   function openConfirm(action: CandidateAction) {
+    if (locked) {
+      setError(effectiveLockMessage || '专家名单已锁定，不能继续调整。');
+      return;
+    }
+
     if (selectedIds.length === 0) {
       setError('请先选择候选专家。');
       return;
@@ -158,6 +180,7 @@ export function ExpertCandidatesPanel({
         <input
           checked={selected.has(item.id)}
           className="h-4 w-4 accent-cyan-700"
+          disabled={locked}
           onChange={() => toggleCandidate(item.id)}
           type="checkbox"
         />
@@ -200,14 +223,14 @@ export function ExpertCandidatesPanel({
           </div>
           <div className="table-actions">
             <Button
-              disabled={selectedIds.length === 0 || submitting}
+              disabled={locked || selectedIds.length === 0 || submitting}
               onClick={() => openConfirm('append')}
               variant="secondary"
             >
               追加到当前专家名单
             </Button>
             <Button
-              disabled={selectedIds.length === 0 || submitting}
+              disabled={locked || selectedIds.length === 0 || submitting}
               onClick={() => openConfirm('replace')}
               variant="primary"
             >
@@ -230,6 +253,11 @@ export function ExpertCandidatesPanel({
           </div>
         </form>
         <ErrorAlert message={error} />
+        {locked ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-6 text-amber-800">
+            {effectiveLockMessage || '专家名单已锁定，不能继续调整。'}
+          </div>
+        ) : null}
         {notice ? (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-700">
             {notice}
@@ -311,6 +339,10 @@ function formatAppendNotice(
 }
 
 function formatCandidateSubmitError(error: unknown): string {
+  if (isExpertAssignmentLockedError(error)) {
+    return '专家名单已锁定，不能继续调整。';
+  }
+
   if (
     isApiError(error) &&
     error.status === 409 &&

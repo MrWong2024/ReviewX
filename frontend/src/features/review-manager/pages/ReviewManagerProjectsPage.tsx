@@ -213,12 +213,26 @@ export function ReviewManagerProjectsPage() {
     {
       key: 'actions',
       render: (item) => (
-        <Link
-          className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
-          href={`/review-manager/projects/${item.id}`}
-        >
-          进入合议
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50"
+            href={`/review-manager/projects/${item.id}`}
+          >
+            项目总览
+          </Link>
+          <Link
+            className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+            href={`/review-manager/projects/${item.id}/review-organization`}
+          >
+            评审组织
+          </Link>
+          <Link
+            className="inline-flex min-h-7 items-center rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            href={`/review-manager/projects/${item.id}/consensus`}
+          >
+            合议处理
+          </Link>
+        </div>
       ),
       title: '操作',
     },
@@ -230,7 +244,7 @@ export function ReviewManagerProjectsPage() {
         <div>
           <div className="eyebrow">Managed Projects</div>
           <h1>负责项目</h1>
-          <p>查看当前评审负责人负责的项目，进入详情查看专家评分和合议。</p>
+          <p>查看当前评审负责人负责的项目，并进入项目总览、评审组织或合议处理。</p>
         </div>
         <Button
           disabled={loading}

@@ -8,6 +8,7 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import type { ExpertReviewStatus } from '../src/modules/expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
@@ -33,6 +34,7 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
   let reviewSchemeModel: Model<ReviewScheme>;
   let projectModel: Model<Project>;
   let assignmentModel: Model<ProjectExpertAssignment>;
+  let consensusReviewModel: Model<ConsensusReview>;
   let expertReviewModel: Model<ExpertReview>;
   let models: Model<unknown>[];
 
@@ -62,6 +64,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     assignmentModel = app.get<Model<ProjectExpertAssignment>>(
       getModelToken(ProjectExpertAssignment.name),
     );
+    consensusReviewModel = app.get<Model<ConsensusReview>>(
+      getModelToken(ConsensusReview.name),
+    );
     expertReviewModel = app.get<Model<ExpertReview>>(
       getModelToken(ExpertReview.name),
     );
@@ -74,6 +79,7 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       reviewSchemeModel,
       projectModel,
       assignmentModel,
+      consensusReviewModel,
       expertReviewModel,
     ];
 
@@ -612,6 +618,126 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     });
   });
 
+  it('locks expert assignments after review time is reached and keeps read APIs available', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const adminCookie = await login(data.admin.phone);
+    const expert = await createAssignableExpert(
+      '+8613900000121',
+      data,
+      'Time Locked Expert',
+    );
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, {
+        $set: { reviewTime: new Date(Date.now() - 60_000) },
+      })
+      .exec();
+
+    await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/experts`)
+      .set('Cookie', managerCookie)
+      .expect(200);
+    await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/expert-candidates`)
+      .set('Cookie', managerCookie)
+      .expect(200);
+
+    const reviewManagerResponse = await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/experts`)
+      .set('Cookie', managerCookie)
+      .send({ expertUserIds: [expert.id] })
+      .expect(409);
+    expect(getJsonBody(reviewManagerResponse)).toMatchObject({
+      code: 'EXPERT_ASSIGNMENT_LOCKED',
+      message: '专家名单已锁定，不能继续调整。',
+      reasons: ['REVIEW_TIME_REACHED'],
+    });
+
+    const adminResponse = await request(httpServer)
+      .post(`/admin/projects/${data.project.id}/experts`)
+      .set('Cookie', adminCookie)
+      .send({ expertUserIds: [expert.id] })
+      .expect(409);
+    expect(getJsonBody(adminResponse)).toMatchObject({
+      code: 'EXPERT_ASSIGNMENT_LOCKED',
+      reasons: ['REVIEW_TIME_REACHED'],
+    });
+    await expect(
+      findAssignment(data.project.id, expert.id),
+    ).resolves.toBeNull();
+  });
+
+  it('locks expert assignments once consensus exists or final level is set', async () => {
+    const data = await seedReviewData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const assignedExpert = await createAssignableExpert(
+      '+8613900000131',
+      data,
+      'Consensus Assigned Expert',
+    );
+    const nextExpert = await createAssignableExpert(
+      '+8613900000132',
+      data,
+      'Consensus Next Expert',
+    );
+    const finalLevelExpert = await createAssignableExpert(
+      '+8613900000133',
+      data,
+      'Final Level Expert',
+    );
+    await createAssignment(
+      data.project.id,
+      assignedExpert.id,
+      data.reviewManager.id,
+    );
+    await createConsensusReview(data.project.id);
+
+    for (const action of [
+      () =>
+        request(httpServer)
+          .post(`/review-manager/projects/${data.project.id}/experts`)
+          .set('Cookie', managerCookie)
+          .send({ expertUserIds: [nextExpert.id] }),
+      () =>
+        request(httpServer)
+          .put(`/review-manager/projects/${data.project.id}/experts`)
+          .set('Cookie', managerCookie)
+          .send({ expertUserIds: [nextExpert.id] }),
+      () =>
+        request(httpServer)
+          .delete(
+            `/review-manager/projects/${data.project.id}/experts/${assignedExpert.id}`,
+          )
+          .set('Cookie', managerCookie),
+    ]) {
+      const response = await action().expect(409);
+      expect(getJsonBody(response)).toMatchObject({
+        code: 'EXPERT_ASSIGNMENT_LOCKED',
+        message: '专家名单已锁定，不能继续调整。',
+        reasons: ['CONSENSUS_EXISTS'],
+      });
+    }
+
+    const finalLevelProject = await createProject({
+      batchId: data.batchId,
+      disciplineIds: [data.disciplineAId],
+      finalLevel: 'A',
+      name: 'Final Level Project',
+      projectNo: 'P-FINAL-LEVEL',
+      reviewManagerId: data.reviewManager.id,
+    });
+    const finalLevelResponse = await request(httpServer)
+      .post(`/review-manager/projects/${finalLevelProject.id}/experts`)
+      .set('Cookie', managerCookie)
+      .send({ expertUserIds: [finalLevelExpert.id] })
+      .expect(409);
+    expect(getJsonBody(finalLevelResponse)).toMatchObject({
+      code: 'EXPERT_ASSIGNMENT_LOCKED',
+      reasons: ['FINAL_LEVEL_EXISTS'],
+    });
+  });
+
   it('marks assigned experts with review records and blocks removing reviewed experts', async () => {
     const data = await seedReviewData();
     const managerCookie = await login(data.reviewManager.phone);
@@ -676,7 +802,23 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     expect(assignedById.get(draftExpert.id)).not.toHaveProperty('totalScore');
     expect(assignedById.get(draftExpert.id)).not.toHaveProperty('submittedAt');
 
-    for (const expert of [draftExpert, submittedExpert, returnedExpert]) {
+    const appendResponse = await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/experts`)
+      .set('Cookie', managerCookie)
+      .send({ expertUserIds: [freshExpert.id] })
+      .expect(409);
+    expect(getJsonBody(appendResponse)).toMatchObject({
+      code: 'EXPERT_ASSIGNMENT_LOCKED',
+      message: '专家名单已锁定，不能继续调整。',
+      reasons: ['EXPERT_REVIEW_EXISTS'],
+    });
+
+    for (const expert of [
+      freshExpert,
+      draftExpert,
+      submittedExpert,
+      returnedExpert,
+    ]) {
       const response = await request(httpServer)
         .delete(
           `/review-manager/projects/${data.project.id}/experts/${expert.id}`,
@@ -684,15 +826,13 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
         .set('Cookie', managerCookie)
         .expect(409);
       expect(getJsonBody(response)).toMatchObject({
-        code: 'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD',
-        message: '该专家已产生评分记录，不能移除。',
+        code: 'EXPERT_ASSIGNMENT_LOCKED',
+        message: '专家名单已锁定，不能继续调整。',
+        reasons: ['EXPERT_REVIEW_EXISTS'],
       });
       await expect(
         findAssignment(data.project.id, expert.id),
       ).resolves.toMatchObject({ status: 'assigned' });
-      await expect(
-        findExpertReview(data.project.id, expert.id),
-      ).resolves.toMatchObject({});
     }
   });
 
@@ -765,8 +905,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       .send({ expertUserIds: [replacementExpert.id] })
       .expect(409);
     expect(getJsonBody(replaceResponse)).toMatchObject({
-      code: 'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD',
-      message: '部分专家已产生评分记录，不能移除。',
+      code: 'EXPERT_ASSIGNMENT_LOCKED',
+      message: '专家名单已锁定，不能继续调整。',
+      reasons: ['EXPERT_REVIEW_EXISTS'],
     });
     await expect(
       findAssignment(data.project.id, lockedExpert.id),
@@ -833,7 +974,7 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       results.find((item) => item.projectId === data.project.id),
     ).toMatchObject({
       success: false,
-      message: '部分专家已产生评分记录，不能移除。',
+      message: '专家名单已锁定，不能继续调整。',
     });
     expect(
       results.find((item) => item.projectId === replaceableProject.id),
@@ -1115,6 +1256,24 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     });
   }
 
+  async function createConsensusReview(projectId: string): Promise<void> {
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(projectId),
+      reviewSchemeSnapshot: createReviewSchemeSnapshot(),
+      draftSource: 'rule_based',
+      draftOpinion: '系统生成合议草稿',
+      draftScore: 80,
+      status: 'draft',
+      expertReviewStats: {
+        expertCount: 1,
+        submittedCount: 1,
+        averageScore: 80,
+        minScore: 80,
+        maxScore: 80,
+      },
+    });
+  }
+
   async function findAssignment(
     projectId: string,
     expertUserId: string,
@@ -1150,7 +1309,9 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
     disciplineIds?: string[];
     leadOrganizationId?: string;
     cooperationOrganizationIds?: string[];
+    finalLevel?: string;
     reviewManagerId?: string;
+    reviewTime?: Date;
     isActive?: boolean;
   }): Promise<{ id: string }> {
     const project = await projectModel.create({
@@ -1169,6 +1330,8 @@ describe('Project review assignment and expert assignment APIs (e2e)', () => {
       reviewManagerId: input.reviewManagerId
         ? new Types.ObjectId(input.reviewManagerId)
         : null,
+      reviewTime: input.reviewTime ?? null,
+      finalLevel: input.finalLevel ?? '',
       isActive: input.isActive ?? true,
     });
 

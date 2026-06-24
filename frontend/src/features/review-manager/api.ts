@@ -22,6 +22,9 @@ import type {
   ReplaceReviewManagerProjectExpertsResult,
   ReviewManagerAssignedExpert,
   ReviewManagerExpertCandidatePage,
+  ReviewManagerProjectMaterialDownloadUrlResult,
+  ReviewManagerProjectMaterialListItem,
+  ReviewManagerProjectSchedulePayload,
   ReviewManagerProjectListItem,
   ReviewManagerProjectsResponse,
   ReviewManagerReferenceData,
@@ -53,7 +56,8 @@ type PortalUsersQueryParams = PortalCommonQueryParams & {
   roles?: string;
 };
 
-const REVIEW_MANAGER_DICTIONARY_TYPES = 'project_status,review_level';
+const REVIEW_MANAGER_DICTIONARY_TYPES =
+  'project_status,review_level,material_type';
 const REVIEW_MANAGER_TREE_TYPES =
   'project_type,discipline,department,administrative_division';
 const PROJECT_SUMMARY_PAGE_SIZE = 1000;
@@ -141,6 +145,56 @@ export function removeReviewManagerProjectExpert(
       method: 'DELETE',
     },
   );
+}
+
+export function updateReviewManagerProjectSchedule(
+  projectId: string,
+  payload: ReviewManagerProjectSchedulePayload,
+) {
+  return apiRequest<ReviewManagerProjectListItem>(
+    `/review-manager/projects/${projectId}/schedule`,
+    {
+      body: payload,
+      method: 'PATCH',
+    },
+  );
+}
+
+export function listReviewManagerProjectMaterials(projectId: string) {
+  return apiRequest<ReviewManagerProjectMaterialListItem[]>(
+    `/review-manager/projects/${projectId}/materials`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function getReviewManagerProjectMaterialDownloadUrl(
+  projectId: string,
+  materialId: string,
+) {
+  return apiRequest<ReviewManagerProjectMaterialDownloadUrlResult>(
+    `/review-manager/projects/${projectId}/materials/${materialId}/download-url`,
+    {
+      method: 'GET',
+    },
+  );
+}
+
+export function resolveReviewManagerProjectMaterialDownloadUrl(
+  response: ReviewManagerProjectMaterialDownloadUrlResult,
+): string | null {
+  if (typeof response === 'string') {
+    return response.trim() || null;
+  }
+
+  const url = response.url ?? response.downloadUrl;
+
+  if (!url || typeof url !== 'string') {
+    return null;
+  }
+
+  return url.trim() || null;
 }
 
 export function listProjectExpertReviews(projectId: string) {
@@ -304,6 +358,7 @@ export async function loadReviewManagerReferenceData(): Promise<ReviewManagerRef
     organizationsResponse,
     reviewSchemesResponse,
     projectOwnersResponse,
+    reviewManagersResponse,
   ] = await Promise.all([
     listPortalDictionaries({ dictTypes: REVIEW_MANAGER_DICTIONARY_TYPES }),
     listPortalTreeDictionaries({ treeTypes: REVIEW_MANAGER_TREE_TYPES }),
@@ -311,6 +366,7 @@ export async function loadReviewManagerReferenceData(): Promise<ReviewManagerRef
     listPortalOrganizations(),
     listPortalReviewSchemes(),
     listPortalUsers({ role: 'project_owner' }),
+    listPortalUsers({ role: 'review_manager' }),
   ]);
 
   const dictionaries = sortDictionaries(dictionariesResponse.items);
@@ -327,6 +383,7 @@ export async function loadReviewManagerReferenceData(): Promise<ReviewManagerRef
     dictionaries,
     organizations: sortNamedItems(organizationsResponse.items),
     projectOwners: sortNamedItems(projectOwnersResponse.items),
+    reviewManagers: sortNamedItems(reviewManagersResponse.items),
     projectStatuses,
     reviewLevels,
     reviewSchemes: sortNamedItems(reviewSchemesResponse.items),

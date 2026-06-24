@@ -2,6 +2,19 @@
 
 ## 2026-06-24
 
+### ReviewX 第六阶段小修 2：评审负责人评审组织页独立、合议页拆分与专家分配时点锁定
+
+- 后端 `ProjectExpertAssignmentsService` 对 admin 和 review_manager 专家分配 mutation 统一增加项目级锁定：`reviewTime` 已到、已有任一 `ExpertReview`、已有任一 `ConsensusReview`、已有 `finalLevel/originalLevel` 时返回 `409 EXPERT_ASSIGNMENT_LOCKED`
+- `EXPERT_ASSIGNMENT_LOCKED` 响应包含 `message/code/reasons`，全局异常过滤器保留 `reasons` 字段；GET 候选专家、GET 已分配专家和材料读取不受锁定影响
+- `/review-manager/projects/[projectId]` 调整为项目总览 / 工作入口页，不再混放专家分配表格和合议确认表单
+- 新增 `/review-manager/projects/[projectId]/review-organization`，承载评审前组织：评审安排、submitted 材料只读下载、已分配专家、候选专家、追加、替换和移除
+- 新增 `/review-manager/projects/[projectId]/consensus`，承载评审后合议：专家评分列表 / 详情、退回、评分汇总、合议草稿和最终确认
+- 评审负责人评审组织页只调用 review-manager 命名空间的 schedule、materials 和 experts 接口；不提供更换评审负责人 / 评审方案、材料删除、全局项目管理或 admin 接口穿透
+- 管理员评审组织页和评审负责人评审组织页共用前端专家名单锁定 helper，锁定时展示具体原因并禁用追加 / 替换 / 移除
+- review-manager reference-data 增加 `material_type` 和 `review_manager` 用户摘要读取，用于材料类型和评审负责人名称映射
+- 本小修未新增依赖、环境变量，未修改 `package.json` 或锁文件，未实现申诉前端、甲方看板、腾讯会议、真实 AI 或文件预览
+- 本次验证：backend `npm run lint`、`npm run test -- --runInBand`、`npm run test:e2e`、`npm run build` 通过；backend `npm run test` 并行模式因既有测试库互扰失败；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过
+
 ### ReviewX 第六阶段小修：评审负责人工作台权限收紧、专家分配接入与合议确认表单清理
 
 - 后端 `/review-manager/projects` 收紧为当前登录用户作为 `reviewManagerId` 的项目；admin + review_manager 多角色用户在 review-manager 命名空间也只看自己负责项目，admin 全局项目视角继续走 `/admin/projects`

@@ -8,6 +8,10 @@ import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { Button } from '@/src/components/ui/Button';
 import { getErrorMessage } from '@/src/lib/api/errors';
 import { getProjectOrganizationStatus } from '@/src/lib/labels/project-review-organization-labels';
+import {
+  getExpertAssignmentLockMessage,
+  getExpertAssignmentLockReasons,
+} from '@/src/lib/project-review/expert-assignment-lock';
 import { AdminProjectMaterialsCard } from '../components/project-review-organization/AdminProjectMaterialsCard';
 import { AssignedExpertsPanel } from '../components/project-review-organization/AssignedExpertsPanel';
 import { ExpertCandidatesPanel } from '../components/project-review-organization/ExpertCandidatesPanel';
@@ -89,6 +93,24 @@ export function ProjectReviewOrganizationPage({
         users.map((user) => [user.id, `${user.name}（${user.phone}）`]),
       ),
     [users],
+  );
+  const expertAssignmentLockReasons = useMemo(
+    () =>
+      project
+        ? getExpertAssignmentLockReasons({
+            finalLevel: project.finalLevel,
+            hasExpertReviewRecord: assignedExperts.some(
+              (expert) => expert.hasReviewRecord,
+            ),
+            originalLevel: project.originalLevel,
+            reviewTime: project.reviewTime,
+          })
+        : [],
+    [assignedExperts, project],
+  );
+  const expertAssignmentLocked = expertAssignmentLockReasons.length > 0;
+  const expertAssignmentLockMessage = getExpertAssignmentLockMessage(
+    expertAssignmentLockReasons,
   );
 
   useEffect(() => {
@@ -318,6 +340,9 @@ export function ProjectReviewOrganizationPage({
         <AssignedExpertsPanel
           disciplineNameById={treeNameById}
           experts={assignedExperts}
+          locked={expertAssignmentLocked}
+          lockMessage={expertAssignmentLockMessage}
+          lockReasons={expertAssignmentLockReasons}
           loading={expertsLoading}
           onChanged={loadAssignedExperts}
           organizationNameById={organizationNameById}
@@ -325,6 +350,9 @@ export function ProjectReviewOrganizationPage({
         />
         <ExpertCandidatesPanel
           disciplineNameById={treeNameById}
+          locked={expertAssignmentLocked}
+          lockMessage={expertAssignmentLockMessage}
+          lockReasons={expertAssignmentLockReasons}
           onChanged={loadAssignedExperts}
           organizationNameById={organizationNameById}
           projectId={project.id}

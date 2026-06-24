@@ -59,11 +59,11 @@
 | `batchUpdateProjectReviewAssignment` | `PATCH /admin/projects/review-assignment/batch` | `{ successCount, failedCount, failures }`；部分失败显示明细 | `/admin/projects` |
 | `updateProjectSchedule` | `PATCH /admin/projects/:id/schedule` | `Project`；只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API | `/admin/projects/[projectId]/review-organization` |
 | `listProjectExpertCandidates` | `GET /admin/projects/:id/expert-candidates` | `{ items, page, pageSize, total, reason? }`；候选由后端按学科匹配并回避承担单位/合作单位 | `/admin/projects/[projectId]/review-organization` |
-| `listAssignedProjectExperts` | `GET /admin/projects/:id/experts` | `ExpertBasic[]`；管理员全局专家分配命名空间；已分配专家可带 `hasReviewRecord/reviewStatus`，用于禁用已有评分记录专家的移除操作 | `/admin/projects/[projectId]/review-organization` |
-| `appendProjectExperts` | `POST /admin/projects/:id/experts` | `{ assignedExperts, successCount, failedCount, failures }`；逐专家返回失败原因 | `/admin/projects/[projectId]/review-organization` |
-| `replaceProjectExperts` | `PUT /admin/projects/:id/experts` | `{ assignedExperts, addedOrRestoredCount, removedCount }`；若替换会移除已有评分记录专家，后端返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD`，前端显示替换移除受限提示 | `/admin/projects/[projectId]/review-organization` |
-| `removeProjectExpert` | `DELETE /admin/projects/:id/experts/:expertUserId` | `{ removed, alreadyRemoved }`；仅无评分记录专家可物理移除；`409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 映射为“该专家已产生评分记录，不能移除。” | `/admin/projects/[projectId]/review-organization` |
-| `batchUpdateProjectExperts` | `PUT /admin/projects/experts/batch` | `{ successCount, failedCount, results }`；逐项目返回成功/失败和专家规则失败原因 | `/admin/projects` |
+| `listAssignedProjectExperts` | `GET /admin/projects/:id/experts` | `ExpertBasic[]`；管理员全局专家分配命名空间；已分配专家可带 `hasReviewRecord/reviewStatus`，用于展示评分状态并参与专家名单锁定提示 | `/admin/projects/[projectId]/review-organization` |
+| `appendProjectExperts` | `POST /admin/projects/:id/experts` | `{ assignedExperts, successCount, failedCount, failures }`；逐专家返回失败原因；项目专家名单已锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` | `/admin/projects/[projectId]/review-organization` |
+| `replaceProjectExperts` | `PUT /admin/projects/:id/experts` | `{ assignedExperts, addedOrRestoredCount, removedCount }`；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED`，前端禁用替换并展示锁定原因 | `/admin/projects/[projectId]/review-organization` |
+| `removeProjectExpert` | `DELETE /admin/projects/:id/experts/:expertUserId` | `{ removed, alreadyRemoved }`；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED`，前端禁用移除并展示锁定原因 | `/admin/projects/[projectId]/review-organization` |
+| `batchUpdateProjectExperts` | `PUT /admin/projects/experts/batch` | `{ successCount, failedCount, results }`；逐项目返回成功/失败和专家规则失败原因；锁定项目按项目级失败返回 `EXPERT_ASSIGNMENT_LOCKED` | `/admin/projects` |
 | `uploadProjectImport` | `POST /admin/project-imports/upload` | `ProjectImportJob`；上传使用 `FormData`，字段名固定为 `file` 和 `batchId`，不手动设置 `Content-Type` | `/admin/project-imports` |
 | `listProjectImportJobs` | `GET /admin/project-imports` | 分页对象；支持 `page/pageSize/status/batchId/keyword` | `/admin/project-imports` |
 | `getProjectImportJob` | `GET /admin/project-imports/:id` | `ProjectImportJob`；不内联全部 rows | `/admin/project-imports/[jobId]` |
@@ -155,26 +155,33 @@
 | 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
 | --- | --- | --- | --- |
 | `listReviewManagerProjects` | `GET /review-manager/projects` | 分页对象；提交 `page/pageSize/keyword/batchId/statusId/reviewSchemeId`；后端固定按当前用户 `reviewManagerId` 过滤，admin + review_manager 也只看自己负责项目，admin 全局视角走 `/admin/projects` | `/review-manager/projects` |
-| `getReviewManagerProjectSummary` | `GET /review-manager/projects?page=1&pageSize=1000` | 当前无 `GET /review-manager/projects/:id`，详情页摘要临时用小数据量大页列表按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不调用 admin 项目详情接口 | `/review-manager/projects/[projectId]` |
-| `listReviewManagerProjectExpertCandidates` | `GET /review-manager/projects/:projectId/expert-candidates` | `{ items, page, pageSize, total, reason? }`；候选由后端按项目学科匹配并回避承担单位/合作单位；仅当前评审负责人负责项目可访问 | `/review-manager/projects/[projectId]` |
-| `listReviewManagerAssignedProjectExperts` | `GET /review-manager/projects/:projectId/experts` | `ReviewManagerAssignedExpert[]`；含 `hasReviewRecord/reviewStatus`，用于移除按钮禁用和状态展示；仅当前评审负责人负责项目可访问 | `/review-manager/projects/[projectId]` |
-| `appendReviewManagerProjectExperts` | `POST /review-manager/projects/:projectId/experts` | 请求 `{ expertUserIds }`；返回 `{ assignedExperts, successCount, failedCount, failures }`；成功后重新拉取已分配专家、候选专家、评分列表和汇总 | `/review-manager/projects/[projectId]` |
-| `replaceReviewManagerProjectExperts` | `PUT /review-manager/projects/:projectId/experts` | 请求 `{ expertUserIds }`；返回 `{ assignedExperts, addedOrRestoredCount, removedCount }`；替换前二次确认，说明会移除未选中原专家且已有评分记录专家不能移除 | `/review-manager/projects/[projectId]` |
-| `removeReviewManagerProjectExpert` | `DELETE /review-manager/projects/:projectId/experts/:expertUserId` | `{ removed, alreadyRemoved }`；仅无评分记录专家可移除；移除前二次确认，成功后重新拉取权威数据 | `/review-manager/projects/[projectId]` |
-| `listProjectExpertReviews` | `GET /review-manager/projects/:projectId/expert-reviews` | 专家评分列表；展示 expert、status、totalScore、submittedAt、returnedAt；状态保持后端 `not_started/draft/submitted/returned` 口径 | `/review-manager/projects/[projectId]` |
-| `getProjectExpertReview` | `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId` | 专家评分详情；`not_started` 初始化记录按“该专家尚未开始评分”展示，不作为错误 | `/review-manager/projects/[projectId]` |
-| `returnProjectExpertReview` | `POST /review-manager/projects/:projectId/expert-reviews/:expertUserId/return` | 请求 `{ returnReason }`，trim 后 1-1000；仅 submitted 状态显示退回按钮；提交前二次确认；成功后刷新专家列表、评分汇总和当前详情 | `/review-manager/projects/[projectId]` |
-| `getProjectReviewSummary` | `GET /review-manager/projects/:projectId/review-summary` | 只读展示 assigned/submitted/draft/returned/notStarted、平均分、最高分、最低分和 perItemAverageScores；空分数显示“暂无” | `/review-manager/projects/[projectId]` |
-| `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；其他错误继续抛出 | `/review-manager/projects/[projectId]` |
-| `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]` |
-| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论 | `/review-manager/projects/[projectId]` |
-| `loadReviewManagerReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=project_owner`；不调用 admin-only 基础数据接口 | `/review-manager/projects`、`/review-manager/projects/[projectId]` |
+| `getReviewManagerProjectSummary` | `GET /review-manager/projects?page=1&pageSize=1000` | 当前无 `GET /review-manager/projects/:id`，项目总览、评审组织页和合议页摘要临时用小数据量大页列表按 `projectId` 前端匹配；未匹配时显示“项目摘要不可用或无权限”，不调用 admin 项目详情接口 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
+| `listReviewManagerProjectExpertCandidates` | `GET /review-manager/projects/:projectId/expert-candidates` | `{ items, page, pageSize, total, reason? }`；候选由后端按项目学科匹配并回避承担单位/合作单位；仅当前评审负责人负责项目可访问；锁定时仍允许读取 | `/review-manager/projects/[projectId]/review-organization` |
+| `listReviewManagerAssignedProjectExperts` | `GET /review-manager/projects/:projectId/experts` | `ReviewManagerAssignedExpert[]`；含 `hasReviewRecord/reviewStatus`，用于锁定原因和状态展示；仅当前评审负责人负责项目可访问；锁定时仍允许读取 | `/review-manager/projects/[projectId]/review-organization` |
+| `appendReviewManagerProjectExperts` | `POST /review-manager/projects/:projectId/experts` | 请求 `{ expertUserIds }`；返回 `{ assignedExperts, successCount, failedCount, failures }`；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED`；成功后重新拉取权威数据 | `/review-manager/projects/[projectId]/review-organization` |
+| `replaceReviewManagerProjectExperts` | `PUT /review-manager/projects/:projectId/experts` | 请求 `{ expertUserIds }`；返回 `{ assignedExperts, addedOrRestoredCount, removedCount }`；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED`；替换前二次确认 | `/review-manager/projects/[projectId]/review-organization` |
+| `removeReviewManagerProjectExpert` | `DELETE /review-manager/projects/:projectId/experts/:expertUserId` | `{ removed, alreadyRemoved }`；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED`；移除前二次确认 | `/review-manager/projects/[projectId]/review-organization` |
+| `updateReviewManagerProjectSchedule` | `PATCH /review-manager/projects/:projectId/schedule` | 请求只包含 `reviewTime/reviewLocation/meetingUrl`；评审负责人只能维护自己负责项目的评审安排，不接腾讯会议 API | `/review-manager/projects/[projectId]/review-organization` |
+| `listReviewManagerProjectMaterials` | `GET /review-manager/projects/:projectId/materials` | `ReviewManagerProjectMaterialListItem[]`；评审负责人只读查看 submitted 材料，不提供上传或删除 | `/review-manager/projects/[projectId]/review-organization` |
+| `getReviewManagerProjectMaterialDownloadUrl` | `GET /review-manager/projects/:projectId/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；只打开后端返回 URL，不前端拼接 OSS objectKey | `/review-manager/projects/[projectId]/review-organization` |
+| `resolveReviewManagerProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/review-manager/projects/[projectId]/review-organization` |
+| `listProjectExpertReviews` | `GET /review-manager/projects/:projectId/expert-reviews` | 专家评分列表；展示 expert、status、totalScore、submittedAt、returnedAt；状态保持后端 `not_started/draft/submitted/returned` 口径 | `/review-manager/projects/[projectId]/consensus` |
+| `getProjectExpertReview` | `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId` | 专家评分详情；`not_started` 初始化记录按“该专家尚未开始评分”展示，不作为错误 | `/review-manager/projects/[projectId]/consensus` |
+| `returnProjectExpertReview` | `POST /review-manager/projects/:projectId/expert-reviews/:expertUserId/return` | 请求 `{ returnReason }`，trim 后 1-1000；仅 submitted 状态显示退回按钮；提交前二次确认；成功后刷新专家列表、评分汇总和当前详情 | `/review-manager/projects/[projectId]/consensus` |
+| `getProjectReviewSummary` | `GET /review-manager/projects/:projectId/review-summary` | 只读展示 assigned/submitted/draft/returned/notStarted、平均分、最高分、最低分和 perItemAverageScores；空分数显示“暂无” | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/consensus` |
+| `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；其他错误继续抛出 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
+| `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]/consensus` |
+| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论 | `/review-manager/projects/[projectId]/consensus` |
+| `loadReviewManagerReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level,material_type`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=project_owner`、`users?role=review_manager`；不调用 admin-only 基础数据接口 | `/review-manager/projects`、`/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
 
-评审负责人合议口径：
+评审负责人项目页口径：
 
 - `/workspace` 仅对拥有 `review_manager` 角色的用户放开评审负责人入口；只有 admin 角色的用户不会被默认引导到 `/review-manager`。
-- 项目详情摘要不调用不存在的 `GET /review-manager/projects/:id`，也不调用 `/admin/projects/:id`；临时适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按当前 `projectId` 匹配。
-- 项目详情页新增评审组织 / 专家分配区块，只调用 `/review-manager/projects/:projectId/*experts*`；可查看已分配专家、候选专家，支持追加、替换和移除无评分记录专家，所有成功操作后重新拉取权威数据。
+- `/review-manager/projects/[projectId]` 是项目总览 / 工作入口页，不混放专家分配表格和合议确认表单。
+- 项目摘要不调用不存在的 `GET /review-manager/projects/:id`，也不调用 `/admin/projects/:id`；临时适配方式为 `GET /review-manager/projects?page=1&pageSize=1000` 后按当前 `projectId` 匹配。
+- `/review-manager/projects/[projectId]/review-organization` 是评审前组织页，只调用 `/review-manager/projects/:projectId/*` 中评审负责人有权使用的安排、材料和专家分配接口；可维护评审时间 / 地点 / 会议链接，可查看 submitted 材料并下载，不提供材料上传、删除或管理员治理能力。
+- 评审组织页可查看已分配专家和候选专家，支持追加、替换和移除；若 `reviewTime` 已到、已有专家评分、已有合议记录或已有最终等级 / 最终结论，后端返回 `409 EXPERT_ASSIGNMENT_LOCKED`，前端展示锁定原因并禁用专家名单调整。
+- `/review-manager/projects/[projectId]/consensus` 是评审后合议页，不包含专家分配和评审安排表单。
 - 合议草稿生成只使用后端 `rule_based` draft，不做真实 AI 或大模型调用。
 - `GET /consensus` 的 404 表示暂无合议记录，展示“暂无合议草稿”。
 - 已有 draft 时覆盖生成必须经后端 409 提示后用户二次确认，再以 `force=true` 重试。
@@ -186,7 +193,7 @@
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配移除返回 `EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 时单个移除展示“该专家已产生评分记录，不能移除。”，替换展示“部分已分配专家已产生评分记录，不能被替换移除。”；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
+- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径
@@ -210,9 +217,9 @@
 - 字段映射标准字段由后端标准字段清单 / 配置视图返回，前端不允许新增、删除或重命名标准字段
 - 字段映射停用和删除自定义配置均不是禁用标准字段，而是回退系统默认别名；reset-defaults 是创建或覆盖配置，使自定义别名等于默认别名
 - 项目评审组织页面读取 `review_manager` active 用户作为负责人选项，读取 active expert 用户作为批量专家设置通用选择源；真实专家候选优先使用 `/admin/projects/:id/expert-candidates`
-- 专家分配操作使用 `/review-manager/projects*` 系列接口，admin 角色按后端权限允许访问；前端不新增 `/admin/projects/:id/experts` 假接口
+- 管理员专家分配操作使用 `/admin/projects*` 系列接口；评审负责人专家分配操作使用 `/review-manager/projects*` 系列接口；两者共用后端专家名单锁定规则，前端不跨角色混用接口
 - 专家候选和分配不在前端自行实现学科匹配、单位回避或已评分专家替换判断；页面只展示后端返回候选、assigned 标记、`hasReviewRecord/reviewStatus` 和失败原因
-- 已分配专家评分状态展示为：`draft=草稿`、`submitted=已提交`、`returned=已退回`、空值=未开始；`hasReviewRecord=true` 时禁用移除并提示已产生评分记录，保存草稿误操作需专家本人先删除 draft 后再由管理员移除分配
+- 已分配专家评分状态展示为：`draft=草稿`、`submitted=已提交`、`returned=已退回`、空值=未开始；`hasReviewRecord=true` 时项目专家名单进入锁定态，追加 / 替换 / 移除均禁用
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
 - 管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials`、`/admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`；删除必须提交 `reason`，不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称。
 - 管理员材料删除成功后刷新列表；`400` reason 问题、`403` 权限、`404` 已删除和 `500`/storage 删除失败均在材料卡片或删除弹窗内展示，不在成功前从列表乐观移除。
@@ -226,13 +233,13 @@
 - 专家评分详情页仅在 `review.status === 'draft'` 时显示“删除草稿”，删除前二次确认；`not_started/submitted/returned` 不显示；删除失败时 `404` 展示“未找到可删除的评分草稿。”，`409` 展示“只有未提交的评分草稿可以删除。”。
 - 专家材料列表材料类型展示优先使用材料响应内联 `materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”。
 - 评审负责人项目列表和详情通过 `/portal/reference-data/*` 构造批次、项目状态、项目类型、单位、项目负责人、评审方案和评审等级名称映射；未命中时显示“未知项（短ID）”类兜底，不调用 admin-only 主数据接口。
+- 评审负责人评审组织页只读查看 submitted 项目材料，下载只使用 `/review-manager/projects/:id/materials/:materialId/download-url` 返回 URL，不拼接 OSS objectKey，不提供上传、删除或预览。
 - 评审负责人专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；只有 submitted 显示退回入口。
 - 评审负责人合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时使用 A/B/C/D 兜底。
 
 ## 5. 当前未对接的后端接口
 
 - 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
-- `/review-manager/projects/:id/materials*`
 - `/review-manager/projects/:id/appeals*`
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`

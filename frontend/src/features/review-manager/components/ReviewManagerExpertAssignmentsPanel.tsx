@@ -13,6 +13,12 @@ import { Pagination } from '@/src/components/ui/Pagination';
 import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import { formatExpertFailureReasons } from '@/src/lib/labels/project-review-organization-labels';
 import {
+  type ExpertAssignmentLockReason,
+  getExpertAssignmentLockMessage,
+  isExpertAssignmentLockedError,
+  mergeExpertAssignmentLockReasons,
+} from '@/src/lib/project-review/expert-assignment-lock';
+import {
   appendReviewManagerProjectExperts,
   listReviewManagerAssignedProjectExperts,
   listReviewManagerProjectExpertCandidates,
@@ -31,6 +37,9 @@ type CandidateAction = 'append' | 'replace';
 
 type ReviewManagerExpertAssignmentsPanelProps = {
   disciplineNameById: Map<string, string>;
+  locked?: boolean;
+  lockMessage?: string;
+  lockReasons?: ExpertAssignmentLockReason[];
   onChanged: () => Promise<void> | void;
   organizationNameById: Map<string, string>;
   projectId: string;
@@ -42,6 +51,9 @@ const ASSIGNMENT_HAS_REVIEW_RECORD_CODE =
 
 export function ReviewManagerExpertAssignmentsPanel({
   disciplineNameById,
+  locked = false,
+  lockMessage,
+  lockReasons = [],
   onChanged,
   organizationNameById,
   projectId,
@@ -71,6 +83,19 @@ export function ReviewManagerExpertAssignmentsPanel({
   const [submitting, setSubmitting] = useState(false);
 
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const effectiveLockReasons = useMemo(
+    () =>
+      mergeExpertAssignmentLockReasons([
+        ...lockReasons,
+        ...(assignedExperts.some((expert) => expert.hasReviewRecord)
+          ? (['EXPERT_REVIEW_EXISTS'] as ExpertAssignmentLockReason[])
+          : []),
+      ]),
+    [assignedExperts, lockReasons],
+  );
+  const effectiveLocked = locked || effectiveLockReasons.length > 0;
+  const effectiveLockMessage =
+    lockMessage || getExpertAssignmentLockMessage(effectiveLockReasons);
   const candidateNameById = useMemo(
     () =>
       new Map(
@@ -137,6 +162,10 @@ export function ReviewManagerExpertAssignmentsPanel({
   }
 
   function toggleCandidate(candidateId: string) {
+    if (effectiveLocked) {
+      return;
+    }
+
     setSelectedIds((current) =>
       current.includes(candidateId)
         ? current.filter((id) => id !== candidateId)
@@ -145,6 +174,11 @@ export function ReviewManagerExpertAssignmentsPanel({
   }
 
   function openConfirm(action: CandidateAction) {
+    if (effectiveLocked) {
+      setError(effectiveLockMessage || '专家名单已锁定，不能继续调整。');
+      return;
+    }
+
     if (selectedIds.length === 0) {
       setError('请先选择候选专家。');
       return;
@@ -249,11 +283,17 @@ export function ReviewManagerExpertAssignmentsPanel({
       key: 'actions',
       render: (item) => (
         <Button
-          disabled={submitting || Boolean(item.hasReviewRecord)}
+          disabled={
+            effectiveLocked || submitting || Boolean(item.hasReviewRecord)
+          }
           onClick={() => setRemoveTarget(item)}
           size="sm"
           title={
-            item.hasReviewRecord ? '已产生评分记录，不能移除' : '移除专家'
+            effectiveLocked
+              ? '专家名单已锁定，不能移除'
+              : item.hasReviewRecord
+                ? '已产生评分记录，不能移除'
+                : '移除专家'
           }
           variant="danger"
         >
@@ -272,6 +312,7 @@ export function ReviewManagerExpertAssignmentsPanel({
           aria-label={`选择候选专家 ${item.name}`}
           checked={selected.has(item.id)}
           className="h-4 w-4 accent-cyan-700"
+          disabled={effectiveLocked}
           onChange={() => toggleCandidate(item.id)}
           type="checkbox"
         />
@@ -318,14 +359,14 @@ export function ReviewManagerExpertAssignmentsPanel({
           </div>
           <div className="table-actions">
             <Button
-              disabled={selectedIds.length === 0 || submitting}
+              disabled={effectiveLocked || selectedIds.length === 0 || submitting}
               onClick={() => openConfirm('append')}
               variant="secondary"
             >
               追加到当前专家名单
             </Button>
             <Button
-              disabled={selectedIds.length === 0 || submitting}
+              disabled={effectiveLocked || selectedIds.length === 0 || submitting}
               onClick={() => openConfirm('replace')}
               variant="primary"
             >
@@ -335,6 +376,11 @@ export function ReviewManagerExpertAssignmentsPanel({
         </div>
 
         <ErrorAlert message={error} />
+        {effectiveLocked ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-6 text-amber-800">
+            {effectiveLockMessage || '专家名单已锁定，不能继续调整。'}
+          </div>
+        ) : null}
         {notice ? (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-6 text-emerald-700">
             {notice}
@@ -494,6 +540,10 @@ function formatAppendNotice(
 }
 
 function formatAssignmentSubmitError(error: unknown): string {
+  if (isExpertAssignmentLockedError(error)) {
+    return '专家名单已锁定，不能继续调整。';
+  }
+
   if (
     isApiError(error) &&
     error.status === 409 &&

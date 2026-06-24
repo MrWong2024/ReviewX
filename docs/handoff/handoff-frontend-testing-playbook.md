@@ -152,7 +152,7 @@ npm run build
 - frontend `npm run typecheck`
 - frontend `npm run build`
 
-注意：无 `expert_reviews` 记录的专家分配可物理删除；存在 `draft/submitted/returned` 任意评分记录时单个移除和 replace 隐含移除均由后端返回 `409`，前端已分配专家表格禁用移除并显示评分状态。
+注意：本小修当时口径为无 `expert_reviews` 记录的专家分配可物理删除；第六阶段小修 2 后已升级为项目级专家名单锁定，存在任意评分记录时追加 / 替换 / 移除均返回 `409 EXPERT_ASSIGNMENT_LOCKED`。
 
 本次 ReviewX 前端第六阶段：评审负责人合议工作台已执行并通过：
 
@@ -172,7 +172,20 @@ npm run build
 - frontend `npm run typecheck`
 - frontend `npm run build`
 
-注意：`/review-manager/projects` 只返回当前评审负责人负责项目，admin 全局视角走 `/admin/projects`；管理员评审组织专家分配使用 `/admin/projects*`，评审负责人项目详情专家分配使用 `/review-manager/projects*`；合议确认请求不得包含 `useDraftAsBase`。
+注意：`/review-manager/projects` 只返回当前评审负责人负责项目，admin 全局视角走 `/admin/projects`；管理员评审组织专家分配使用 `/admin/projects*`，评审负责人评审组织页专家分配使用 `/review-manager/projects*`；合议确认请求不得包含 `useDraftAsBase`。
+
+本次 ReviewX 第六阶段小修 2：评审负责人评审组织页独立、合议页拆分与专家分配时点锁定已执行：
+
+- backend `npm run lint`：通过
+- backend `npm run test`：失败；既有 Jest 并行 service spec 共享测试库互扰，表现为 `portal-reference-data.service.spec.ts` 多出 `proof` material_type、`project-materials.service.spec.ts` 缺少 active material_type
+- backend `npm run test -- --runInBand`：通过
+- backend `npm run test:e2e`：通过
+- backend `npm run build`：通过
+- frontend `npm run lint`：通过
+- frontend `npm run typecheck`：通过
+- frontend `npm run build`：通过
+
+注意：`/review-manager/projects/[projectId]` 是项目总览 / 工作入口；专家分配只在 `/review-manager/projects/[projectId]/review-organization`；合议处理只在 `/review-manager/projects/[projectId]/consensus`。专家名单锁定由后端最终判断，锁定条件包括评审时间已到、已有专家评分、已有合议记录、已有最终等级 / 最终结论，返回 `409 EXPERT_ASSIGNMENT_LOCKED` 和 `reasons`。
 
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 

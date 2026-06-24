@@ -9,6 +9,11 @@ import { Button } from '@/src/components/ui/Button';
 import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
 import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
+import {
+  type ExpertAssignmentLockReason,
+  getExpertAssignmentLockMessage,
+  isExpertAssignmentLockedError,
+} from '@/src/lib/project-review/expert-assignment-lock';
 import { removeProjectExpert } from '../../api';
 import type {
   ExpertBasic,
@@ -18,6 +23,9 @@ import type {
 type AssignedExpertsPanelProps = {
   disciplineNameById: Map<string, string>;
   experts: ExpertBasic[];
+  locked?: boolean;
+  lockMessage?: string;
+  lockReasons?: ExpertAssignmentLockReason[];
   loading: boolean;
   onChanged: () => void;
   organizationNameById: Map<string, string>;
@@ -32,6 +40,9 @@ const ASSIGNMENT_HAS_REVIEW_RECORD_MESSAGE =
 export function AssignedExpertsPanel({
   disciplineNameById,
   experts,
+  locked = false,
+  lockMessage,
+  lockReasons = [],
   loading,
   onChanged,
   organizationNameById,
@@ -41,6 +52,8 @@ export function AssignedExpertsPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<ExpertBasic | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const effectiveLockMessage =
+    lockMessage || getExpertAssignmentLockMessage(lockReasons);
 
   async function handleRemove() {
     if (!removeTarget) {
@@ -90,14 +103,14 @@ export function AssignedExpertsPanel({
     {
       key: 'actions',
       render: (item) => {
-        const locked = item.hasReviewRecord === true;
+        const operationLocked = locked || item.hasReviewRecord === true;
 
         return (
           <div className="flex flex-col items-start gap-1">
             <Button
-              disabled={locked}
+              disabled={operationLocked}
               onClick={() => {
-                if (locked) {
+                if (operationLocked) {
                   return;
                 }
 
@@ -106,14 +119,20 @@ export function AssignedExpertsPanel({
                 setRemoveTarget(item);
               }}
               size="sm"
-              title={locked ? ASSIGNMENT_HAS_REVIEW_RECORD_MESSAGE : undefined}
+              title={
+                locked
+                  ? '专家名单已锁定，不能移除'
+                  : item.hasReviewRecord
+                    ? ASSIGNMENT_HAS_REVIEW_RECORD_MESSAGE
+                    : undefined
+              }
               variant="danger"
             >
               移除
             </Button>
-            {locked ? (
+            {operationLocked ? (
               <span className="text-xs font-semibold text-slate-500">
-                已有评分记录，不能移除
+                {locked ? '专家名单已锁定' : '已有评分记录，不能移除'}
               </span>
             ) : null}
           </div>
@@ -133,6 +152,11 @@ export function AssignedExpertsPanel({
           </p>
         </div>
         <ErrorAlert message={error} />
+        {locked ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold leading-6 text-amber-800">
+            {effectiveLockMessage || '专家名单已锁定，不能继续调整。'}
+          </div>
+        ) : null}
         {notice ? (
           <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
             {notice}
@@ -210,6 +234,10 @@ function getReviewStatusTone(
 }
 
 function formatRemoveExpertError(error: unknown): string {
+  if (isExpertAssignmentLockedError(error)) {
+    return '专家名单已锁定，不能继续调整。';
+  }
+
   if (
     isApiError(error) &&
     error.status === 409 &&

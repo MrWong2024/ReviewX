@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import {
+  ConsensusReview,
+  ConsensusReviewSchema,
+} from '../consensus-reviews/schemas/consensus-review.schema';
+import {
   ExpertReview,
   ExpertReviewSchema,
 } from '../expert-reviews/schemas/expert-review.schema';
@@ -27,6 +31,7 @@ import { ProjectExpertAssignmentsService } from './services/project-expert-assig
         name: ProjectExpertAssignment.name,
         schema: ProjectExpertAssignmentSchema,
       },
+      { name: ConsensusReview.name, schema: ConsensusReviewSchema },
       { name: ExpertReview.name, schema: ExpertReviewSchema },
       { name: User.name, schema: UserSchema },
     ]),

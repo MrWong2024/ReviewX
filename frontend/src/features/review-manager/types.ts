@@ -60,6 +60,7 @@ export type ReviewManagerReferenceData = {
   dictionaries: PortalDictionarySummary[];
   organizations: PortalOrganizationSummary[];
   projectOwners: PortalUserSummary[];
+  reviewManagers: PortalUserSummary[];
   projectStatuses: PortalDictionarySummary[];
   reviewLevels: PortalDictionarySummary[];
   reviewSchemes: PortalReviewSchemeSummary[];
@@ -324,3 +325,57 @@ export type ConfirmConsensusReviewPayload = {
   finalScore: number;
   finalLevel: string;
 };
+
+export type ReviewManagerProjectSchedulePayload = {
+  meetingUrl?: string;
+  reviewLocation?: string;
+  reviewTime?: string;
+};
+
+export type ReviewManagerProjectMaterialStatus =
+  | 'active'
+  | 'deleted'
+  | 'draft'
+  | 'submitted';
+
+export type ReviewManagerProjectMaterialTypeSummary = {
+  code?: string;
+  id: string;
+  name: string;
+  sortOrder?: number;
+};
+
+export type ReviewManagerProjectMaterialUploadedBy = {
+  id: string;
+  name: string;
+  phone?: string;
+};
+
+export type ReviewManagerProjectMaterialListItem = {
+  createdAt: string;
+  extension?: string;
+  id: string;
+  materialType?: ReviewManagerProjectMaterialTypeSummary | null;
+  materialTypeId: string;
+  mimeType?: string;
+  originalFilename?: string;
+  projectId: string;
+  remark?: string | null;
+  safeFilename?: string;
+  sizeBytes: number;
+  status: ReviewManagerProjectMaterialStatus;
+  submittedAt?: string | null;
+  submittedByUserId?: string | null;
+  updatedAt?: string;
+  uploadedByUser?: ReviewManagerProjectMaterialUploadedBy | null;
+  uploadedByUserId?: string | null;
+};
+
+export type ReviewManagerProjectMaterialDownloadUrlResult =
+  | string
+  | {
+      downloadUrl?: string;
+      expiresAt?: string;
+      filename?: string;
+      url?: string;
+    };

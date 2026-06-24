@@ -9,6 +9,7 @@ import { Model, Types } from 'mongoose';
 import { PaginatedResponse } from '../../../common/dto/pagination-query.dto';
 import { escapeRegExp, toObjectId } from '../../../common/utils/mongo-query';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
+import { ConsensusReview } from '../../consensus-reviews/schemas/consensus-review.schema';
 import { ExpertReviewStatus } from '../../expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../../expert-reviews/schemas/expert-review.schema';
 import {
@@ -75,6 +76,17 @@ type AssignmentReviewFailure = {
   reviewStatus: ExpertReviewStatus;
 };
 
+type ExpertAssignmentLockReason =
+  | 'CONSENSUS_EXISTS'
+  | 'EXPERT_REVIEW_EXISTS'
+  | 'FINAL_LEVEL_EXISTS'
+  | 'REVIEW_TIME_REACHED';
+
+type ExpertAssignmentLockState = {
+  locked: boolean;
+  reasons: ExpertAssignmentLockReason[];
+};
+
 export type BatchProjectExpertsResult = {
   successCount: number;
   failedCount: number;
@@ -123,12 +135,15 @@ type ExpertReviewStatusLean = {
 
 const EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD =
   'EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD';
+const EXPERT_ASSIGNMENT_LOCKED = 'EXPERT_ASSIGNMENT_LOCKED';
 
 @Injectable()
 export class ProjectExpertAssignmentsService {
   constructor(
     @InjectModel(ProjectExpertAssignment.name)
     private readonly assignmentModel: Model<ProjectExpertAssignment>,
+    @InjectModel(ConsensusReview.name)
+    private readonly consensusReviewModel: Model<ConsensusReview>,
     @InjectModel(ExpertReview.name)
     private readonly expertReviewModel: Model<ExpertReview>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
@@ -217,6 +232,7 @@ export class ProjectExpertAssignmentsService {
       currentUser,
       scope,
     );
+    await this.assertExpertAssignmentsMutable(project);
     const failures: AppendExpertsResult['failures'] = [];
     let successCount = 0;
 
@@ -261,6 +277,7 @@ export class ProjectExpertAssignmentsService {
       currentUser,
       scope,
     );
+    await this.assertExpertAssignmentsMutable(project);
     await this.assertAllExpertsEligible(projectId, dto.expertUserIds, project);
 
     const currentAssignedIds = await this.findAssignedExpertIds(project._id);
@@ -322,6 +339,7 @@ export class ProjectExpertAssignmentsService {
       currentUser,
       scope,
     );
+    await this.assertExpertAssignmentsMutable(project);
     const expertObjectId = toObjectId(expertUserId, 'expertUserId');
     const existing = await this.assignmentModel
       .findOne({ projectId: project._id, expertUserId: expertObjectId })
@@ -379,6 +397,7 @@ export class ProjectExpertAssignmentsService {
           currentUser,
           scope,
         );
+        await this.assertExpertAssignmentsMutable(project);
         const failures = await this.findExpertEligibilityFailures(
           projectId,
           dto.expertUserIds,
@@ -459,6 +478,57 @@ export class ProjectExpertAssignmentsService {
     }
 
     return project;
+  }
+
+  private async assertExpertAssignmentsMutable(
+    project: ProjectForReviewAssignment,
+  ): Promise<void> {
+    const lockState = await this.getExpertAssignmentLockState(project);
+
+    if (!lockState.locked) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: '专家名单已锁定，不能继续调整。',
+      code: EXPERT_ASSIGNMENT_LOCKED,
+      reasons: lockState.reasons,
+    });
+  }
+
+  private async getExpertAssignmentLockState(
+    project: ProjectForReviewAssignment,
+  ): Promise<ExpertAssignmentLockState> {
+    const reasons: ExpertAssignmentLockReason[] = [];
+
+    if (project.reviewTime && Date.now() >= project.reviewTime.getTime()) {
+      reasons.push('REVIEW_TIME_REACHED');
+    }
+
+    const [expertReviewExists, consensusExists] = await Promise.all([
+      this.expertReviewModel.exists({ projectId: project._id }).exec(),
+      this.consensusReviewModel.exists({ projectId: project._id }).exec(),
+    ]);
+
+    if (expertReviewExists) {
+      reasons.push('EXPERT_REVIEW_EXISTS');
+    }
+
+    if (consensusExists) {
+      reasons.push('CONSENSUS_EXISTS');
+    }
+
+    if (
+      hasNonEmptyString(project.finalLevel) ||
+      hasNonEmptyString(project.originalLevel)
+    ) {
+      reasons.push('FINAL_LEVEL_EXISTS');
+    }
+
+    return {
+      locked: reasons.length > 0,
+      reasons,
+    };
   }
 
   private buildCandidateFilter(
@@ -692,4 +762,8 @@ export class ProjectExpertAssignmentsService {
       disciplineIds: (expert.disciplineIds ?? []).map((id) => id.toString()),
     };
   }
+}
+
+function hasNonEmptyString(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
 }

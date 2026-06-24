@@ -21,7 +21,6 @@ import {
 } from '../api';
 import { ConsensusReviewPanel } from '../components/ConsensusReviewPanel';
 import { ReturnExpertReviewModal } from '../components/ReturnExpertReviewModal';
-import { ReviewManagerExpertAssignmentsPanel } from '../components/ReviewManagerExpertAssignmentsPanel';
 import { ReviewManagerExpertReviewDetailModal } from '../components/ReviewManagerExpertReviewDetailModal';
 import { ReviewManagerExpertReviewsPanel } from '../components/ReviewManagerExpertReviewsPanel';
 import { ReviewSummaryPanel } from '../components/ReviewSummaryPanel';
@@ -304,17 +303,6 @@ export function ReviewManagerProjectDetailPage({
     }
   }
 
-  async function handleExpertAssignmentsChanged() {
-    await Promise.all([
-      loadExpertReviews(),
-      loadReviewSummary(),
-      loadConsensus(),
-      selectedExpertReview
-        ? reloadSelectedExpertReviewDetail()
-        : Promise.resolve(),
-    ]);
-  }
-
   useEffect(() => {
     void Promise.all([
       loadProjectSummary(),
@@ -342,6 +330,18 @@ export function ReviewManagerProjectDetailPage({
           ) : null}
           <Link
             className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+            href={`/review-manager/projects/${projectId}`}
+          >
+            返回项目总览
+          </Link>
+          <Link
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+            href={`/review-manager/projects/${projectId}/review-organization`}
+          >
+            进入评审组织
+          </Link>
+          <Link
+            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
             href="/review-manager/projects"
           >
             返回项目列表
@@ -366,13 +366,6 @@ export function ReviewManagerProjectDetailPage({
           loading={projectSummaryLoading}
           lookupMaps={lookupMaps}
           project={projectSummary}
-        />
-
-        <ReviewManagerExpertAssignmentsPanel
-          disciplineNameById={lookupMaps.treeNameById}
-          onChanged={handleExpertAssignmentsChanged}
-          organizationNameById={lookupMaps.organizationNameById}
-          projectId={projectId}
         />
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">

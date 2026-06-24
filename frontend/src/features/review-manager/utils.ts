@@ -110,7 +110,7 @@ export function buildReviewManagerLookupMaps(
       referenceData.treeDictionaries.map((item) => [item.id, item.name]),
     ),
     userNameById: new Map(
-      referenceData.projectOwners.map((item) => [
+      [...referenceData.projectOwners, ...referenceData.reviewManagers].map((item) => [
         item.id,
         formatUserName(item),
       ]),

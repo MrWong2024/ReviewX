@@ -45,18 +45,18 @@
 | projects | `PATCH` | `/admin/projects/:id/schedule` | `ProjectsController` | `ProjectsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateProjectScheduleDto` | `ProjectResponse` | implemented | 管理员兜底维护评审时间、地点、meetingUrl；不调用腾讯会议 API |
 | project-expert-assignments | `GET` | `/admin/projects/:id/expert-candidates` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryExpertCandidatesDto` | `{ items, page, pageSize, total, reason? }` | implemented | 管理员全局查看专家候选；候选按 expert 角色、启用状态、学科匹配、承担单位/合作单位回避过滤，已分配专家标记 `assigned=true` |
 | project-expert-assignments | `GET` | `/admin/projects/:id/experts` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ExpertBasicResponse[]` | implemented | 管理员全局查看当前 `status=assigned` 专家，含 `hasReviewRecord/reviewStatus` |
-| project-expert-assignments | `POST` | `/admin/projects/:id/experts` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `AppendProjectExpertsDto` | `{ assignedExperts, successCount, failedCount, failures }` | implemented | 管理员全局追加专家；逐专家校验学科和单位回避 |
-| project-expert-assignments | `PUT` | `/admin/projects/:id/experts` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateProjectExpertsDto` | `{ assignedExperts, addedOrRestoredCount, removedCount }` | implemented | 管理员全局替换专家名单；若隐含移除已有评分记录专家，返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` |
-| project-expert-assignments | `DELETE` | `/admin/projects/:id/experts/:expertUserId` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/expertUserId` | `{ removed, alreadyRemoved }` | implemented | 管理员全局移除无评分记录专家；已有评分记录返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` |
-| project-expert-assignments | `PUT` | `/admin/projects/experts/batch` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `BatchProjectExpertsDto` | `{ successCount, failedCount, results }` | implemented | 管理员全局批量追加或替换专家，逐项目返回结果 |
+| project-expert-assignments | `POST` | `/admin/projects/:id/experts` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `AppendProjectExpertsDto` | `{ assignedExperts, successCount, failedCount, failures }` | implemented | 管理员全局追加专家；逐专家校验学科和单位回避；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `PUT` | `/admin/projects/:id/experts` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `UpdateProjectExpertsDto` | `{ assignedExperts, addedOrRestoredCount, removedCount }` | implemented | 管理员全局替换专家名单；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `DELETE` | `/admin/projects/:id/experts/:expertUserId` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/expertUserId` | `{ removed, alreadyRemoved }` | implemented | 管理员全局移除专家；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `PUT` | `/admin/projects/experts/batch` | `AdminProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `BatchProjectExpertsDto` | `{ successCount, failedCount, results }` | implemented | 管理员全局批量追加或替换专家，逐项目返回结果；锁定项目按项目级失败返回 `EXPERT_ASSIGNMENT_LOCKED` |
 | projects | `GET` | `/review-manager/projects` | `ReviewManagerProjectsController` | `ProjectsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `QueryReviewManagerProjectsDto` | `{ items, page, pageSize, total }` | implemented | 只返回当前登录用户作为 `reviewManagerId` 的启用项目；admin + review_manager 多角色也只看自己负责项目；admin 全局项目视角走 `/admin/projects` |
 | projects | `PATCH` | `/review-manager/projects/:id/schedule` | `ReviewManagerProjectsController` | `ProjectsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `UpdateProjectScheduleDto` | `ProjectResponse` | implemented | 必须是项目 `reviewManagerId`；admin 不在 review-manager 命名空间超管穿透；只更新 `reviewTime/reviewLocation/meetingUrl` |
 | project-expert-assignments | `GET` | `/review-manager/projects/:id/expert-candidates` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `QueryExpertCandidatesDto` | `{ items, page, pageSize, total, reason? }` | implemented | 必须是当前评审负责人负责项目；项目无学科返回空分页和 `reason=project_discipline_missing`；不返回 `passwordHash` |
 | project-expert-assignments | `GET` | `/review-manager/projects/:id/experts` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ExpertBasicResponse[]` | implemented | 必须是当前评审负责人负责项目；返回当前 `status=assigned` 专家基本信息，含 `hasReviewRecord` 与 `reviewStatus(draft/submitted/returned/null)` 供前端判断能否移除 |
-| project-expert-assignments | `POST` | `/review-manager/projects/:id/experts` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `AppendProjectExpertsDto` | `{ assignedExperts, successCount, failedCount, failures }` | implemented | 必须是当前评审负责人负责项目；追加一个或多个专家；逐专家校验；重复添加已分配专家幂等成功 |
-| project-expert-assignments | `PUT` | `/review-manager/projects/:id/experts` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `UpdateProjectExpertsDto` | `{ assignedExperts, addedOrRestoredCount, removedCount }` | implemented | 必须是当前评审负责人负责项目；用传入集合替换当前专家；若隐含移除已有评分记录专家，返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` 且不做部分更新 |
-| project-expert-assignments | `DELETE` | `/review-manager/projects/:id/experts/:expertUserId` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id/expertUserId` | `{ removed, alreadyRemoved }` | implemented | 必须是当前评审负责人负责项目；仅当不存在 `expert_reviews(projectId, expertUserId)` 时物理删除当前 `assigned` assignment；存在评分记录时返回 `409 EXPERT_ASSIGNMENT_HAS_REVIEW_RECORD` |
-| project-expert-assignments | `PUT` | `/review-manager/projects/experts/batch` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `BatchProjectExpertsDto` | `{ successCount, failedCount, results }` | implemented | 必须逐项目满足当前评审负责人负责项目；`mode=append/replace`；项目间互不影响 |
+| project-expert-assignments | `POST` | `/review-manager/projects/:id/experts` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `AppendProjectExpertsDto` | `{ assignedExperts, successCount, failedCount, failures }` | implemented | 必须是当前评审负责人负责项目；追加一个或多个专家；逐专家校验；重复添加已分配专家幂等成功；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `PUT` | `/review-manager/projects/:id/experts` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `UpdateProjectExpertsDto` | `{ assignedExperts, addedOrRestoredCount, removedCount }` | implemented | 必须是当前评审负责人负责项目；用传入集合替换当前专家；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `DELETE` | `/review-manager/projects/:id/experts/:expertUserId` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id/expertUserId` | `{ removed, alreadyRemoved }` | implemented | 必须是当前评审负责人负责项目；移除当前 `assigned` assignment；专家名单锁定时返回 `409 EXPERT_ASSIGNMENT_LOCKED` |
+| project-expert-assignments | `PUT` | `/review-manager/projects/experts/batch` | `ProjectExpertAssignmentsController` | `ProjectExpertAssignmentsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `BatchProjectExpertsDto` | `{ successCount, failedCount, results }` | implemented | 必须逐项目满足当前评审负责人负责项目；`mode=append/replace`；项目间互不影响；锁定项目按项目级失败返回 `EXPERT_ASSIGNMENT_LOCKED` |
 | project-imports | `POST` | `/admin/project-imports/upload` | `ProjectImportsController` | `ProjectImportsService` | `SessionAuthGuard` + `RolesGuard(admin)` | multipart `file` + `UploadProjectImportDto` | `ProjectImportJobResponse` | implemented | 仅允许 `.xlsx/.xls`，10MB 上限；使用 `xlsx` 解析第一个工作表；表头匹配优先消费启用的字段映射配置，未配置或停用回退内置默认别名；缺关键表头或无有效数据行返回 `400`；不保存原 Excel 文件 |
 | project-import-field-mappings | `GET` | `/admin/project-import-field-mappings/standard-fields` | `ProjectImportFieldMappingsController` | `ProjectImportFieldMappingsService` | `SessionAuthGuard` + `RolesGuard(admin)` | 无 | `{ items: ProjectImportStandardFieldResponse[] }` | implemented | 返回固定标准字段、中文 label、是否必填和默认内置别名；管理员不能新增或修改标准字段枚举 |
 | project-import-field-mappings | `GET` | `/admin/project-import-field-mappings` | `ProjectImportFieldMappingsController` | `ProjectImportFieldMappingsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `QueryProjectImportFieldMappingsDto` | `{ items: ProjectImportFieldMappingResponse[] }` | implemented | 返回所有标准字段配置视图；未配置字段也返回，`isConfigured=false`，`effectiveAliases=defaultAliases`；支持 `keyword/isActive` |
@@ -133,6 +133,32 @@
 | project-appeals | `GET` | `/admin/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/appealId/attachmentId` | `{ url, expiresAt }` | implemented | admin 获取任意项目 active 附件短期下载 URL |
 | project-appeals | `POST` | `/admin/projects/:id/appeals/:appealId/handle` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `HandleProjectAppealDto` | `ProjectAppealDetailResponse` | implemented | admin 兜底处理任意项目申诉；同样不修改 `ConsensusReview.finalLevel` |
 | project-appeals | `GET` | `/admin/projects/:id/level-history` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | admin 查看任意项目等级变更历史 |
+
+## 3.1 专家分配锁定口径
+
+- admin 和 review_manager 专家分配 mutation 统一由 `ProjectExpertAssignmentsService` 执行后端锁定校验；涉及：
+  - `POST/PUT/DELETE /review-manager/projects/:id/experts*`
+  - `PUT /review-manager/projects/experts/batch`
+  - `POST/PUT/DELETE /admin/projects/:id/experts*`
+  - `PUT /admin/projects/experts/batch`
+- 满足任一条件即禁止追加、替换、移除专家：项目 `reviewTime` 存在且服务器当前时间已到或超过；项目存在任一 `ExpertReview`；项目存在任一 `ConsensusReview`；项目 `finalLevel/originalLevel` 已有有效值。
+- 单项目 mutation 返回 `409 Conflict`，错误码为 `EXPERT_ASSIGNMENT_LOCKED`，典型响应：
+
+```json
+{
+  "message": "专家名单已锁定，不能继续调整。",
+  "code": "EXPERT_ASSIGNMENT_LOCKED",
+  "reasons": [
+    "REVIEW_TIME_REACHED",
+    "EXPERT_REVIEW_EXISTS",
+    "CONSENSUS_EXISTS",
+    "FINAL_LEVEL_EXISTS"
+  ]
+}
+```
+
+- batch mutation 仍沿用逐项目结果口径；被锁项目不发生写入并在该项目结果中返回锁定消息，未锁项目按既有 append/replace 规则处理。
+- GET 专家候选、GET 已分配专家、项目材料和项目摘要类读取接口不因锁定失败。
 
 ## 4. 列表返回结构口径
 
