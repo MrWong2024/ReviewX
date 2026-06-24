@@ -347,7 +347,12 @@ export class ProjectAppealsService {
       throw new ConflictException('Confirmed consensus review is required');
     }
 
-    if (!project.finalLevel) {
+    const effectiveFinalLevel = this.getEffectiveFinalLevel(
+      project,
+      confirmedConsensus,
+    );
+
+    if (!effectiveFinalLevel) {
       throw new ConflictException('Project finalLevel is required');
     }
 
@@ -373,6 +378,7 @@ export class ProjectAppealsService {
     const files = input.files ?? [];
     this.assertFileCount(files);
     const validatedFiles = files.map((file) => this.validateFile(file));
+    await this.ensureProjectFinalLevel(project, effectiveFinalLevel);
     const appeal = await this.appealModel
       .create({
         projectId: project._id,
@@ -381,7 +387,7 @@ export class ProjectAppealsService {
         reason: input.dto.reason,
         status: 'submitted',
         relatedConsensusReviewId: confirmedConsensus._id,
-        levelBeforeAppeal: project.finalLevel,
+        levelBeforeAppeal: effectiveFinalLevel,
         causedLevelChange: false,
       })
       .then((created) => created.toObject<ProjectAppealLean>());
@@ -625,11 +631,13 @@ export class ProjectAppealsService {
       throw new ConflictException('Appeal has already been handled');
     }
 
-    const currentLevel = project.finalLevel;
+    const currentLevel = await this.resolveCurrentFinalLevel(project, appeal);
 
     if (!currentLevel) {
       throw new ConflictException('Project finalLevel is required');
     }
+
+    await this.ensureProjectFinalLevel(project, currentLevel);
 
     const handledAt = new Date();
     let levelAfterHandling = currentLevel;
@@ -878,6 +886,70 @@ export class ProjectAppealsService {
     return finalLevel;
   }
 
+  private getEffectiveFinalLevel(
+    project: ProjectLean,
+    confirmedConsensus: ConsensusReviewLean | null,
+  ): string | null {
+    return (
+      normalizeNonEmptyString(project.finalLevel) ??
+      normalizeNonEmptyString(confirmedConsensus?.finalLevel) ??
+      null
+    );
+  }
+
+  private async resolveCurrentFinalLevel(
+    project: ProjectLean,
+    appeal: ProjectAppealLean,
+  ): Promise<string | null> {
+    const projectLevel = normalizeNonEmptyString(project.finalLevel);
+
+    if (projectLevel) {
+      return projectLevel;
+    }
+
+    const consensus = await this.findConfirmedConsensusForAppeal(
+      project._id,
+      appeal.relatedConsensusReviewId,
+    );
+    const consensusLevel = normalizeNonEmptyString(consensus?.finalLevel);
+
+    if (consensusLevel) {
+      return consensusLevel;
+    }
+
+    return normalizeNonEmptyString(appeal.levelBeforeAppeal);
+  }
+
+  private async ensureProjectFinalLevel(
+    project: ProjectLean,
+    finalLevel: string,
+  ): Promise<void> {
+    if (normalizeNonEmptyString(project.finalLevel)) {
+      return;
+    }
+
+    const normalizedFinalLevel = normalizeNonEmptyString(finalLevel);
+
+    if (!normalizedFinalLevel) {
+      return;
+    }
+
+    const projectUpdate: Record<string, unknown> = {
+      finalLevel: normalizedFinalLevel,
+    };
+
+    if (!normalizeNonEmptyString(project.originalLevel)) {
+      projectUpdate.originalLevel = normalizedFinalLevel;
+      project.originalLevel = normalizedFinalLevel;
+    }
+
+    await this.projectModel
+      .updateOne({ _id: project._id }, { $set: projectUpdate })
+      .exec();
+
+    project.finalLevel = normalizedFinalLevel;
+  }
+
   private async listAppealsByProject(
     projectId: Types.ObjectId,
   ): Promise<ProjectAppealResponse[]> {
@@ -987,6 +1059,28 @@ export class ProjectAppealsService {
       .findOne({ projectId, status: 'confirmed' })
       .lean<ConsensusReviewLean | null>()
       .exec();
+  }
+
+  private async findConfirmedConsensusForAppeal(
+    projectId: Types.ObjectId,
+    consensusReviewId?: Types.ObjectId | null,
+  ): Promise<ConsensusReviewLean | null> {
+    if (consensusReviewId) {
+      const relatedConsensus = await this.consensusReviewModel
+        .findOne({
+          _id: consensusReviewId,
+          projectId,
+          status: 'confirmed',
+        })
+        .lean<ConsensusReviewLean | null>()
+        .exec();
+
+      if (relatedConsensus) {
+        return relatedConsensus;
+      }
+    }
+
+    return this.findConfirmedConsensus(projectId);
   }
 
   private async findOwnerAppeal(
@@ -1211,4 +1305,15 @@ export class ProjectAppealsService {
 
 function summarize(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+function normalizeNonEmptyString(
+  value: string | null | undefined,
+): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

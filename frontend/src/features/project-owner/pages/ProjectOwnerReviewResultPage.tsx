@@ -76,9 +76,14 @@ export function ProjectOwnerReviewResultPage({
     [referenceData],
   );
   const pendingAppeal = appeals.find(isAppealPending) ?? null;
+  const effectiveFinalLevel =
+    normalizeFinalLevel(project?.finalLevel) ??
+    normalizeFinalLevel(consensus?.finalLevel) ??
+    null;
   const createDisabledReason = getCreateAppealDisabledReason({
     appealCount: appeals.length,
     consensus,
+    effectiveFinalLevel,
     pendingAppeal,
     project,
   });
@@ -237,7 +242,7 @@ export function ProjectOwnerReviewResultPage({
           <ConsensusResultPanel
             consensus={consensus}
             consensusError={consensusError}
-            finalLevel={project.finalLevel}
+            finalLevel={effectiveFinalLevel}
             levelLabelByValue={lookupMaps.reviewLevelLabelByValue}
           />
 
@@ -315,7 +320,7 @@ function ConsensusResultPanel({
 }: {
   consensus: ProjectOwnerConsensus | null;
   consensusError: string | null;
-  finalLevel?: string;
+  finalLevel: string | null;
   levelLabelByValue: Map<string, string>;
 }) {
   return (
@@ -341,7 +346,7 @@ function ConsensusResultPanel({
             <div className="grid gap-3 md:grid-cols-4">
               <InfoTile
                 label="最终等级"
-                value={formatLevel(finalLevel || consensus.finalLevel, levelLabelByValue)}
+                value={formatLevel(finalLevel, levelLabelByValue)}
               />
               <InfoTile label="最终分数" value={formatScore(consensus.finalScore)} />
               <InfoTile
@@ -407,11 +412,13 @@ function formatScore(value?: number | null): string {
 function getCreateAppealDisabledReason({
   appealCount,
   consensus,
+  effectiveFinalLevel,
   pendingAppeal,
   project,
 }: {
   appealCount: number;
   consensus: ProjectOwnerConsensus | null;
+  effectiveFinalLevel: string | null;
   pendingAppeal: ProjectAppeal | null;
   project: ProjectOwnerProject | null;
 }): string | null {
@@ -423,7 +430,7 @@ function getCreateAppealDisabledReason({
     return '暂无已确认合议结果，暂不能发起申诉。';
   }
 
-  if (!project.finalLevel) {
+  if (!effectiveFinalLevel) {
     return '项目尚无最终等级，暂不能发起申诉。';
   }
 
@@ -436,4 +443,13 @@ function getCreateAppealDisabledReason({
   }
 
   return null;
+}
+
+function normalizeFinalLevel(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

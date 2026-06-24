@@ -825,7 +825,7 @@ Workspace 和守卫：
 
 1. 后端运行在 `http://localhost:5001`
 2. 前端运行在 `http://localhost:3001`
-3. 存在一个已 confirmed 合议且包含 `finalLevel` 的项目
+3. 存在一个已 confirmed 合议且包含 `finalLevel` 的项目；另准备或模拟一个 `project.finalLevel` 为空但 `consensus.finalLevel` 有值的历史数据项目
 4. 系统中存在 active `review_level` 字典项；为空时前端使用 A/B/C/D 兜底
 5. 准备 project_owner、review_manager 和 admin 三类账号；review_manager 必须是该项目负责人
 
@@ -835,11 +835,14 @@ Workspace 和守卫：
 2. 点击“查看评审结果与申诉”，进入 `/project-owner/projects/[projectId]/review-result`
 3. Network 使用 `GET /project-owner/projects/:id/consensus`、`GET /project-owner/projects/:id/level-history`、`GET /project-owner/projects/:id/appeals`
 4. `GET /consensus` 返回 404 时页面显示暂无已确认合议，不应白屏
-5. 已 confirmed 且有 finalLevel 时展示最终意见、最终分数、最终等级和专家统计
-6. 无 confirmed 合议、无 finalLevel、已有 3 次申诉或存在 submitted / processing 申诉时，提交申诉入口禁用并显示原因
-7. 填写 1-2000 字申诉理由，可选择附件，点击提交前出现确认
-8. 提交 Network 使用 `POST /project-owner/projects/:id/appeals`，FormData 字段为 `reason` 和可选 `files`
-9. 成功后关闭弹窗，重新拉取申诉列表、等级历史和项目详情，不只在前端追加假数据
+5. 已 confirmed 且有效最终等级 `project.finalLevel ?? consensus.finalLevel` 存在时展示最终意见、最终分数、最终等级和专家统计
+6. 当 `project.finalLevel` 为空但 `consensus.finalLevel` 有值时，“已确认合议结果”区域显示最终等级，“发起申诉”区域不应提示“项目尚无最终等级”，发起申诉按钮可打开弹窗
+7. 当 `project.finalLevel` 和 `consensus.finalLevel` 都为空时，提交申诉入口仍禁用并显示“项目尚无最终等级，暂不能发起申诉。”
+8. 无 confirmed 合议、无有效最终等级、已有 3 次申诉或存在 submitted / processing 申诉时，提交申诉入口禁用并显示原因
+9. 填写 1-2000 字申诉理由，可选择附件，点击提交前出现确认
+10. 提交 Network 使用 `POST /project-owner/projects/:id/appeals`，FormData 字段为 `reason` 和可选 `files`
+11. 历史数据项目提交成功后，申诉详情中的 `levelBeforeAppeal` 应等于 `consensus.finalLevel`，重新请求项目详情后 `project.finalLevel` 应已被后端懒回填
+12. 成功后关闭弹窗，重新拉取申诉列表、等级历史和项目详情，不只在前端追加假数据
 
 项目负责人申诉附件：
 

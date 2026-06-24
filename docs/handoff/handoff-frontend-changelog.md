@@ -2,6 +2,15 @@
 
 ## 2026-06-24
 
+### ReviewX 第七阶段小修：项目负责人申诉前置等级口径修正
+
+- 项目负责人评审结果页 `/project-owner/projects/[projectId]/review-result` 新增有效最终等级口径：`effectiveFinalLevel = project.finalLevel ?? consensus.finalLevel`
+- “已确认合议结果”区域最终等级展示、发起申诉按钮禁用判断和禁用提示统一使用 `effectiveFinalLevel`，避免已确认合议能展示等级但申诉区域提示“项目尚无最终等级”
+- 后端 `ProjectAppealsService.createOwnerAppeal()` 同步使用 `project.finalLevel ?? confirmedConsensus.finalLevel`；当 `Project.finalLevel` 缺失但 confirmed 合议有 `finalLevel` 时允许创建申诉，并懒回填 `projects.finalLevel/originalLevel`
+- 后端 `handleAppeal()` 对历史数据兜底读取项目等级、申诉关联合议等级或 `appeal.levelBeforeAppeal`；懒回填不写等级变更日志，只有申诉处理导致等级变化时继续写 `ProjectLevelChangeLog(source=appeal_handling)`
+- 本小修未新增接口，未改申诉次数上限、未处理申诉互斥、附件规则、权限规则、合议确认写回、专家分配锁定、package / lock / env，也未实现第八阶段甲方看板
+- 本次验证：frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过；backend `npm run lint`、`npm run build`、`npm run test -- --runInBand`、`npm run test:e2e` 通过；定向 e2e `npx jest --config ./test/jest-e2e.json --runInBand --runTestsByPath test/project-appeals.e2e-spec.ts` 通过
+
 ### ReviewX 前端第七阶段：申诉闭环前端
 
 - 新增项目负责人评审结果与申诉入口：`/project-owner/projects/[projectId]/review-result`，展示 confirmed 合议、最终等级、等级变更历史和本人申诉列表

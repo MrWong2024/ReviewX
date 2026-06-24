@@ -36,6 +36,7 @@ type SeedData = {
   otherReviewManager: TestUser;
   batchId: string;
   project: { id: string };
+  consensusFallbackProject: { id: string };
   unconfirmedProject: { id: string };
   missingFinalLevelProject: { id: string };
 };
@@ -177,6 +178,35 @@ describe('Project appeal APIs (e2e)', () => {
       .set('Cookie', ownerCookie)
       .send({ reason: '缺少项目当前等级，不允许申诉' })
       .expect(409);
+
+    const fallbackAppealResponse = await request(httpServer)
+      .post(
+        `/project-owner/projects/${data.consensusFallbackProject.id}/appeals`,
+      )
+      .set('Cookie', ownerCookie)
+      .send({ reason: '项目主表缺少等级，但合议已有等级' })
+      .expect(201);
+    expect(getJsonBody(fallbackAppealResponse)).toMatchObject({
+      projectId: data.consensusFallbackProject.id,
+      appealNo: 1,
+      levelBeforeAppeal: 'A',
+    });
+
+    const fallbackProject = await projectModel
+      .findById(data.consensusFallbackProject.id)
+      .lean<Project | null>()
+      .exec();
+    expect(fallbackProject).toMatchObject({
+      finalLevel: 'A',
+      originalLevel: 'A',
+    });
+    expect(
+      await levelChangeLogModel
+        .countDocuments({
+          projectId: new Types.ObjectId(data.consensusFallbackProject.id),
+        })
+        .exec(),
+    ).toBe(0);
 
     const appealResponse = await request(httpServer)
       .post(`/project-owner/projects/${data.project.id}/appeals`)
@@ -606,6 +636,54 @@ describe('Project appeal APIs (e2e)', () => {
       .expect(409);
   });
 
+  it('handles historical appeals when project finalLevel is missing', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+    const managerCookie = await login(data.reviewManager.phone);
+    const appeal = await createAppeal(ownerCookie, data.project.id, '历史申诉');
+
+    await projectModel
+      .updateOne(
+        { _id: new Types.ObjectId(data.project.id) },
+        { $set: { finalLevel: '', originalLevel: '' } },
+      )
+      .exec();
+    await consensusReviewModel
+      .updateOne(
+        { projectId: new Types.ObjectId(data.project.id) },
+        { $set: { finalLevel: '', originalLevel: '' } },
+      )
+      .exec();
+
+    await request(httpServer)
+      .post(
+        `/review-manager/projects/${data.project.id}/appeals/${getString(
+          appeal,
+          'id',
+        )}/handle`,
+      )
+      .set('Cookie', managerCookie)
+      .send({ decision: 'rejected', handlingOpinion: '历史数据兜底驳回' })
+      .expect(201)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          status: 'rejected',
+          causedLevelChange: false,
+          levelAfterHandling: 'A',
+        });
+      });
+
+    const storedProject = await projectModel
+      .findById(data.project.id)
+      .lean<Project | null>()
+      .exec();
+    expect(storedProject).toMatchObject({
+      finalLevel: 'A',
+      originalLevel: 'A',
+    });
+    expect(await levelChangeLogModel.countDocuments({}).exec()).toBe(0);
+  });
+
   async function seedData(): Promise<SeedData> {
     const admin = await createUser('+8613850000001', ['admin']);
     const client = await createUser('+8613850000002', ['client']);
@@ -640,9 +718,17 @@ describe('Project appeal APIs (e2e)', () => {
       reviewManagerId: new Types.ObjectId(reviewManager.id),
       isActive: true,
     });
-    const missingFinalLevelProject = await projectModel.create({
+    const consensusFallbackProject = await projectModel.create({
       batchId: batch._id,
       projectNo: 'P-APPEAL-003',
+      name: '合议等级兜底项目',
+      ownerUserId: new Types.ObjectId(owner.id),
+      reviewManagerId: new Types.ObjectId(reviewManager.id),
+      isActive: true,
+    });
+    const missingFinalLevelProject = await projectModel.create({
+      batchId: batch._id,
+      projectNo: 'P-APPEAL-004',
       name: '缺少等级项目',
       ownerUserId: new Types.ObjectId(owner.id),
       reviewManagerId: new Types.ObjectId(reviewManager.id),
@@ -652,9 +738,15 @@ describe('Project appeal APIs (e2e)', () => {
     await seedConsensus(project._id, reviewManager.id, 'confirmed');
     await seedConsensus(unconfirmedProject._id, reviewManager.id, 'draft');
     await seedConsensus(
+      consensusFallbackProject._id,
+      reviewManager.id,
+      'confirmed',
+    );
+    await seedConsensus(
       missingFinalLevelProject._id,
       reviewManager.id,
       'confirmed',
+      '',
     );
 
     return {
@@ -666,6 +758,9 @@ describe('Project appeal APIs (e2e)', () => {
       otherReviewManager,
       batchId: batch._id.toString(),
       project: { id: project._id.toString() },
+      consensusFallbackProject: {
+        id: consensusFallbackProject._id.toString(),
+      },
       unconfirmedProject: { id: unconfirmedProject._id.toString() },
       missingFinalLevelProject: {
         id: missingFinalLevelProject._id.toString(),
@@ -677,6 +772,7 @@ describe('Project appeal APIs (e2e)', () => {
     projectId: Types.ObjectId,
     reviewManagerId: string,
     status: 'draft' | 'confirmed',
+    finalLevel = status === 'confirmed' ? 'A' : '',
   ): Promise<void> {
     await consensusReviewModel.create({
       projectId,
@@ -693,8 +789,8 @@ describe('Project appeal APIs (e2e)', () => {
       draftScore: 80,
       finalOpinion: status === 'confirmed' ? '同意通过' : '',
       finalScore: status === 'confirmed' ? 82 : null,
-      finalLevel: status === 'confirmed' ? 'A' : '',
-      originalLevel: status === 'confirmed' ? 'A' : '',
+      finalLevel: status === 'confirmed' ? finalLevel : '',
+      originalLevel: status === 'confirmed' ? finalLevel : '',
       confirmedByUserId:
         status === 'confirmed' ? new Types.ObjectId(reviewManagerId) : null,
       confirmedAt: status === 'confirmed' ? new Date() : null,

@@ -105,7 +105,7 @@ frontend/
 - `/project-owner`：项目负责人概览页，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口
 - `/project-owner/projects`：项目负责人我的项目列表，调用 project_owner 项目列表接口并接入 portal reference-data，支持分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选，项目类型原生下拉使用统一树形 option 缩进，不提交 `ownerUserId` 或 `keyword`
 - `/project-owner/projects/[projectId]`：项目负责人项目详情页，并发加载项目、材料和 portal reference-data，展示名称映射后的基础信息、评审安排、会议链接、后续推进需求和材料管理
-- `/project-owner/projects/[projectId]/review-result`：项目负责人评审结果与申诉页，读取 confirmed 合议、最终等级、等级变更历史和本人申诉列表；满足 confirmed + finalLevel + 最多 3 次 + 无 pending 申诉时可提交新申诉
+- `/project-owner/projects/[projectId]/review-result`：项目负责人评审结果与申诉页，读取 confirmed 合议、最终等级、等级变更历史和本人申诉列表；满足 confirmed + 有效最终等级 `project.finalLevel ?? consensus.finalLevel` + 最多 3 次 + 无 pending 申诉时可提交新申诉
 - `/project-owner/projects/[projectId]/appeals/[appealId]`：项目负责人申诉详情页，查看本人申诉状态、处理信息和附件；submitted 状态可继续上传附件或删除附件
 - 项目负责人后续推进需求：调用 `PATCH /project-owner/projects/:id/follow-up-needs`，只提交 `{ followUpNeeds }`，前端限制 5000 字
 - 项目负责人材料列表 / 下载 / 提交 / 删除：调用 project_owner 材料接口，材料类型显示名称，显示 `draft/submitted/legacy active` 状态，下载使用后端签名 URL，支持提交全部草稿材料，`draft/active` 可物理删除，`submitted` 禁用删除
@@ -202,9 +202,9 @@ frontend/
 - 项目负责人材料下载使用后端返回的 `string`、`url` 或 `downloadUrl`，无法解析时展示错误；不在前端拼接 OSS objectKey
 - 项目负责人材料删除只调用 `DELETE /project-owner/projects/:id/materials/:materialId`；`draft/legacy active` 为物理删除并提示不可恢复，`submitted` 删除按钮禁用，异常触发后端 `409` 时显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
 - 项目负责人材料删除不调用 `/admin/*` 接口，不展示 `deletionLogId`，不前端拼接 OSS objectKey
-- 项目负责人评审结果与申诉只调用 `/project-owner/projects/:id/consensus`、`/project-owner/projects/:id/level-history`、`/project-owner/projects/:id/appeals*`；`GET /consensus` 的 404 按“暂无已确认合议结果”展示，不作为页面崩溃错误
+- 项目负责人评审结果与申诉只调用 `/project-owner/projects/:id/consensus`、`/project-owner/projects/:id/level-history`、`/project-owner/projects/:id/appeals*`；`GET /consensus` 的 404 按“暂无已确认合议结果”展示，不作为页面崩溃错误；页面最终等级展示和发起申诉禁用判断统一使用 `effectiveFinalLevel = project.finalLevel ?? consensus.finalLevel`
 - 项目负责人提交申诉使用 `FormData`，字段为 `reason` 和可选 `files`；前端体验层限制 reason 1-2000、单次最多 5 个附件、每个附件不超过 20MB，最终规则以后端为准
-- 项目负责人发起申诉入口要求已有 confirmed 合议和 finalLevel；最多 3 次，存在 submitted / processing 申诉时禁用再次提交；成功后重新拉取申诉、等级历史和项目详情
+- 项目负责人发起申诉入口要求已有 confirmed 合议和有效最终等级；最多 3 次，存在 submitted / processing 申诉时禁用再次提交；若 `project.finalLevel` 缺失但 `consensus.finalLevel` 存在，不再提示“项目尚无最终等级”；成功后重新拉取申诉、等级历史和项目详情
 - 项目负责人申诉附件仅 submitted 状态可上传和删除；下载只使用 project-owner 命名空间 `download-url` 返回 URL，不拼接 OSS objectKey
 - 专家前端 API 封装位于 `frontend/src/features/expert/api.ts`，统一复用 `apiRequest`，不绕过 HttpOnly Cookie 会话口径
 - 专家任务列表和详情只调用 `/expert/review-tasks*` 系列接口，保存草稿 / 提交评分不新增后端接口；提交评分受后端 `reviewTime` 最终约束，前端仅做体验层禁用提示

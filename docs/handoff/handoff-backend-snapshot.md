@@ -38,7 +38,7 @@
 - 当前已实现第四阶段补丁一门户端只读基础数据接口：`/portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users`，供 `project_owner/expert/review_manager/client/admin` 登录后读取展示型最小摘要；不提供写接口，不替代 `/admin/*` 主数据 CRUD
 - 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、专家本人删除未提交 draft 草稿、提交评分评审时间窗口校验、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
 - 当前专家任务列表 `/expert/review-tasks` 和详情 `/expert/review-tasks/:projectId` 的 `project` 摘要会内联当前项目 `reviewManager` 最小摘要 `{ id, name, phone? }`；该摘要只按项目 `reviewManagerId` 查询对应用户，不受 portal reference-data users 排除 admin 多角色用户规则影响，且不返回 `passwordHash`、token 等敏感字段
-- 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志
+- 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志；第七阶段小修后申诉创建和处理统一使用有效最终等级 `project.finalLevel ?? confirmedConsensus.finalLevel`，并对历史缺失 `Project.finalLevel` 数据做懒回填
 - 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
 - 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
 - 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 角色；具体项目操作必须是当前用户负责项目，admin 或 admin + review_manager 不在 review-manager 命名空间获得超管透视；管理员全局视角统一使用 `/admin/*`
@@ -318,12 +318,14 @@ backend/
 - 当前已创建 `project_appeals` 集合，用于记录项目负责人每一次申诉，字段包括 `projectId`、`appealNo`、`submittedByUserId`、`reason`、`status`、`relatedConsensusReviewId`、`levelBeforeAppeal`、`levelAfterHandling`、`handledByUserId`、`handlingOpinion`、`handledAt`、`causedLevelChange` 和 timestamps
 - 当前 `project_appeals` 索引：`projectId + appealNo` unique、`projectId + status`、`submittedByUserId + createdAt`、`handledByUserId + handledAt`
 - 当前 `ProjectAppeal.status` 取值：`submitted/processing/accepted/rejected/canceled`；本阶段实际使用 `submitted/accepted/rejected`，`processing/canceled` 仅预留；同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交
+- 当前项目负责人创建申诉的最终等级有效口径为 `effectiveFinalLevel = project.finalLevel ?? confirmedConsensus.finalLevel`，空字符串按缺失处理；`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时允许创建申诉，`levelBeforeAppeal` 使用有效最终等级，并懒回填 `projects.finalLevel` 与缺失的 `projects.originalLevel`
 - 当前已创建 `project_appeal_attachments` 集合，用于保存申诉补充材料文件引用和元数据，字段包括 `appealId`、`projectId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`deletedAt`、`deletedByUserId` 和 timestamps
 - 当前 `project_appeal_attachments` 索引：`appealId + status`、`projectId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
 - 当前申诉附件删除为软删除，`status=deleted` 并记录 `deletedAt/deletedByUserId`，不物理删除 OSS object；申诉附件不使用 `material_type` 字典
 - 当前已创建 `project_level_change_logs` 集合，用于记录项目最终等级变更历史，字段包括 `projectId`、`appealId`、`consensusReviewId`、`fromLevel`、`toLevel`、`reason`、`changedByUserId`、`changedAt`、`source` 和 timestamps
 - 当前 `project_level_change_logs` 索引：`projectId + changedAt`、`appealId`、`changedByUserId + changedAt`、`source + changedAt`
 - 当前申诉处理导致等级变更时只更新 `Project.finalLevel` 并写 `ProjectLevelChangeLog(source=appeal_handling)`；不修改 `ConsensusReview.finalLevel`；`Project.originalLevel` 保留首次合议确认等级，若历史数据为空则申诉处理时写入调整前等级
+- 当前申诉处理也对历史数据做最终等级兜底：优先 `Project.finalLevel`，再读取申诉关联 confirmed 合议或当前项目 confirmed 合议的 `finalLevel`，最后兜底 `appeal.levelBeforeAppeal`；兜底成功且 `Project.finalLevel` 缺失时懒回填 `projects.finalLevel/originalLevel`，懒回填不写 `ProjectLevelChangeLog`
 - 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前 `project_import_jobs.originalFilename` 仅用于展示，上传新任务入库前会保守修正常见中文文件名 mojibake；历史已入库乱码数据不自动迁移
@@ -389,7 +391,7 @@ backend/
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复和既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看和 Project 等级写入
-- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/缺少 finalLevel 不可申诉、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
+- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回
 - 已包含 `test/portal-reference-data.e2e-spec.ts`，用于验证 `/portal/reference-data/*` 401/403、project_owner 读取 `material_type/project_status/discipline/batches/organizations/review-schemes/users?role=review_manager`、`users?role=admin` 返回 `400`、`users?role=review_manager` 仍排除含 admin 角色的多角色用户、admin 复用门户接口以及 POST/PATCH/DELETE 不存在

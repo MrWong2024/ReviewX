@@ -100,7 +100,7 @@
 | `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，展示原等级、变更后等级、原因、来源、时间和操作人 | `/project-owner/projects/[projectId]/review-result` |
 | `listProjectOwnerAppeals` | `GET /project-owner/projects/:id/appeals` | 获取当前项目负责人对该项目提交的本人申诉列表 | `/project-owner/projects/[projectId]/review-result` |
 | `getProjectOwnerAppeal` | `GET /project-owner/projects/:id/appeals/:appealId` | 获取本人申诉详情；附件列表另行调用附件接口 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
-| `createProjectOwnerAppeal` | `POST /project-owner/projects/:id/appeals` | `FormData`，字段名 `reason/files`；前端展示最多 3 次、confirmed 合议、finalLevel 和未处理互斥规则，后端最终校验 | `/project-owner/projects/[projectId]/review-result` |
+| `createProjectOwnerAppeal` | `POST /project-owner/projects/:id/appeals` | `FormData`，字段名 `reason/files`；前端展示最多 3 次、confirmed 合议、有效最终等级 `project.finalLevel ?? consensus.finalLevel` 和未处理互斥规则，后端最终校验；本小修未新增接口 | `/project-owner/projects/[projectId]/review-result` |
 | `uploadProjectOwnerAppealAttachments` | `POST /project-owner/projects/:id/appeals/:appealId/attachments` | `FormData`，字段名 `files`，批次备注 `remark` 选填；仅 submitted 状态可追加，成功后重新拉取详情和附件 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `listProjectOwnerAppealAttachments` | `GET /project-owner/projects/:id/appeals/:appealId/attachments` | 获取本人申诉 active 附件列表 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `getProjectOwnerAppealAttachmentDownloadUrl` | `GET /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/project-owner/projects/[projectId]/appeals/[appealId]` |
@@ -273,7 +273,7 @@
 - 评审负责人专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；只有 submitted 显示退回入口。
 - 评审负责人合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时使用 A/B/C/D 兜底。
 - 申诉状态展示为：`submitted=已提交`、`processing=处理中`、`accepted=已通过`、`rejected=已驳回`；submitted / processing 为待处理状态。
-- 项目负责人发起申诉要求已确认合议且存在最终等级；最多 3 次申诉，存在 submitted / processing 申诉时禁用再次提交。
+- 项目负责人发起申诉要求已确认合议且存在有效最终等级 `project.finalLevel ?? consensus.finalLevel`；最多 3 次申诉，存在 submitted / processing 申诉时禁用再次提交。若 `project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在，前端允许打开申诉弹窗，后端创建成功后会懒回填项目主表。
 - 申诉附件下载只使用各角色命名空间下 `download-url` 返回 URL；项目负责人仅 submitted 状态可上传 / 删除附件，评审负责人和管理员附件只读。
 - 申诉处理 accepted 必须选择新最终等级，rejected 不提交新等级；等级变更历史由后端 `level-history` 返回，前端只展示不自行生成。
 

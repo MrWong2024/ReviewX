@@ -104,7 +104,7 @@
 | `AppealHandleForm` | `frontend/src/components/project-appeals/AppealHandleForm.tsx` | 通用申诉处理表单，提交 `decision/handlingOpinion/newFinalLevel`；accepted 且调整等级时二次确认明确提示等级调整 |
 | `LevelHistoryPanel` | `frontend/src/components/project-appeals/LevelHistoryPanel.tsx` | 等级变更历史展示组件，展示 from/to 等级、来源、原因、操作人和时间 |
 | `ProjectOwnerCreateAppealDialog` | `frontend/src/components/project-appeals/ProjectOwnerCreateAppealDialog.tsx` | 项目负责人发起申诉弹窗，展示申诉规则、校验 reason、可选附件并在提交前二次确认 |
-| `ProjectOwnerReviewResultPage` | `frontend/src/features/project-owner/pages/ProjectOwnerReviewResultPage.tsx` | 项目负责人评审结果与申诉页，加载项目详情、confirmed 合议、等级历史、本人申诉列表和 reference-data，可发起申诉 |
+| `ProjectOwnerReviewResultPage` | `frontend/src/features/project-owner/pages/ProjectOwnerReviewResultPage.tsx` | 项目负责人评审结果与申诉页，加载项目详情、confirmed 合议、等级历史、本人申诉列表和 reference-data，可发起申诉；最终等级展示和发起申诉禁用判断统一使用 `effectiveFinalLevel = project.finalLevel ?? consensus.finalLevel` |
 | `ProjectOwnerAppealDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerAppealDetailPage.tsx` | 项目负责人申诉详情页，查看处理结果和附件，submitted 状态可上传或删除申诉附件 |
 | `ReviewManagerProjectAppealsPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectAppealsPage.tsx` | 评审负责人项目申诉列表页，只调用 review-manager 命名空间申诉接口 |
 | `ReviewManagerProjectAppealDetailPage` | `frontend/src/features/review-manager/pages/ReviewManagerProjectAppealDetailPage.tsx` | 评审负责人申诉详情 / 处理页，查看附件并处理 submitted / processing 申诉 |
