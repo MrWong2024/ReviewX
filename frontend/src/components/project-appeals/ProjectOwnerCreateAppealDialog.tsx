@@ -123,13 +123,11 @@ export function ProjectOwnerCreateAppealDialog({
       <div className="grid gap-4">
         <div className="rounded-xl border border-cyan-100 bg-cyan-50/70 px-4 py-3 text-sm leading-6 text-slate-700">
           <div className="font-black text-slate-950">发起规则</div>
-          <ul className="mt-2 grid gap-1">
-            <li>每个项目最多申诉 {PROJECT_APPEAL_MAX_COUNT} 次。</li>
-            <li>存在 submitted / processing 状态申诉时，不能再次提交。</li>
-            <li>只有已有 confirmed 合议结果且项目存在 finalLevel 时才能提交。</li>
-            <li>申诉说明必填；附件可选，提交后可在 submitted 状态继续补充。</li>
-            <li>后端是最终裁判，409 / 403 / 404 会按真实错误展示。</li>
-          </ul>
+          <p className="mt-2">
+            请针对本项目最终评审结果填写申诉说明。项目评审结果确认且已有最终等级后，才能发起申诉。每个项目最多可提交{' '}
+            {PROJECT_APPEAL_MAX_COUNT}{' '}
+            次申诉；如已有申诉正在处理，请等待处理完成后再提交。申诉说明为必填项；补充材料不是必填，提交后在处理前仍可继续补充或删除附件。如暂不能提交，系统会提示具体原因。
+          </p>
         </div>
 
         {!canCreate ? (
@@ -167,7 +165,7 @@ export function ProjectOwnerCreateAppealDialog({
             type="file"
           />
           <span className="text-xs text-slate-500">
-            已选择 {files.length} 个文件；文件大小、类型和数量以后端校验为准。
+            已选择 {files.length} 个文件；如文件大小、类型或数量不符合要求，系统会提示具体原因。
           </span>
         </div>
       </div>

@@ -275,7 +275,7 @@ export function ProjectOwnerReviewResultPage({
                 </div>
               ) : (
                 <div className="rounded-xl border border-cyan-100 bg-cyan-50/60 px-4 py-3 text-sm font-semibold text-cyan-700">
-                  当前项目满足前端发起条件；后端仍会最终校验权限、合议状态、最终等级、次数和未处理申诉。
+                  当前项目满足发起申诉条件。请在弹窗中填写申诉说明，并按需上传补充材料。
                 </div>
               )}
             </div>
@@ -332,7 +332,7 @@ function ConsensusResultPanel({
               已确认合议结果
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              只有 confirmed 合议结果可用于项目负责人查看和发起申诉。
+              项目评审结果确认后，项目负责人可查看最终结论并按规则发起申诉。
             </p>
           </div>
           <Badge tone={consensus ? 'success' : 'muted'}>
