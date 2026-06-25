@@ -1,5 +1,12 @@
 # ReviewX 前端变更记录
 
+## 定位说明
+
+- 本文件用于记录前端阶段级变更摘要，帮助新会话理解前端能力演进和用户可见口径变化。
+- 本文件不替代 `handoff-frontend-snapshot.md`、`handoff-frontend-route-map.md`、`handoff-frontend-component-map.md` 或 `handoff-frontend-api-map.md`。
+- 后续不应记录与前端接续无关的后端内部小修流水账；如小修影响前端接入、页面口径或用户可见行为，可摘要记录。
+- 当前事实应沉淀到 snapshot / route-map / component-map / API map 等对应文档，避免本文件扩张成全量流水账。
+
 ## 2026-06-24
 
 ### ReviewX 第七阶段小修：项目负责人申诉前置等级口径修正

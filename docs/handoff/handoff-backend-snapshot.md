@@ -7,139 +7,51 @@
 
 ## 2. 当前状态
 
-- `backend` 已初始化为可运行的 NestJS 公共骨架
-- 当前包含 `AppModule`、`AppController`、`AppService`、配置层、通用异常过滤器、users 模块基础模型、sessions 模块基础模型和 auth 模块第一阶段登录基线
-- 当前已有 users 基础模块和管理员用户维护模块；`UsersModule` 提供 Schema + Service，`AdminUsersModule` 组合 `AuthModule + UsersModule` 并暴露 `/admin/users` 管理员用户维护 API
-- 当前已有 sessions 模块；该模块只有 Schema + Service，无 Controller，无 HTTP API
-- 当前已有 auth 模块；该模块包含 AuthController、AuthService 和 SessionAuthGuard
-- 当前已确认最小健康检查 API：`GET /health`
-- 当前已确认认证 API：`POST /auth/login`、`POST /auth/logout`、`GET /auth/me`
-- 当前已具备单元测试与最小 E2E 测试骨架
-- 当前已接入 `MongooseModule`，建立 MongoDB 连接与环境配置基线
-- 当前仅保留 `.env.development.example`、`.env.test.example`、`.env.production.example` 三类环境示例文件
-- 当前已预留通用 LLM / Bailian 配置基线
-- 当前 `dca16ae` 基线已安装 `ali-oss`
-- 当前已准备 Storage / OSS 环境变量 example：`STORAGE_DRIVER`、`OSS_REGION`、`OSS_BUCKET`、`OSS_INTERNAL_ENDPOINT`、`OSS_PUBLIC_ENDPOINT`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_OBJECT_PREFIX`
-- 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`
-- 当前已实现 `ProjectMaterial` 项目材料模型，数据库只保存 OSS/fake storage 引用和文件元数据，不保存文件内容
-- 当前已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL、材料提交、物理删除和删除审计
-- 当前项目材料上传已复用通用上传文件名规范化工具，保存 `originalFilename` 和生成 `safeFilename` 前会保守修正常见 multipart 中文文件名 mojibake；该修复只影响新上传材料，历史乱码材料不自动迁移
-- 当前已实现评审负责人、已分配专家和管理员查看项目材料及获取短期下载 URL 的后端接口；评审负责人/专家只可见 `submitted` 材料，项目负责人/admin 可见 `draft/submitted/legacy active`
-- 当前已新增本地开发脚本 `scripts/create-local-user.ts`，用于在 development/test 数据库创建或更新手机号用户以手动验证 auth
-- 当前已新增受控索引同步脚本 `scripts/sync-indexes.ts`，用于显式同步 users / sessions、第一阶段业务集合以及项目导入集合索引
-- 当前已实现第一阶段管理端业务底座：batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects
-- 当前已实现第二阶段项目 Excel 导入与待确认机制：project-imports
-- 当前项目导入上传创建任务时，会通过通用上传文件名规范化工具在入库前对 multipart 场景下 latin1 误解码的中文 Excel 文件名做保守修正；正常 UTF-8 中文、英文和常见空格/括号/短横线/下划线文件名保持原样
-- 当前项目导入支持管理员删除未确认入库的导入任务；删除只清理 `ProjectImportJob` 和对应 `ProjectImportRow`，不删除正式项目；`parsing` 或已有 confirmed 行的任务禁止删除
-- 当前项目导入学科字段使用专用多值拆分规则：英文逗号、中文逗号、分号和换行可分隔多个学科，学科名称内部顿号 `、` 不再被拆分；合作单位等通用多值字段仍保留顿号拆分。该修复只影响后续新上传或重新保存触发重新标准化的导入行，历史已解析 `ProjectImportRow.normalized.disciplineNames` 不自动迁移
-- 当前已实现第二阶段补丁一 Excel 字段映射配置后端化：`project_import_field_mappings` 独立集合、`/admin/project-import-field-mappings*` 管理接口、固定标准字段枚举、别名配置 CRUD、启用/停用、reset-defaults、上传解析消费 effective alias map
-- 当前已实现第三阶段项目评审分配与评审安排后端能力：项目评审负责人/评审方案设置、评审方案快照、评审负责人项目列表、评审时间/地点/meetingUrl 设置、专家候选列表、专家分配/替换/追加/移除、批量专家分配；`/review-manager/projects` 已收紧为当前评审负责人项目视角，admin 全局项目和专家分配能力保留在 `/admin` 命名空间；专家分配 mutation 已加入项目级锁定，`reviewTime` 已到、任一 `ExpertReview`、任一 `ConsensusReview` 或已有最终等级 / 最终结论时，admin 和 review_manager 追加、替换、移除、批量设置专家均禁止继续调整并返回 `EXPERT_ASSIGNMENT_LOCKED`
-- 当前已实现第四阶段项目负责人填报与 OSS 材料管理后端能力
-- 当前已实现第四阶段补丁一门户端只读基础数据接口：`/portal/reference-data/dictionaries`、`tree-dictionaries`、`batches`、`organizations`、`review-schemes`、`users`，供 `project_owner/expert/review_manager/client/admin` 登录后读取展示型最小摘要；不提供写接口，不替代 `/admin/*` 主数据 CRUD
-- 当前已实现第五阶段专家评分与合议评审后端能力：已分配专家评分任务、草稿/提交、专家本人删除未提交 draft 草稿、提交评分评审时间窗口校验、评审负责人查看/退回、评分汇总、规则化合议草稿、人工确认合议
-- 当前专家任务列表 `/expert/review-tasks` 和详情 `/expert/review-tasks/:projectId` 的 `project` 摘要会内联当前项目 `reviewManager` 最小摘要 `{ id, name, phone? }`；该摘要只按项目 `reviewManagerId` 查询对应用户，不受 portal reference-data users 排除 admin 多角色用户规则影响，且不返回 `passwordHash`、token 等敏感字段
-- 当前已实现第六阶段项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传/列表/下载 URL/软删除、评审负责人/管理员查看和处理申诉、申诉导致等级变化时写等级变更日志；第七阶段小修后申诉创建和处理统一使用有效最终等级 `project.finalLevel ?? confirmedConsensus.finalLevel`，并对历史缺失 `Project.finalLevel` 数据做懒回填
-- 当前仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议集成
-- 当前 `/admin/*` 新增接口统一要求 Session 登录 + `admin` 角色
-- 当前 `/review-manager/*` 新增接口统一要求 Session 登录 + `review_manager` 角色；具体项目操作必须是当前用户负责项目，admin 或 admin + review_manager 不在 review-manager 命名空间获得超管透视；管理员全局视角统一使用 `/admin/*`
-- 当前主数据列表口径：普通字典、树形字典、评审方案列表不分页，直接返回数组
-- 当前分页列表口径：批次、单位、项目、导入任务、导入行列表返回 `{ items, page, pageSize, total }`；分页默认 `page=1`、`pageSize=100`、最大 `1000`
-- 当前已实现管理员用户列表与维护接口：`GET/POST /admin/users`、`GET/PATCH /admin/users/:id`、`PATCH /admin/users/:id/status`、`POST /admin/users/:id/reset-password`；列表分页沿用 `{ items, page, pageSize, total }`，`pageSize <= 1000`
-- 当前行政区划树形字典统一使用 `treeType=administrative_division`；`Organization.regionId` 字段名保持不变，但引用节点必须属于该 treeType；历史 `treeType=region` 不再作为行政区划口径，当前不做历史数据迁移
-- 当前仍未接入外部集成
-- 当前本地默认后端端口为 `5001`
-- 当前本地前端来源示例为 `http://localhost:3001`
-
+- `backend` 已初始化为可运行的 NestJS + Mongoose + MongoDB 后端，包含 `AppModule`、配置层、全局异常过滤器、ValidationPipe、健康检查、测试骨架和受控索引同步脚本。
+- 当前本地默认后端端口为 `5001`，本地前端来源示例为 `http://localhost:3001`；环境示例保留 `.env.development.example`、`.env.test.example`、`.env.production.example`。
+- 认证与用户：已实现手机号 + 密码登录、HttpOnly Cookie Session、`/auth/login`、`/auth/logout`、`/auth/me`、users / sessions 数据底座和 `/admin/users` 管理员用户维护。
+- 主数据：已实现 batches、dictionaries、tree-dictionaries、organizations、review-schemes、projects；行政区划统一为 `treeType=administrative_division`，`Organization.regionId` 字段名保留。
+- 项目导入：已实现 Excel 上传解析、字段映射配置、待确认行修正、确认入库、跳过、未确认任务删除，以及上传文件名和学科字段拆分小修。
+- 评审组织：已实现项目评审负责人 / 评审方案设置、评审方案快照、评审负责人项目列表、评审安排、专家候选、单位回避、专家追加 / 替换 / 移除 / 批量分配；`/review-manager/projects` 只返回当前评审负责人负责项目，admin 全局视角保留在 `/admin`。
+- 专家分配 mutation 已加入项目级锁定：`reviewTime` 已到、任一 `ExpertReview`、任一 `ConsensusReview` 或项目已有最终等级 / 最终结论时，admin 和 review_manager 的追加、替换、移除、批量设置专家均禁止继续调整并返回 `EXPERT_ASSIGNMENT_LOCKED`。
+- 项目材料：已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL、材料提交、物理删除和删除审计；新上传材料默认 `draft`，项目负责人提交后进入 `submitted`，legacy `active` 按草稿兼容。
+- 材料可见性：项目负责人 / admin 可见 `draft/submitted/legacy active`，评审负责人 / 专家只可见 `submitted`；项目负责人只能物理删除 `draft/legacy active`，`submitted` 返回 `409`；admin 删除材料必须填写原因并保留删除审计。
+- 门户参考数据：已实现 `/portal/reference-data/*` 只读接口，允许 `project_owner/expert/review_manager/client/admin` 登录读取展示型最小摘要；用户摘要仅允许 `review_manager/expert/project_owner`，禁止查询 admin 用户。
+- 专家评分与合议：已实现已分配专家评分任务、草稿 / 提交、本人 draft 草稿删除、提交评分评审时间窗口校验、评审负责人查看 / 退回、评分汇总、`rule_based` 合议草稿和人工确认合议；确认合议会写 `ConsensusReview` 与 `Project.finalLevel/originalLevel`。
+- 项目申诉：已实现项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传 / 列表 / 下载 URL / 软删除、评审负责人 / 管理员查看和处理申诉、申诉导致等级变化时写等级变更日志。
+- 申诉创建前提：必须已有 confirmed 合议，必须存在有效最终等级，同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交。
+- 申诉有效最终等级后端口径为 `project.finalLevel ?? confirmedConsensus.finalLevel`；历史数据中 `Project.finalLevel` 缺失但 confirmed 合议有 `finalLevel` 时允许创建申诉并懒回填 `projects.finalLevel/originalLevel`，懒回填不写等级变更日志。
+- 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`；development / test 默认 fake，production 默认 oss。
+- 当前仍未实现甲方看板统计 API、甲方看板权限与数据口径、真实 AI 汇总、腾讯会议 API / 直播 / 推流 / 回看、文件预览 / 在线转换、用户自助改密、忘记密码 / 短信验证码、用户 / 专家批量导入和细粒度权限矩阵。
+- 接口细节见 `handoff-backend-api-map.md`，DTO 字段和枚举见 `handoff-backend-dto-cheatsheet.md`，Service 职责边界见 `handoff-backend-service-map.md`，配置项见 `handoff-backend-config-matrix.md`。
 ## 3. 技术基线
 
 - 技术方向：NestJS + Mongoose + MongoDB + TypeScript
 - 具体版本以 `backend/package.json`、锁文件、部署环境和实际代码为准
 - 不在本文档中写死版本
 
-## 4. 待后续补充的事实区
+## 4. 后端事实区
 
 ### 4.1 后端目录结构
 
-当前目录结构如下：
+当前目录按 NestJS 模块边界组织，snapshot 只保留模块级结构；逐文件 DTO / Service / spec 不在本文档重复展开。
 
 ```text
 backend/
 ├─ src/
-│  ├─ app.controller.spec.ts
-│  ├─ app.controller.ts
-│  ├─ app.module.ts
-│  ├─ app.service.ts
-│  ├─ app.setup.ts
-│  ├─ main.ts
-│  ├─ common/
-│  │  └─ filters/
-│  │     └─ all-exceptions.filter.ts
-│  ├─ config/
-│  │  ├─ configuration.ts
-│  │  └─ env.validation.ts
-│  └─ modules/
-│     ├─ auth/
-│     │  ├─ decorators/
-│     │  │  └─ current-user.decorator.ts
-│     │  ├─ dto/
-│     │  │  └─ login.dto.ts
-│     │  ├─ guards/
-│     │  │  └─ session-auth.guard.ts
-│     │  ├─ types/
-│     │  │  ├─ authenticated-user.type.ts
-│     │  │  └─ login-result.type.ts
-│     │  ├─ auth.controller.ts
-│     │  ├─ auth.module.ts
-│     │  ├─ auth.service.spec.ts
-│     │  └─ auth.service.ts
-│     ├─ sessions/
-│     │  ├─ schemas/
-│     │  │  └─ session.schema.ts
-│     │  ├─ types/
-│     │  │  ├─ create-session.input.ts
-│     │  │  ├─ public-session.type.ts
-│     │  │  └─ session-record.type.ts
-│     │  ├─ sessions.module.ts
-│     │  ├─ sessions.service.spec.ts
-│     │  └─ sessions.service.ts
-│     └─ users/
-│        ├─ controllers/
-│        │  └─ admin-users.controller.ts
-│        ├─ dto/
-│        │  ├─ create-admin-user.dto.ts
-│        │  ├─ create-user.input.ts
-│        │  ├─ query-admin-users.dto.ts
-│        │  ├─ reset-admin-user-password.dto.ts
-│        │  ├─ update-admin-user.dto.ts
-│        │  └─ update-admin-user-status.dto.ts
-│        ├─ schemas/
-│        │  └─ user.schema.ts
-│        ├─ types/
-│        │  ├─ public-user.type.ts
-│        │  ├─ user-role.type.ts
-│        │  └─ user-status.type.ts
-│        ├─ admin-users.module.ts
-│        ├─ users.module.ts
-│        ├─ users.service.spec.ts
-│        └─ users.service.ts
-├─ test/
-│  ├─ admin-users.e2e-spec.ts
-│  ├─ auth.e2e-spec.ts
-│  ├─ app.e2e-spec.ts
-│  └─ jest-e2e.json
-├─ scripts/
-│  ├─ create-local-user.ts
-│  └─ sync-indexes.ts
-├─ .gitignore
-├─ .prettierrc
-├─ eslint.config.mjs
-├─ nest-cli.json
-├─ package.json
-├─ README.md
-├─ tsconfig.build.json
-├─ tsconfig.eslint.json
-└─ tsconfig.json
+│  ├─ app.*、main.ts、app.setup.ts
+│  ├─ common/        # filters、guards、decorators、utils 等通用能力
+│  ├─ config/        # configuration 与 env validation
+│  └─ modules/       # auth、sessions、users、主数据、项目导入、评审组织、材料、评分、合议、申诉、storage、portal-reference-data
+├─ test/             # e2e specs
+├─ scripts/          # create-local-user、sync-indexes 等受控脚本
+└─ package / tsconfig / eslint / nest 配置
 ```
+
+- 模块级能力摘要见 4.2。
+- 接口路径与权限见 `handoff-backend-api-map.md`。
+- DTO、请求体、响应结构和枚举见 `handoff-backend-dto-cheatsheet.md`。
+- Service 职责、依赖和副作用见 `handoff-backend-service-map.md`。
 
 ### 4.2 模块清单
 
@@ -342,7 +254,7 @@ backend/
 - 当前已实现管理员 Excel 项目导入上传接口，使用已安装的 `xlsx` 解析第一个工作表；表头字段映射优先读取 `project_import_field_mappings` 中启用配置，未配置或停用时回退 `PROJECT_IMPORT_FIELD_ALIASES` 内置默认别名
 - 当前 Excel 项目导入上传不保存原 Excel 文件；上传文件名只作为任务展示字段保存，保存前会对典型 `å¹´/ç»©/ï¼` 等 mojibake 片段做保守 latin1 到 UTF-8 修正，旧任务不自动回填
 - 当前不长期保存原 Excel 文件；只保存导入任务与导入行解析结果
-- 当前 `dca16ae` 基线已安装 `ali-oss`，并已在 `.env.development.example`、`.env.test.example`、`.env.production.example` 准备 Storage / OSS 配置样例
+- 当前已安装 `ali-oss`，并已在 `.env.development.example`、`.env.test.example`、`.env.production.example` 准备 Storage / OSS 配置样例
 - `STORAGE_DRIVER` 支持 `fake / oss`：development/test example 默认 `fake`，production example 默认 `oss`
 - `STORAGE_DRIVER=fake` 不访问真实阿里云 OSS，上传返回结构化 fake objectKey，签名 URL 形如 `https://fake-storage.local/{objectKey}?expires=...`
 - `STORAGE_DRIVER=oss` 使用 `ali-oss`；上传和删除使用 `OSS_INTERNAL_ENDPOINT`，生成浏览器可访问签名 URL 使用 `OSS_PUBLIC_ENDPOINT`
