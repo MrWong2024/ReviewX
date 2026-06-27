@@ -16,12 +16,20 @@ export type ProjectLevelChangeSource =
 
 export type AppealTone = 'danger' | 'muted' | 'primary' | 'success' | 'warning';
 
+export type ConsensusUserSummary = {
+  id: string;
+  name: string;
+  phone?: string | null;
+};
+
 export type ProjectOwnerConsensus = {
   id: string;
   projectId: string;
   finalOpinion?: string;
   finalScore?: number | null;
   finalLevel?: string;
+  confirmedByUserId?: string | null;
+  confirmedByUser?: ConsensusUserSummary | null;
   confirmedAt?: string | null;
   expertReviewStats: {
     expertCount: number;

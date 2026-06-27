@@ -110,6 +110,18 @@ npm run build
 
 注意：项目负责人项目详情的评审负责人显示优先使用项目响应 `reviewManager` 摘要；评审结果确认后，project-owner 后续推进需求和材料上传 / 提交 / 删除只读锁定，后端仍以 `409 PROJECT_OWNER_CONTENT_LOCKED` 兜底。材料查看 / 下载、评审结果与申诉、submitted 申诉附件上传 / 删除不受该锁定影响。
 
+本次 ReviewX 第七阶段小修：合议确认人显示修正已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：合议响应兼容 `confirmedByUser?: { id, name, phone? } | null`；评审负责人合议页“确认人”优先显示姓名，有手机号时显示“姓名（手机号）”，确认人摘要不可用时显示“确认人信息暂不可用”，不得显示“用户（短ID）”或 ObjectId。
+
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
 - `npm run lint`
@@ -843,6 +855,9 @@ Workspace 和守卫：
 11. Network 请求 body 只包含 `finalOpinion/finalScore/finalLevel`，不得包含 `useDraftAsBase`
 12. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
 13. 已 confirmed 后再次提交前必须二次确认，并提示会覆盖当前最终合议结论
+14. 已 confirmed 记录中的“确认人”应显示确认人姓名；后端返回手机号时显示“姓名（手机号）”
+15. 如可模拟 `confirmedByUserId` 对应用户不存在，页面应正常打开并显示“确认人信息暂不可用”
+16. “确认人”不得显示“用户（短ID）”、原始 ObjectId、unknown user 或 `confirmedByUserId` 原始值
 
 回归边界：
 

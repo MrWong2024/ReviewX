@@ -301,6 +301,12 @@ export type ConsensusReviewStatus = 'confirmed' | 'draft' | 'reopened';
 
 export type ConsensusDraftSource = 'ai' | 'manual' | 'rule_based';
 
+export type ConsensusUserSummary = {
+  id: string;
+  name: string;
+  phone?: string | null;
+};
+
 export type ConsensusReviewResponse = {
   id: string;
   projectId: string;
@@ -316,11 +322,7 @@ export type ConsensusReviewResponse = {
   originalLevel?: string;
   confirmedByUserId?: string | null;
   confirmedAt?: string | null;
-  confirmedByUser?: {
-    id: string;
-    name: string;
-    phone?: string;
-  } | null;
+  confirmedByUser?: ConsensusUserSummary | null;
   status: ConsensusReviewStatus;
   expertReviewStats: {
     expertCount: number;

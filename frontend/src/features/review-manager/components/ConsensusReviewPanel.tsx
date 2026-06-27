@@ -24,7 +24,6 @@ import {
   formatScore,
   getReviewLevelOptions,
   parseScoreInput,
-  shortId,
 } from '../utils';
 
 type ConsensusReviewPanelProps = {
@@ -428,17 +427,16 @@ function TextBlock({ label, value }: { label: string; value?: string }) {
 }
 
 function formatConfirmedUser(consensus: ConsensusReviewResponse): string {
-  if (consensus.confirmedByUser) {
-    const phone = consensus.confirmedByUser.phone?.trim();
+  const confirmedByUser = consensus.confirmedByUser;
+  const name = confirmedByUser?.name.trim();
 
-    return phone
-      ? `${consensus.confirmedByUser.name}（${phone}）`
-      : consensus.confirmedByUser.name;
+  if (name) {
+    const phone = confirmedByUser?.phone?.trim();
+
+    return phone ? `${name}（${phone}）` : name;
   }
 
-  return consensus.confirmedByUserId
-    ? `用户（${shortId(consensus.confirmedByUserId)}）`
-    : '-';
+  return consensus.confirmedByUserId ? '确认人信息暂不可用' : '-';
 }
 
 function createFormState(

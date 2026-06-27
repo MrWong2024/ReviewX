@@ -165,6 +165,12 @@ describe('Consensus review APIs (e2e)', () => {
       status: 'confirmed',
       finalLevel: 'A',
       originalLevel: 'A',
+      confirmedByUserId: data.reviewManager.id,
+      confirmedByUser: {
+        id: data.reviewManager.id,
+        name: data.reviewManager.name,
+        phone: data.reviewManager.phone,
+      },
     });
 
     const project = await projectModel
@@ -197,7 +203,7 @@ describe('Consensus review APIs (e2e)', () => {
       })
       .expect(400);
 
-    await request(httpServer)
+    const adminConfirmResponse = await request(httpServer)
       .post(`/admin/projects/${data.project.id}/consensus/confirm`)
       .set('Cookie', adminCookie)
       .send({
@@ -206,6 +212,14 @@ describe('Consensus review APIs (e2e)', () => {
         finalLevel: 'excellent',
       })
       .expect(201);
+    expect(getJsonBody(adminConfirmResponse)).toMatchObject({
+      confirmedByUserId: data.admin.id,
+      confirmedByUser: {
+        id: data.admin.id,
+        name: data.admin.name,
+        phone: data.admin.phone,
+      },
+    });
 
     await request(httpServer)
       .get(`/admin/projects/${data.project.id}/consensus`)
@@ -216,8 +230,55 @@ describe('Consensus review APIs (e2e)', () => {
           status: 'confirmed',
           finalLevel: 'excellent',
           originalLevel: 'A',
+          confirmedByUserId: data.admin.id,
+          confirmedByUser: {
+            id: data.admin.id,
+            name: data.admin.name,
+            phone: data.admin.phone,
+          },
         });
       });
+  });
+
+  it('keeps consensus readable when confirmed user cannot be resolved', async () => {
+    const data = await seedData();
+    const managerCookie = await login(data.reviewManager.phone);
+    const missingUserId = new Types.ObjectId();
+
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(data.project.id),
+      reviewSchemeSnapshot: data.reviewSchemeSnapshot,
+      draftGeneratedAt: new Date(),
+      draftGeneratedByUserId: new Types.ObjectId(data.reviewManager.id),
+      draftSource: 'manual',
+      draftOpinion: '草稿意见',
+      draftScore: 80,
+      finalOpinion: '同意通过',
+      finalScore: 82,
+      finalLevel: 'A',
+      originalLevel: 'A',
+      confirmedByUserId: missingUserId,
+      confirmedAt: new Date(),
+      status: 'confirmed',
+      expertReviewStats: {
+        expertCount: 1,
+        submittedCount: 1,
+        averageScore: 82,
+        minScore: 82,
+        maxScore: 82,
+      },
+    });
+
+    const response = await request(httpServer)
+      .get(`/review-manager/projects/${data.project.id}/consensus`)
+      .set('Cookie', managerCookie)
+      .expect(200);
+
+    expect(getJsonBody(response)).toMatchObject({
+      status: 'confirmed',
+      confirmedByUserId: missingUserId.toString(),
+      confirmedByUser: null,
+    });
   });
 
   async function seedData() {
@@ -310,19 +371,20 @@ describe('Consensus review APIs (e2e)', () => {
 
   async function createUser(phone: string, roles: string[]) {
     const userId = new Types.ObjectId();
+    const name = `User ${phone.slice(-4)}`;
 
     await userModel.create({
       _id: userId,
       phone,
       passwordHash: await hash('correct-password', 4),
-      name: `User ${phone.slice(-4)}`,
+      name,
       roles,
       status: 'active',
       isActive: true,
       mustChangePassword: false,
     });
 
-    return { id: userId.toString(), phone };
+    return { id: userId.toString(), name, phone };
   }
 
   async function login(phone: string): Promise<string> {

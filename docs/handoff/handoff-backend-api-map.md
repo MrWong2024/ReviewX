@@ -108,12 +108,12 @@
 | expert-reviews | `GET` | `/admin/projects/:id/expert-reviews` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ReviewManagerExpertReviewListItem[]` | implemented | admin 可查看任意项目专家评分状态 |
 | expert-reviews | `GET` | `/admin/projects/:id/expert-reviews/:expertUserId` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/expertUserId` | `ExpertReviewResponse` 或 `not_started` 结构 | implemented | admin 可查看任意项目某专家评分详情 |
 | expert-reviews | `GET` | `/admin/projects/:id/review-summary` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ReviewSummaryResponse` | implemented | admin 可查看任意项目评分汇总 |
-| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/draft` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | query `force` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；基于 submitted 专家评分生成 `rule_based` 草稿；无 submitted 返回 `409`；已有 draft 默认 `409`，`force=true` 可覆盖；confirmed 后不可覆盖 |
-| consensus-reviews | `GET` | `/review-manager/projects/:id/consensus` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；未生成返回 `404` |
-| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/confirm` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；请求仅含 `finalOpinion/finalScore/finalLevel`；写 ConsensusReview 和 Project 等级字段 |
-| consensus-reviews | `GET` | `/admin/projects/:id/consensus` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ConsensusReviewResponse` | implemented | admin 可查看任意项目合议记录 |
-| consensus-reviews | `POST` | `/admin/projects/:id/consensus/confirm` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | admin 可兜底确认任意项目合议 |
-| project-appeals | `GET` | `/project-owner/projects/:id/consensus` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectOwnerConsensusResponse` | implemented | 项目负责人只能查看本人项目 `status=confirmed` 的正式合议结果；未 confirmed 返回 `404` |
+| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/draft` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | query `force` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；基于 submitted 专家评分生成 `rule_based` 草稿；无 submitted 返回 `409`；已有 draft 默认 `409`，`force=true` 可覆盖；confirmed 后不可覆盖；响应含 `confirmedByUser?: { id, name, phone? } | null` |
+| consensus-reviews | `GET` | `/review-manager/projects/:id/consensus` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；未生成返回 `404`；confirmed 记录响应补充 `confirmedByUser` 摘要，确认人用户不可解析时为 `null` |
+| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/confirm` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；请求仅含 `finalOpinion/finalScore/finalLevel`；写 ConsensusReview 和 Project 等级字段；成功响应含确认人 `confirmedByUser` 摘要 |
+| consensus-reviews | `GET` | `/admin/projects/:id/consensus` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ConsensusReviewResponse` | implemented | admin 可查看任意项目合议记录；响应含 `confirmedByUser` 摘要，不返回密码或权限字段 |
+| consensus-reviews | `POST` | `/admin/projects/:id/consensus/confirm` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | admin 可兜底确认任意项目合议；成功响应含确认人 `confirmedByUser` 摘要 |
+| project-appeals | `GET` | `/project-owner/projects/:id/consensus` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectOwnerConsensusResponse` | implemented | 项目负责人只能查看本人项目 `status=confirmed` 的正式合议结果；未 confirmed 返回 `404`；响应兼容 `confirmedByUserId` 和 `confirmedByUser` 摘要 |
 | project-appeals | `GET` | `/project-owner/projects/:id/level-history` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | 项目负责人查看本人项目等级变更历史；无日志返回空数组 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectAppealResponse[]` | implemented | 本人项目、本用户提交的申诉列表；单项目最多 3 条，按 `appealNo` 升序 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals/:appealId` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId` | `ProjectAppealDetailResponse` | implemented | 返回申诉详情、处理信息、附件数量；不内联附件列表 |
@@ -180,6 +180,13 @@
 - 锁定不影响读取：项目详情、材料列表、材料下载 URL、confirmed 合议、申诉和申诉附件读取仍可用。
 - 锁定不影响申诉附件规则：project-owner submitted 状态申诉的附件上传 / 删除仍按 `ProjectAppealsService` 原规则执行。
 - admin 命名空间材料治理和 review-manager / expert 材料只读查看不使用该锁定错误。
+
+## 3.4 合议确认人摘要口径
+
+- `ConsensusReviewResponse` 和 `ProjectOwnerConsensusResponse` 兼容返回 `confirmedByUser?: { id, name, phone? } | null`；`confirmedByUserId` 保留向后兼容。
+- `confirmedByUserId` 存在且用户可查到时，只返回确认人 `id/name/phone` 最小摘要，不返回密码、完整角色权限、改密状态、session/token 等敏感字段。
+- `confirmedByUserId` 不存在时 `confirmedByUser` 为 `null`；存在但用户已删除或不可解析时，接口不失败，`confirmedByUser` 仍为 `null`。
+- 本小修只调整合议响应展示契约，不修改 `consensus_reviews` schema、合议算法、确认写入逻辑、申诉规则、专家评分、材料锁定或专家分配锁定。
 
 ## 4. 列表返回结构口径
 

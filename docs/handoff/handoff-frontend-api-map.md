@@ -96,7 +96,7 @@
 | `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
 | `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；锁定时禁用删除入口，后端 `409 PROJECT_OWNER_CONTENT_LOCKED` 显示固定业务文案；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
-| `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，在项目详情页视为未查到 confirmed 合议且不作为整页错误；项目详情页用它辅助计算只读锁定态 | `/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，在项目详情页视为未查到 confirmed 合议且不作为整页错误；响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`，项目详情页用它辅助计算只读锁定态 | `/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，展示原等级、变更后等级、原因、来源、时间和操作人 | `/project-owner/projects/[projectId]/review-result` |
 | `listProjectOwnerAppeals` | `GET /project-owner/projects/:id/appeals` | 获取当前项目负责人对该项目提交的本人申诉列表 | `/project-owner/projects/[projectId]/review-result` |
 | `getProjectOwnerAppeal` | `GET /project-owner/projects/:id/appeals/:appealId` | 获取本人申诉详情；附件列表另行调用附件接口 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
@@ -178,9 +178,9 @@
 | `getProjectExpertReview` | `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId` | 专家评分详情；`not_started` 初始化记录按“该专家尚未开始评分”展示，不作为错误 | `/review-manager/projects/[projectId]/consensus` |
 | `returnProjectExpertReview` | `POST /review-manager/projects/:projectId/expert-reviews/:expertUserId/return` | 请求 `{ returnReason }`，trim 后 1-1000；仅 submitted 状态显示退回按钮；提交前二次确认；成功后刷新专家列表、评分汇总和当前详情 | `/review-manager/projects/[projectId]/consensus` |
 | `getProjectReviewSummary` | `GET /review-manager/projects/:projectId/review-summary` | 只读展示 assigned/submitted/draft/returned/notStarted、平均分、最高分、最低分和 perItemAverageScores；空分数显示“暂无” | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/consensus` |
-| `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；其他错误继续抛出 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
+| `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；confirmed 记录可带 `confirmedByUser?: { id, name, phone? } | null`，其他错误继续抛出 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
 | `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]/consensus` |
-| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论 | `/review-manager/projects/[projectId]/consensus` |
+| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论；成功响应兼容确认人 `confirmedByUser` 摘要 | `/review-manager/projects/[projectId]/consensus` |
 | `listReviewManagerAppeals` | `GET /review-manager/projects/:projectId/appeals` | 当前评审负责人负责项目的申诉列表；只读展示状态、原因摘要、等级前后变化和附件数量 | `/review-manager/projects/[projectId]/appeals` |
 | `getReviewManagerAppeal` | `GET /review-manager/projects/:projectId/appeals/:appealId` | 当前评审负责人负责项目的申诉详情；附件另行调用附件接口 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
 | `listReviewManagerAppealAttachments` | `GET /review-manager/projects/:projectId/appeals/:appealId/attachments` | 只读获取申诉附件列表；评审负责人不提供上传、删除 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
@@ -274,6 +274,7 @@
 - 评审负责人评审组织页只读查看 submitted 项目材料，下载只使用 `/review-manager/projects/:id/materials/:materialId/download-url` 返回 URL，不拼接 OSS objectKey，不提供上传、删除或预览。
 - 评审负责人专家评分状态展示为：`not_started=未开始`、`draft=草稿`、`submitted=已提交`、`returned=已退回`；只有 submitted 显示退回入口。
 - 评审负责人合议最终等级优先使用 active `review_level` 字典项的 `code` 作为提交值、`name` 作为展示文案；字典为空时使用 A/B/C/D 兜底。
+- 评审负责人合议确认人显示优先使用 `consensus.confirmedByUser.name`，有手机号时显示“姓名（手机号）”；`confirmedByUserId` 存在但摘要缺失时显示“确认人信息暂不可用”；无 `confirmedByUserId` 时显示“-”；不得显示“用户（短ID）”或原始 ObjectId。
 - 申诉状态展示为：`submitted=已提交`、`processing=处理中`、`accepted=已通过`、`rejected=已驳回`；submitted / processing 为待处理状态。
 - 项目负责人发起申诉要求已确认合议且存在有效最终等级 `project.finalLevel ?? consensus.finalLevel`；最多 3 次申诉，存在 submitted / processing 申诉时禁用再次提交。若 `project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在，前端允许打开申诉弹窗，后端创建成功后会懒回填项目主表。
 - 申诉附件下载只使用各角色命名空间下 `download-url` 返回 URL；项目负责人仅 submitted 状态可上传 / 删除附件，评审负责人和管理员附件只读。

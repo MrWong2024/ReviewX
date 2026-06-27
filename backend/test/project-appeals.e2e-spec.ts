@@ -24,6 +24,7 @@ jest.setTimeout(30000);
 
 type TestUser = {
   id: string;
+  name: string;
   phone: string;
 };
 
@@ -147,6 +148,12 @@ describe('Project appeal APIs (e2e)', () => {
       finalOpinion: '同意通过',
       finalScore: 82,
       finalLevel: 'A',
+      confirmedByUserId: data.reviewManager.id,
+      confirmedByUser: {
+        id: data.reviewManager.id,
+        name: data.reviewManager.name,
+        phone: data.reviewManager.phone,
+      },
       expertReviewStats: {
         expertCount: 2,
         submittedCount: 2,
@@ -807,19 +814,20 @@ describe('Project appeal APIs (e2e)', () => {
 
   async function createUser(phone: string, roles: string[]): Promise<TestUser> {
     const userId = new Types.ObjectId();
+    const name = `User ${phone.slice(-4)}`;
 
     await userModel.create({
       _id: userId,
       phone,
       passwordHash: await hash('correct-password', 4),
-      name: `User ${phone.slice(-4)}`,
+      name,
       roles,
       status: 'active',
       isActive: true,
       mustChangePassword: false,
     });
 
-    return { id: userId.toString(), phone };
+    return { id: userId.toString(), name, phone };
   }
 
   async function login(phone: string): Promise<string> {

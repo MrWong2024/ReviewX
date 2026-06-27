@@ -13,6 +13,7 @@ import { Dictionary } from '../../dictionaries/schemas/dictionary.schema';
 import { ExpertReviewsService } from '../../expert-reviews/services/expert-reviews.service';
 import { ReviewSchemeSnapshot } from '../../expert-reviews/services/expert-reviews.service';
 import { Project } from '../../projects/schemas/project.schema';
+import { User } from '../../users/schemas/user.schema';
 import { ConfirmConsensusReviewDto } from '../dto/confirm-consensus-review.dto';
 import { GenerateConsensusDraftDto } from '../dto/generate-consensus-draft.dto';
 import {
@@ -37,6 +38,7 @@ export type ConsensusReviewResponse = {
   finalLevel?: string;
   originalLevel?: string;
   confirmedByUserId?: string | null;
+  confirmedByUser?: ConsensusUserSummary | null;
   confirmedAt?: Date | null;
   status: ConsensusReviewStatus;
   expertReviewStats: {
@@ -48,6 +50,12 @@ export type ConsensusReviewResponse = {
   };
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type ConsensusUserSummary = {
+  id: string;
+  name: string;
+  phone?: string | null;
 };
 
 type ProjectLean = {
@@ -72,7 +80,7 @@ type ConsensusReviewLean = TimestampFields & {
   finalScore?: number | null;
   finalLevel?: string;
   originalLevel?: string;
-  confirmedByUserId?: Types.ObjectId | null;
+  confirmedByUserId?: Types.ObjectId | string | null;
   confirmedAt?: Date | null;
   status: ConsensusReviewStatus;
   expertReviewStats: {
@@ -89,6 +97,12 @@ type DictionaryLean = {
   name: string;
 };
 
+type UserSummaryLean = {
+  _id: Types.ObjectId;
+  name: string;
+  phone?: string | null;
+};
+
 @Injectable()
 export class ConsensusReviewsService {
   constructor(
@@ -98,6 +112,8 @@ export class ConsensusReviewsService {
     private readonly projectModel: Model<Project>,
     @InjectModel(Dictionary.name)
     private readonly dictionaryModel: Model<Dictionary>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
     private readonly expertReviewsService: ExpertReviewsService,
   ) {}
 
@@ -409,7 +425,13 @@ export class ConsensusReviewsService {
     return this.toResponse(consensus);
   }
 
-  private toResponse(consensus: ConsensusReviewLean): ConsensusReviewResponse {
+  private async toResponse(
+    consensus: ConsensusReviewLean,
+  ): Promise<ConsensusReviewResponse> {
+    const confirmedByUser = await this.getConfirmedByUserSummary(
+      consensus.confirmedByUserId,
+    );
+
     return {
       id: consensus._id.toString(),
       projectId: consensus.projectId.toString(),
@@ -427,11 +449,42 @@ export class ConsensusReviewsService {
       finalLevel: consensus.finalLevel,
       originalLevel: consensus.originalLevel,
       confirmedByUserId: consensus.confirmedByUserId?.toString() ?? null,
+      confirmedByUser,
       confirmedAt: consensus.confirmedAt ?? null,
       status: consensus.status,
       expertReviewStats: consensus.expertReviewStats,
       createdAt: consensus.createdAt,
       updatedAt: consensus.updatedAt,
+    };
+  }
+
+  private async getConfirmedByUserSummary(
+    confirmedByUserId?: Types.ObjectId | string | null,
+  ): Promise<ConsensusUserSummary | null> {
+    if (!confirmedByUserId) {
+      return null;
+    }
+
+    const userId = confirmedByUserId.toString();
+
+    if (!Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findById(userId)
+      .select({ name: 1, phone: 1 })
+      .lean<UserSummaryLean | null>()
+      .exec();
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user._id.toString(),
+      name: user.name,
+      phone: user.phone ?? null,
     };
   }
 

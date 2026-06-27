@@ -29,6 +29,7 @@ import {
 } from '../../storage/storage.constants';
 import { StorageConfigService } from '../../storage/storage-config.service';
 import type { StorageService } from '../../storage/storage.interface';
+import { User } from '../../users/schemas/user.schema';
 import {
   buildAppealObjectKey,
   getLowercaseExtension,
@@ -61,6 +62,8 @@ export type ProjectOwnerConsensusResponse = {
   finalOpinion?: string;
   finalScore?: number | null;
   finalLevel?: string;
+  confirmedByUserId?: string | null;
+  confirmedByUser?: ConsensusUserSummary | null;
   confirmedAt?: Date | null;
   expertReviewStats: {
     expertCount: number;
@@ -69,6 +72,12 @@ export type ProjectOwnerConsensusResponse = {
     minScore?: number | null;
     maxScore?: number | null;
   };
+};
+
+export type ConsensusUserSummary = {
+  id: string;
+  name: string;
+  phone?: string | null;
 };
 
 export type ProjectAppealResponse = {
@@ -162,6 +171,7 @@ type ConsensusReviewLean = TimestampFields & {
   finalOpinion?: string;
   finalScore?: number | null;
   finalLevel?: string;
+  confirmedByUserId?: Types.ObjectId | string | null;
   confirmedAt?: Date | null;
   status: string;
   expertReviewStats: {
@@ -171,6 +181,12 @@ type ConsensusReviewLean = TimestampFields & {
     minScore?: number | null;
     maxScore?: number | null;
   };
+};
+
+type UserSummaryLean = {
+  _id: Types.ObjectId;
+  name: string;
+  phone?: string | null;
 };
 
 type ProjectAppealLean = TimestampFields & {
@@ -250,6 +266,8 @@ export class ProjectAppealsService {
     private readonly consensusReviewModel: Model<ConsensusReview>,
     @InjectModel(Dictionary.name)
     private readonly dictionaryModel: Model<Dictionary>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
     @Inject(STORAGE_SERVICE)
     private readonly storageService: StorageService,
     private readonly storageConfigService: StorageConfigService,
@@ -1212,22 +1230,58 @@ export class ProjectAppealsService {
       ...response,
       consensus:
         consensus && consensus.status === 'confirmed'
-          ? this.toConsensusResponse(consensus)
+          ? await this.toConsensusResponse(consensus)
           : null,
     };
   }
 
-  private toConsensusResponse(
+  private async toConsensusResponse(
     consensus: ConsensusReviewLean,
-  ): ProjectOwnerConsensusResponse {
+  ): Promise<ProjectOwnerConsensusResponse> {
+    const confirmedByUser = await this.getConfirmedByUserSummary(
+      consensus.confirmedByUserId,
+    );
+
     return {
       id: consensus._id.toString(),
       projectId: consensus.projectId.toString(),
       finalOpinion: consensus.finalOpinion,
       finalScore: consensus.finalScore ?? null,
       finalLevel: consensus.finalLevel,
+      confirmedByUserId: consensus.confirmedByUserId?.toString() ?? null,
+      confirmedByUser,
       confirmedAt: consensus.confirmedAt ?? null,
       expertReviewStats: consensus.expertReviewStats,
+    };
+  }
+
+  private async getConfirmedByUserSummary(
+    confirmedByUserId?: Types.ObjectId | string | null,
+  ): Promise<ConsensusUserSummary | null> {
+    if (!confirmedByUserId) {
+      return null;
+    }
+
+    const userId = confirmedByUserId.toString();
+
+    if (!Types.ObjectId.isValid(userId)) {
+      return null;
+    }
+
+    const user = await this.userModel
+      .findById(userId)
+      .select({ name: 1, phone: 1 })
+      .lean<UserSummaryLean | null>()
+      .exec();
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user._id.toString(),
+      name: user.name,
+      phone: user.phone ?? null,
     };
   }
 

@@ -96,7 +96,7 @@
 | `ReviewManagerExpertReviewDetailModal` | `frontend/src/features/review-manager/components/ReviewManagerExpertReviewDetailModal.tsx` | 专家评分详情弹窗，展示专家信息、评分方案快照、评分项明细、退回原因和 not_started 空态；评分项“重大问题”在标题行以紧凑 Badge 展示，评价描述和改进建议保留大宽度正文 |
 | `ReturnExpertReviewModal` | `frontend/src/features/review-manager/components/ReturnExpertReviewModal.tsx` | 退回专家评分弹窗，校验 1-1000 字退回原因，提交前二次确认，提交中禁用重复操作 |
 | `ReviewSummaryPanel` | `frontend/src/features/review-manager/components/ReviewSummaryPanel.tsx` | 专家评分汇总面板，只读展示专家数量统计、平均分 / 最高分 / 最低分和各评分项平均分 |
-| `ConsensusReviewPanel` | `frontend/src/features/review-manager/components/ConsensusReviewPanel.tsx` | 合议草稿与最终确认面板，处理 404 空态、rule_based 草稿生成、draft force 覆盖确认、confirmed 重新确认提示和最终确认表单；确认提交只发送 `finalOpinion/finalScore/finalLevel`，“使用草稿填入”仅填充表单，不再显示 `useDraftAsBase` 复选框 |
+| `ConsensusReviewPanel` | `frontend/src/features/review-manager/components/ConsensusReviewPanel.tsx` | 合议草稿与最终确认面板，处理 404 空态、rule_based 草稿生成、draft force 覆盖确认、confirmed 重新确认提示和最终确认表单；确认提交只发送 `finalOpinion/finalScore/finalLevel`，“使用草稿填入”仅填充表单，不再显示 `useDraftAsBase` 复选框；确认人显示优先使用 `confirmedByUser.name`，有手机号显示“姓名（手机号）”，摘要缺失但有 `confirmedByUserId` 时显示“确认人信息暂不可用”，不显示短 ID |
 | `AppealStatusBadge` | `frontend/src/components/project-appeals/AppealStatusBadge.tsx` | 申诉状态标签，按后端 `submitted/processing/accepted/rejected/canceled` 状态展示 |
 | `AppealListPanel` | `frontend/src/components/project-appeals/AppealListPanel.tsx` | 通用项目申诉列表组件，展示申诉状态、等级变化、附件数、处理意见和详情入口；详情链接由调用方传入 |
 | `AppealDetailPanel` | `frontend/src/components/project-appeals/AppealDetailPanel.tsx` | 通用申诉详情组件，展示申诉说明、处理结果、等级变化和关联合议摘要；project-owner 可传入独立 confirmed 合议摘要 |

@@ -99,6 +99,7 @@
 | `PortalReviewSchemeSummary` | `id`、`name`、`totalScore`、`isActive` | 门户评审方案展示摘要 | 是 | 否 | 不返回完整评分项；专家评分仍应使用项目 `reviewSchemeSnapshot` |
 | `PortalUserSummary` | `id`、`name`、`phone`、`roles`、`organizationIds`、`disciplineIds`、`isActive` | 门户业务用户展示摘要 | 是 | 否 | 仅允许查询 `review_manager/expert/project_owner`，结果排除 `admin` 用户；不含密码、改密、session/token 字段 |
 | `ProjectOwnerUserSummary` | `id`、`name`、`phone?` | project-owner 项目响应中的评审负责人摘要 | 是 | 否 | `ProjectPortalResponse.reviewManager` 使用；只返回展示必要字段，不返回 `roles/passwordHash/mustChangePassword/session/token`；负责人用户不存在时为 `null` |
+| `ConsensusUserSummary` | `id`、`name`、`phone?` | 合议响应中的确认人摘要 | 是 | 否 | `ConsensusReviewResponse.confirmedByUser` 和 `ProjectOwnerConsensusResponse.confirmedByUser` 使用；确认人用户不可解析时为 `null`，不返回密码、完整角色权限、改密状态、session/token |
 | `PortalListResponse<T>` | `items: T[]` | 门户参考数据列表包装结构 | 是 | 否 | `/portal/reference-data/*` 统一非分页 `{ items }` |
 | `AuthIdentity` | `id`、`phone`、`passwordHash`、`roles`、`isActive`、`status` | auth 内部身份类型 | 否 | 否 | 仅供认证流程内部使用 |
 | `PublicSession` | `id`、`userId`、`expiresAt`、`revokedAt`、`lastSeenAt`、`userAgent`、`ip`、`createdAt`、`updatedAt` | 公开 session 返回类型 | 后续如暴露 API 再确认 | 否 | 不包含 `token` |
@@ -153,7 +154,7 @@
 | 材料提交 | `{ submittedCount, alreadySubmittedCount, skippedCount, submittedMaterialIds, skipped }` | 不返回 OSS AccessKey 或文件内容 | `POST /project-owner/projects/:id/materials/submit` 返回；未传或空 `materialIds` 表示提交全部 draft/active |
 | 项目负责人材料删除 | `{ deleted, alreadyDeleted?, deletionLogId? }` | 不返回 OSS AccessKey 或文件内容 | 仅 `draft/legacy active` 可删除；先删 storage object，成功后写 `project_material_deletion_logs` 并物理删除 `project_materials` 主记录；`submitted` 返回 `409`；项目负责人内容锁定时返回 `409 PROJECT_OWNER_CONTENT_LOCKED`；不再返回 `alreadyDeleted=true` |
 | admin 材料删除 | `{ deleted: true, deletionLogId }` | 不返回 OSS AccessKey 或文件内容 | `reason` 必填；可删除 `draft/submitted/legacy active`；删除成功后保留材料快照审计日志 |
-| 项目负责人 confirmed 合议结果 | `ProjectOwnerConsensusResponse` | 不返回未确认草稿、不返回用户密码或 session token | 只返回 `ConsensusReview.status=confirmed` 的 `finalOpinion/finalScore/finalLevel/confirmedAt/expertReviewStats` |
+| 项目负责人 confirmed 合议结果 | `ProjectOwnerConsensusResponse` | 不返回未确认草稿、不返回用户密码或 session token | 只返回 `ConsensusReview.status=confirmed` 的 `finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedByUser/confirmedAt/expertReviewStats`；`confirmedByUser` 为 `{ id, name, phone? } | null`，用户不可解析时不抛错 |
 | 申诉列表/详情 | `ProjectAppealResponse` / `ProjectAppealDetailResponse` | 不返回文件内容、OSS AccessKey 或 session token | 包含 `appealNo/status/reason/handlingOpinion/causedLevelChange/levelBeforeAppeal/levelAfterHandling/attachmentCount`；负责人/管理员详情额外含 confirmed 合议摘要 |
 | 申诉附件列表 | `ProjectAppealAttachmentResponse[]` | 不返回文件内容、OSS AccessKey 或持久化 URL | 只返回 active 附件；字段含 objectKey、bucket、storageDriver、文件名、MIME、扩展名、大小、sha256、remark、status |
 | 申诉附件上传 | `{ attachments, successCount, failedCount, failures }` | 不返回文件内容或 OSS AccessKey | 多文件允许部分成功；全部失败时按错误返回；数据库只保存文件引用和元数据 |

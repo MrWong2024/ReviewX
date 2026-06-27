@@ -11,6 +11,7 @@ import {
 } from '../dictionaries/schemas/dictionary.schema';
 import { Project, ProjectSchema } from '../projects/schemas/project.schema';
 import { StorageModule } from '../storage/storage.module';
+import { User, UserSchema } from '../users/schemas/user.schema';
 import { AdminAppealsController } from './controllers/admin-appeals.controller';
 import { ProjectOwnerAppealsController } from './controllers/project-owner-appeals.controller';
 import { ReviewManagerAppealsController } from './controllers/review-manager-appeals.controller';
@@ -42,6 +43,7 @@ import { ProjectAppealsService } from './services/project-appeals.service';
       { name: Project.name, schema: ProjectSchema },
       { name: ConsensusReview.name, schema: ConsensusReviewSchema },
       { name: Dictionary.name, schema: DictionarySchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [
