@@ -84,6 +84,17 @@
   - `code`: `PROJECT_OWNER_CONTENT_LOCKED`
 - 该错误仅影响 `PATCH /project-owner/projects/:id/follow-up-needs`、`POST /project-owner/projects/:id/materials`、`POST /project-owner/projects/:id/materials/submit`、`DELETE /project-owner/projects/:id/materials/:materialId`；项目详情、材料列表、材料下载 URL、评审结果、申诉和申诉附件接口不使用该锁定错误。
 
+## 3.3 confirmed 合议不可覆盖错误
+
+- 本次不新增请求 DTO、响应 DTO、schema 字段或数据库迁移。
+- `ConfirmConsensusReviewDto` 仍只包含 `finalOpinion`、`finalScore`、`finalLevel`，未恢复 `useDraftAsBase`，也不新增更正原因字段。
+- 当项目已有 `ConsensusReview.status=confirmed` 时，review-manager 和 admin 的 confirm 接口统一返回 `409 Conflict`。
+- 错误码：`CONSENSUS_ALREADY_CONFIRMED`。
+- 响应字段：
+  - `message`: 固定为“最终合议结论已确认，不能在合议页重新覆盖。如需调整，请通过申诉处理或后续更正流程办理。”
+  - `code`: `CONSENSUS_ALREADY_CONFIRMED`
+- 该错误发生时不更新 `consensus_reviews.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt`，不更新 `projects.finalLevel/originalLevel`；draft 或无合议记录的首次确认流程不变。
+
 ## 4. 类型 / 状态
 
 | 名称           | 可选值 / 字段                                                                     | 含义              | 是否对前端暴露        | 是否可持久化 | 备注                       |

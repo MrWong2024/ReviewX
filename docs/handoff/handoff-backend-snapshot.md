@@ -17,7 +17,7 @@
 - 项目材料：已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL、材料提交、物理删除和删除审计；新上传材料默认 `draft`，项目负责人提交后进入 `submitted`，legacy `active` 按草稿兼容。
 - 材料可见性：项目负责人 / admin 可见 `draft/submitted/legacy active`，评审负责人 / 专家只可见 `submitted`；项目负责人只能物理删除 `draft/legacy active`，`submitted` 返回 `409`；admin 删除材料必须填写原因并保留删除审计。
 - 门户参考数据：已实现 `/portal/reference-data/*` 只读接口，允许 `project_owner/expert/review_manager/client/admin` 登录读取展示型最小摘要；用户摘要仅允许 `review_manager/expert/project_owner`，禁止查询 admin 用户。
-- 专家评分与合议：已实现已分配专家评分任务、草稿 / 提交、本人 draft 草稿删除、提交评分评审时间窗口校验、评审负责人查看 / 退回、评分汇总、`rule_based` 合议草稿和人工确认合议；确认合议会写 `ConsensusReview` 与 `Project.finalLevel/originalLevel`。
+- 专家评分与合议：已实现已分配专家评分任务、草稿 / 提交、本人 draft 草稿删除、提交评分评审时间窗口校验、评审负责人查看 / 退回、评分汇总、`rule_based` 合议草稿和人工确认合议；首次确认会写 `ConsensusReview` 与 `Project.finalLevel/originalLevel`，已 confirmed 合议再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖最终结论。
 - 合议响应已补确认人摘要：`ConsensusReviewResponse`、`ProjectOwnerConsensusResponse` 和申诉详情里的关联合议摘要可返回 `confirmedByUser?: { id, name, phone? } | null`；只读查询 `users.name/phone`，不返回密码、完整角色权限、改密状态、session/token；确认人用户不可解析时为 `null` 且接口不失败。
 - 项目申诉：已实现项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传 / 列表 / 下载 URL / 软删除、评审负责人 / 管理员查看和处理申诉、申诉导致等级变化时写等级变更日志。
 - 申诉创建前提：必须已有 confirmed 合议，必须存在有效最终等级，同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交。
@@ -230,6 +230,7 @@ backend/
 - 当前 `ConsensusReview.status` 取值：`draft/confirmed/reopened`；`reopened` 仅预留，当前阶段不使用
 - 当前合议草稿只实现 `draftSource=rule_based` 规则聚合：平均 submitted 专家总分作为 `draftScore`，拼接专家评价描述、改进建议和重大问题提示作为 `draftOpinion`；不调用真实 AI 或外部大模型
 - 当前人工确认合议会写 `ConsensusReview.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt/status=confirmed`，并写 `Project.finalLevel`；`Project.originalLevel` 为空时同步写入；不修改 `Project.reviewSchemeSnapshot`
+- 当前已有 `ConsensusReview.status=confirmed` 时，review-manager 和 admin 的 confirm 接口都返回 `409 CONSENSUS_ALREADY_CONFIRMED`，不更新 `ConsensusReview.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt`，也不更新 `Project.finalLevel/originalLevel`；后续调整应通过申诉处理或未来专门更正流程。
 - 当前合议响应 mapper 会根据 `confirmedByUserId` 只读查询确认人最小摘要 `confirmedByUser={ id, name, phone? }`；`confirmedByUserId` 为空或用户不存在 / 不可解析时返回 `confirmedByUser=null`，不影响合议详情、确认成功响应、管理员合议查看、项目负责人 confirmed 合议和申诉详情关联合议摘要。
 - 当前 `finalLevel` 优先校验启用的普通字典 `dictType=review_level` 的 `code` 或 `name`；若该字典为空，允许字符串 `A/B/C/D` 兜底；本阶段不自动创建 `review_level` 字典
 - 当前已创建 `project_appeals` 集合，用于记录项目负责人每一次申诉，字段包括 `projectId`、`appealNo`、`submittedByUserId`、`reason`、`status`、`relatedConsensusReviewId`、`levelBeforeAppeal`、`levelAfterHandling`、`handledByUserId`、`handlingOpinion`、`handledAt`、`causedLevelChange` 和 timestamps
@@ -307,7 +308,7 @@ backend/
 - 已包含 `src/modules/project-materials/services/project-materials.service.spec.ts`，用于验证项目材料上传会规范化 mojibake 中文文件名、正常中文和英文不被破坏、`safeFilename` / objectKey 基于规范化文件名生成、多文件 failures 返回规范化后的 `originalFilename`，以及 draft/submitted 状态机、角色可见性、提交统计、物理删除、删除审计、storage 删除失败保护、project-owner 项目响应评审负责人摘要和 `PROJECT_OWNER_CONTENT_LOCKED` 写操作拦截
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复、project-owner 项目响应评审负责人摘要、confirmed 合议 / `finalLevel` 后 project-owner 写操作锁定且读取 / 下载仍可用，以及既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
-- 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、人工确认、`finalLevel` 字典/兜底校验、管理员兜底查看、Project 等级写入、确认响应含 `confirmedByUser.name/phone`，以及确认人用户不可解析时 `confirmedByUser=null` 且接口不失败
+- 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、draft 首次确认、已 confirmed 再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖合议 / 项目等级 / 确认人 / 确认时间、管理员兜底查看、Project 等级写入、确认响应含 `confirmedByUser.name/phone`，以及确认人用户不可解析时 `confirmedByUser=null` 且接口不失败
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回

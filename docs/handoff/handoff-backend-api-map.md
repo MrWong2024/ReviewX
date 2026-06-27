@@ -110,9 +110,9 @@
 | expert-reviews | `GET` | `/admin/projects/:id/review-summary` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ReviewSummaryResponse` | implemented | admin 可查看任意项目评分汇总 |
 | consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/draft` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | query `force` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；基于 submitted 专家评分生成 `rule_based` 草稿；无 submitted 返回 `409`；已有 draft 默认 `409`，`force=true` 可覆盖；confirmed 后不可覆盖；响应含 `confirmedByUser?: { id, name, phone? } | null` |
 | consensus-reviews | `GET` | `/review-manager/projects/:id/consensus` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；未生成返回 `404`；confirmed 记录响应补充 `confirmedByUser` 摘要，确认人用户不可解析时为 `null` |
-| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/confirm` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；请求仅含 `finalOpinion/finalScore/finalLevel`；写 ConsensusReview 和 Project 等级字段；成功响应含确认人 `confirmedByUser` 摘要 |
+| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/confirm` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；请求仅含 `finalOpinion/finalScore/finalLevel`；未确认记录可写 ConsensusReview 和 Project 等级字段；已有 confirmed 记录返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖最终结论、确认人、确认时间或项目等级；成功响应含确认人 `confirmedByUser` 摘要 |
 | consensus-reviews | `GET` | `/admin/projects/:id/consensus` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ConsensusReviewResponse` | implemented | admin 可查看任意项目合议记录；响应含 `confirmedByUser` 摘要，不返回密码或权限字段 |
-| consensus-reviews | `POST` | `/admin/projects/:id/consensus/confirm` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | admin 可兜底确认任意项目合议；成功响应含确认人 `confirmedByUser` 摘要 |
+| consensus-reviews | `POST` | `/admin/projects/:id/consensus/confirm` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | admin 可兜底确认任意未确认项目合议；已有 confirmed 记录同样返回 `409 CONSENSUS_ALREADY_CONFIRMED`，不能绕过合议页不可覆盖规则；成功响应含确认人 `confirmedByUser` 摘要 |
 | project-appeals | `GET` | `/project-owner/projects/:id/consensus` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectOwnerConsensusResponse` | implemented | 项目负责人只能查看本人项目 `status=confirmed` 的正式合议结果；未 confirmed 返回 `404`；响应兼容 `confirmedByUserId` 和 `confirmedByUser` 摘要 |
 | project-appeals | `GET` | `/project-owner/projects/:id/level-history` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | 项目负责人查看本人项目等级变更历史；无日志返回空数组 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectAppealResponse[]` | implemented | 本人项目、本用户提交的申诉列表；单项目最多 3 条，按 `appealNo` 升序 |
@@ -186,7 +186,15 @@
 - `ConsensusReviewResponse` 和 `ProjectOwnerConsensusResponse` 兼容返回 `confirmedByUser?: { id, name, phone? } | null`；`confirmedByUserId` 保留向后兼容。
 - `confirmedByUserId` 存在且用户可查到时，只返回确认人 `id/name/phone` 最小摘要，不返回密码、完整角色权限、改密状态、session/token 等敏感字段。
 - `confirmedByUserId` 不存在时 `confirmedByUser` 为 `null`；存在但用户已删除或不可解析时，接口不失败，`confirmedByUser` 仍为 `null`。
-- 本小修只调整合议响应展示契约，不修改 `consensus_reviews` schema、合议算法、确认写入逻辑、申诉规则、专家评分、材料锁定或专家分配锁定。
+- 本小修只调整合议响应展示契约，不修改 `consensus_reviews` schema、合议算法、申诉规则、专家评分、材料锁定或专家分配锁定；确认后的不可覆盖约束见 3.5。
+
+## 3.5 confirmed 合议不可覆盖口径
+
+- `POST /review-manager/projects/:id/consensus/confirm` 和 `POST /admin/projects/:id/consensus/confirm` 在已有 `ConsensusReview.status=confirmed` 时返回 `409 Conflict`。
+- 错误码：`CONSENSUS_ALREADY_CONFIRMED`；错误消息：`最终合议结论已确认，不能在合议页重新覆盖。如需调整，请通过申诉处理或后续更正流程办理。`
+- 返回 409 时不更新 `consensus_reviews.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt`，也不更新 `projects.finalLevel/originalLevel`。
+- draft 或无合议记录时的首次确认流程不变；确认成功仍写项目最终等级，`Project.originalLevel` 为空时同步写入。
+- 本小修未修改合议草稿生成规则、合议算法、申诉规则、等级变更日志规则、专家评分、材料锁定或专家分配锁定；后续如需录入错误更正，应另行设计专门更正流程。
 
 ## 4. 列表返回结构口径
 

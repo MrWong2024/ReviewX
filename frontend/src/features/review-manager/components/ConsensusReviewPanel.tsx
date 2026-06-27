@@ -162,13 +162,6 @@ export function ConsensusReviewPanel({
       return;
     }
 
-    if (
-      isConfirmed &&
-      !window.confirm('本操作会覆盖当前最终合议结论，确认重新提交吗？')
-    ) {
-      return;
-    }
-
     setFormError(null);
     await onConfirm({
       finalLevel,
@@ -207,7 +200,13 @@ export function ConsensusReviewPanel({
         {loading ? (
           <LoadingState text="正在加载合议记录..." />
         ) : (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]">
+          <div
+            className={
+              isConfirmed
+                ? 'grid gap-5'
+                : 'grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(380px,1.05fr)]'
+            }
+          >
             <div className="grid gap-4">
               {consensus ? (
                 <ConsensusSnapshot
@@ -221,100 +220,96 @@ export function ConsensusReviewPanel({
               )}
 
               {isConfirmed ? (
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-                  重新确认会覆盖当前最终结论。
-                </div>
-              ) : null}
-
-              {consensus?.status === 'confirmed' ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-6 text-slate-500">
-                  已确认的合议不提供覆盖草稿入口；如需调整，请在右侧重新确认最终意见、最终分数和最终等级。
+                <div className="rounded-xl border border-cyan-200 bg-cyan-50/80 px-4 py-3 text-sm font-semibold leading-6 text-cyan-800">
+                  最终合议结论已确认。如项目负责人提出异议，请通过申诉流程处理；如需更正录入错误，应走后续专门更正流程。
                 </div>
               ) : null}
             </div>
 
-            <form
-              className="rounded-xl border border-slate-200 bg-white/90 p-4"
-              onSubmit={handleConfirm}
-            >
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="m-0 text-base font-black text-slate-950">
-                    人工确认合议
-                  </h3>
-                  <p className="mt-1 text-sm leading-6 text-slate-500">
-                    最终分数范围：
-                    {resolvedTotalScore === null
-                      ? '暂未获取评分方案总分，提交失败时以后端错误为准'
-                      : `0-${formatScore(resolvedTotalScore)}`}
-                  </p>
+            {!isConfirmed ? (
+              <form
+                className="rounded-xl border border-slate-200 bg-white/90 p-4"
+                onSubmit={handleConfirm}
+              >
+                <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="m-0 text-base font-black text-slate-950">
+                      人工确认合议
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      最终分数范围：
+                      {resolvedTotalScore === null
+                        ? '暂未获取评分方案总分，提交失败时以后端错误为准'
+                        : `0-${formatScore(resolvedTotalScore)}`}
+                    </p>
+                  </div>
+                  {consensus &&
+                  (Boolean(consensus.draftOpinion) ||
+                    (consensus.draftScore !== undefined &&
+                      consensus.draftScore !== null)) ? (
+                    <Button
+                      disabled={!consensus}
+                      onClick={fillFromDraft}
+                      size="sm"
+                      variant="secondary"
+                    >
+                      使用草稿填入
+                    </Button>
+                  ) : null}
                 </div>
-                {consensus &&
-                (Boolean(consensus.draftOpinion) ||
-                  (consensus.draftScore !== undefined &&
-                    consensus.draftScore !== null)) ? (
-                  <Button
-                    disabled={!consensus}
-                    onClick={fillFromDraft}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    使用草稿填入
-                  </Button>
-                ) : null}
-              </div>
 
-              <div className="grid gap-4">
-                <Textarea
-                  description={`必填，1-${FINAL_OPINION_MAX_LENGTH} 字。`}
-                  id="consensus-final-opinion"
-                  label="最终合议意见"
-                  onChange={(event) =>
-                    setForm({ ...form, finalOpinion: event.target.value })
-                  }
-                  rows={8}
-                  value={form.finalOpinion}
-                />
-                <div className="text-right text-xs font-semibold text-slate-400">
-                  {form.finalOpinion.trim().length} / {FINAL_OPINION_MAX_LENGTH}
+                <div className="grid gap-4">
+                  <Textarea
+                    description={`必填，1-${FINAL_OPINION_MAX_LENGTH} 字。`}
+                    id="consensus-final-opinion"
+                    label="最终合议意见"
+                    onChange={(event) =>
+                      setForm({ ...form, finalOpinion: event.target.value })
+                    }
+                    rows={8}
+                    value={form.finalOpinion}
+                  />
+                  <div className="text-right text-xs font-semibold text-slate-400">
+                    {form.finalOpinion.trim().length} /{' '}
+                    {FINAL_OPINION_MAX_LENGTH}
+                  </div>
+                  <Input
+                    id="consensus-final-score"
+                    label="最终合议分数"
+                    min={0}
+                    onChange={(event) =>
+                      setForm({ ...form, finalScore: event.target.value })
+                    }
+                    step="0.01"
+                    type="number"
+                    value={form.finalScore}
+                  />
+                  <Select
+                    id="consensus-final-level"
+                    label="最终等级"
+                    onChange={(event) =>
+                      setForm({ ...form, finalLevel: event.target.value })
+                    }
+                    value={form.finalLevel}
+                  >
+                    <option value="">请选择</option>
+                    {levelOptions.map((level) => (
+                      <option
+                        key={`${level.id}-${level.code}`}
+                        value={level.code}
+                      >
+                        {level.name}
+                        {level.code !== level.name ? `（${level.code}）` : ''}
+                      </option>
+                    ))}
+                  </Select>
+                  <ErrorAlert message={formError} />
+                  <Button disabled={confirming} type="submit" variant="primary">
+                    {confirming ? '正在提交...' : '确认最终合议'}
+                  </Button>
                 </div>
-                <Input
-                  id="consensus-final-score"
-                  label="最终合议分数"
-                  min={0}
-                  onChange={(event) =>
-                    setForm({ ...form, finalScore: event.target.value })
-                  }
-                  step="0.01"
-                  type="number"
-                  value={form.finalScore}
-                />
-                <Select
-                  id="consensus-final-level"
-                  label="最终等级"
-                  onChange={(event) =>
-                    setForm({ ...form, finalLevel: event.target.value })
-                  }
-                  value={form.finalLevel}
-                >
-                  <option value="">请选择</option>
-                  {levelOptions.map((level) => (
-                    <option key={`${level.id}-${level.code}`} value={level.code}>
-                      {level.name}
-                      {level.code !== level.name ? `（${level.code}）` : ''}
-                    </option>
-                  ))}
-                </Select>
-                <ErrorAlert message={formError} />
-                <Button disabled={confirming} type="submit" variant="primary">
-                  {confirming
-                    ? '正在提交...'
-                    : isConfirmed
-                      ? '重新确认最终结论'
-                      : '确认最终合议'}
-                </Button>
-              </div>
-            </form>
+              </form>
+            ) : null}
           </div>
         )}
       </div>

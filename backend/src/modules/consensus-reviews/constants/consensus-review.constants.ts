@@ -11,3 +11,8 @@ export const CONSENSUS_DRAFT_SOURCES = ['rule_based', 'manual', 'ai'] as const;
 export type ConsensusDraftSource = (typeof CONSENSUS_DRAFT_SOURCES)[number];
 
 export const REVIEW_LEVEL_DICT_TYPE = 'review_level';
+
+export const CONSENSUS_ALREADY_CONFIRMED_CODE = 'CONSENSUS_ALREADY_CONFIRMED';
+
+export const CONSENSUS_ALREADY_CONFIRMED_MESSAGE =
+  '最终合议结论已确认，不能在合议页重新覆盖。如需调整，请通过申诉处理或后续更正流程办理。';

@@ -105,6 +105,7 @@ frontend/
 - `/review-manager/projects` 只看当前评审负责人负责项目；admin 全局项目视角保留在 `/admin`。
 - 项目总览、评审组织、合议、申诉处理是独立能力：评审组织页处理评审安排、submitted 材料只读和专家分配；合议页处理专家评分、退回、汇总、`rule_based` 草稿和最终确认；申诉页只调用 review-manager 命名空间。
 - 专家分配在评审时间已到、已有专家评分、已有合议或已有最终等级 / 最终结论后由后端锁定，前端展示 `EXPERT_ASSIGNMENT_LOCKED` 原因并禁用 mutation。
+- 合议页 confirmed 状态只读展示最终结论，不显示确认表单、“使用草稿填入”或“重新确认最终结论”；旧状态或并发导致 confirm 返回 `CONSENSUS_ALREADY_CONFIRMED` 时展示后端业务 message 并重新拉取 consensus。
 - 合议页“确认人”显示优先使用后端 `confirmedByUser.name` 摘要，有手机号时显示“姓名（手机号）”；若只有 `confirmedByUserId` 但摘要不可用，显示“确认人信息暂不可用”；无 `confirmedByUserId` 显示“-”；业务页面不再显示确认人短 ObjectId。
 
 ## 7. 当前未实现
@@ -129,6 +130,7 @@ frontend/
 - 评审结果确认后项目负责人端后续推进需求和项目材料管理必须保持只读锁定；锁定不影响项目详情读取、材料下载、评审结果与申诉、申诉附件上传 / 删除。
 - 评审负责人当前无 `GET /review-manager/projects/:projectId/level-history`，前端不得伪造或调用该接口；等级历史在 project-owner 和 admin 侧读取。
 - 合议响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`；项目负责人评审结果页当前不新增确认人 UI，但不得显示 `confirmedByUserId` 或短 ID。
+- confirmed 合议不可在评审负责人合议页重新覆盖；后续最终等级调整走申诉处理或未来专门更正流程，不在前端新增更正入口。
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`，当前不接腾讯会议 API、直播、推流或回看。
 - 文件下载只打开后端 `download-url` 返回 URL，不前端拼接 OSS objectKey。
 

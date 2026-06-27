@@ -17,6 +17,8 @@ import { User } from '../../users/schemas/user.schema';
 import { ConfirmConsensusReviewDto } from '../dto/confirm-consensus-review.dto';
 import { GenerateConsensusDraftDto } from '../dto/generate-consensus-draft.dto';
 import {
+  CONSENSUS_ALREADY_CONFIRMED_CODE,
+  CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
   REVIEW_LEVEL_DICT_TYPE,
   ConsensusDraftSource,
   ConsensusReviewStatus,
@@ -239,6 +241,15 @@ export class ConsensusReviewsService {
     dto: ConfirmConsensusReviewDto,
     currentUser: AuthenticatedUser,
   ): Promise<ConsensusReviewResponse> {
+    const existing = await this.findConsensus(project._id);
+
+    if (existing?.status === 'confirmed') {
+      throw new ConflictException({
+        message: CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
+        code: CONSENSUS_ALREADY_CONFIRMED_CODE,
+      });
+    }
+
     const snapshot = this.getProjectSnapshot(project);
     const submittedReviews =
       await this.expertReviewsService.getSubmittedReviewsForConsensus(
@@ -260,7 +271,6 @@ export class ConsensusReviewsService {
       await this.expertReviewsService.calculateReviewSummaryByObjectId(
         project._id,
       );
-    const existing = await this.findConsensus(project._id);
     const confirmedAt = new Date();
     const update = {
       projectId: project._id,

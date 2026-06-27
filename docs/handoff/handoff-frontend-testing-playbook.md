@@ -122,6 +122,18 @@ npm run build
 
 注意：合议响应兼容 `confirmedByUser?: { id, name, phone? } | null`；评审负责人合议页“确认人”优先显示姓名，有手机号时显示“姓名（手机号）”，确认人摘要不可用时显示“确认人信息暂不可用”，不得显示“用户（短ID）”或 ObjectId。
 
+本次 ReviewX 第七阶段小修：确认后的合议结论不可在合议页重新覆盖已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：confirmed 合议在评审负责人合议页只读展示最终结论，不显示“重新确认最终结论”、确认表单或“使用草稿填入”；后端 `POST /review-manager/projects/:id/consensus/confirm` 和 admin 兜底确认对已 confirmed 合议返回 `409 CONSENSUS_ALREADY_CONFIRMED`，不覆盖合议最终意见 / 分数 / 等级、项目最终等级、确认人或确认时间。后续调整走申诉处理或未来专门更正流程。
+
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
 - `npm run lint`
@@ -854,10 +866,13 @@ Workspace 和守卫：
 10. 提交调用 `POST /review-manager/projects/:projectId/consensus/confirm`
 11. Network 请求 body 只包含 `finalOpinion/finalScore/finalLevel`，不得包含 `useDraftAsBase`
 12. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
-13. 已 confirmed 后再次提交前必须二次确认，并提示会覆盖当前最终合议结论
-14. 已 confirmed 记录中的“确认人”应显示确认人姓名；后端返回手机号时显示“姓名（手机号）”
-15. 如可模拟 `confirmedByUserId` 对应用户不存在，页面应正常打开并显示“确认人信息暂不可用”
-16. “确认人”不得显示“用户（短ID）”、原始 ObjectId、unknown user 或 `confirmedByUserId` 原始值
+13. 首次提交成功后重新加载 consensus 和项目摘要，页面进入 confirmed 只读状态
+14. 已 confirmed 后页面不显示“重新确认最终结论”按钮，不显示 finalOpinion textarea、finalScore input、finalLevel select，不显示“使用草稿填入”
+15. 已 confirmed 页面显示只读说明：“最终合议结论已确认。如项目负责人提出异议，请通过申诉流程处理；如需更正录入错误，应走后续专门更正流程。”
+16. 旧页面状态、并发或手工请求导致 `POST /consensus/confirm` 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 时，页面展示后端业务 message 并重新拉取 consensus
+17. 已 confirmed 记录中的“确认人”应显示确认人姓名；后端返回手机号时显示“姓名（手机号）”
+18. 如可模拟 `confirmedByUserId` 对应用户不存在，页面应正常打开并显示“确认人信息暂不可用”
+19. “确认人”不得显示“用户（短ID）”、原始 ObjectId、unknown user 或 `confirmedByUserId` 原始值
 
 回归边界：
 

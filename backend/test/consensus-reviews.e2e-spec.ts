@@ -8,6 +8,10 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import {
+  CONSENSUS_ALREADY_CONFIRMED_CODE,
+  CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
+} from '../src/modules/consensus-reviews/constants/consensus-review.constants';
 import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
@@ -136,7 +140,7 @@ describe('Consensus review APIs (e2e)', () => {
       .expect(201);
   });
 
-  it('confirms consensus, validates levels, and exposes admin fallback view', async () => {
+  it('confirms draft consensus, blocks confirmed overwrite, and exposes admin fallback view', async () => {
     const data = await seedData();
     await seedSubmittedReview(data);
     const managerCookie = await login(data.reviewManager.phone);
@@ -151,6 +155,11 @@ describe('Consensus review APIs (e2e)', () => {
         finalLevel: 'A',
       })
       .expect(400);
+
+    await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
+      .set('Cookie', managerCookie)
+      .expect(201);
 
     const confirmResponse = await request(httpServer)
       .post(`/review-manager/projects/${data.project.id}/consensus/confirm`)
@@ -179,11 +188,75 @@ describe('Consensus review APIs (e2e)', () => {
       .exec();
     expect(project).toMatchObject({ finalLevel: 'A', originalLevel: 'A' });
 
+    const consensusBeforeRepeat = await consensusReviewModel
+      .findOne({ projectId: new Types.ObjectId(data.project.id) })
+      .lean<{
+        confirmedAt?: Date | null;
+        confirmedByUserId?: Types.ObjectId | null;
+        finalLevel?: string;
+        finalOpinion?: string;
+        finalScore?: number | null;
+      } | null>()
+      .exec();
+    expect(consensusBeforeRepeat).toMatchObject({
+      finalOpinion: '同意通过',
+      finalScore: 82,
+      finalLevel: 'A',
+    });
+    const confirmedByUserIdBefore =
+      consensusBeforeRepeat?.confirmedByUserId?.toString();
+    const confirmedAtBefore = consensusBeforeRepeat?.confirmedAt?.toISOString();
+
     await request(httpServer)
       .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
       .query({ force: 'true' })
       .set('Cookie', managerCookie)
       .expect(409);
+
+    const repeatConfirmResponse = await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/consensus/confirm`)
+      .set('Cookie', managerCookie)
+      .send({
+        finalOpinion: '尝试覆盖',
+        finalScore: 66,
+        finalLevel: 'B',
+      })
+      .expect(409);
+    expect(getJsonBody(repeatConfirmResponse)).toMatchObject({
+      code: CONSENSUS_ALREADY_CONFIRMED_CODE,
+      message: CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
+    });
+
+    const consensusAfterRepeat = await consensusReviewModel
+      .findOne({ projectId: new Types.ObjectId(data.project.id) })
+      .lean<{
+        confirmedAt?: Date | null;
+        confirmedByUserId?: Types.ObjectId | null;
+        finalLevel?: string;
+        finalOpinion?: string;
+        finalScore?: number | null;
+      } | null>()
+      .exec();
+    expect(consensusAfterRepeat).toMatchObject({
+      finalOpinion: '同意通过',
+      finalScore: 82,
+      finalLevel: 'A',
+    });
+    expect(consensusAfterRepeat?.confirmedByUserId?.toString()).toBe(
+      confirmedByUserIdBefore,
+    );
+    expect(consensusAfterRepeat?.confirmedAt?.toISOString()).toBe(
+      confirmedAtBefore,
+    );
+
+    const projectAfterRepeat = await projectModel
+      .findById(data.project.id)
+      .lean<Project | null>()
+      .exec();
+    expect(projectAfterRepeat).toMatchObject({
+      finalLevel: 'A',
+      originalLevel: 'A',
+    });
 
     await dictionaryModel.create({
       dictType: 'review_level',
@@ -193,17 +266,7 @@ describe('Consensus review APIs (e2e)', () => {
       isActive: true,
     });
 
-    await request(httpServer)
-      .post(`/admin/projects/${data.project.id}/consensus/confirm`)
-      .set('Cookie', adminCookie)
-      .send({
-        finalOpinion: '管理员修正',
-        finalScore: 85,
-        finalLevel: 'A',
-      })
-      .expect(400);
-
-    const adminConfirmResponse = await request(httpServer)
+    const adminRepeatConfirmResponse = await request(httpServer)
       .post(`/admin/projects/${data.project.id}/consensus/confirm`)
       .set('Cookie', adminCookie)
       .send({
@@ -211,14 +274,10 @@ describe('Consensus review APIs (e2e)', () => {
         finalScore: 85,
         finalLevel: 'excellent',
       })
-      .expect(201);
-    expect(getJsonBody(adminConfirmResponse)).toMatchObject({
-      confirmedByUserId: data.admin.id,
-      confirmedByUser: {
-        id: data.admin.id,
-        name: data.admin.name,
-        phone: data.admin.phone,
-      },
+      .expect(409);
+    expect(getJsonBody(adminRepeatConfirmResponse)).toMatchObject({
+      code: CONSENSUS_ALREADY_CONFIRMED_CODE,
+      message: CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
     });
 
     await request(httpServer)
@@ -228,13 +287,13 @@ describe('Consensus review APIs (e2e)', () => {
       .expect((response) => {
         expect(response.body).toMatchObject({
           status: 'confirmed',
-          finalLevel: 'excellent',
+          finalLevel: 'A',
           originalLevel: 'A',
-          confirmedByUserId: data.admin.id,
+          confirmedByUserId: data.reviewManager.id,
           confirmedByUser: {
-            id: data.admin.id,
-            name: data.admin.name,
-            phone: data.admin.phone,
+            id: data.reviewManager.id,
+            name: data.reviewManager.name,
+            phone: data.reviewManager.phone,
           },
         });
       });

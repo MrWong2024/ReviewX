@@ -275,8 +275,9 @@ export function ReviewManagerProjectDetailPage({
         }
       } else if (isConfirmedConsensusError(error)) {
         setConsensusError(
-          '已确认的合议不能覆盖草稿。可在确认表单中重新确认最终结论。',
+          '最终合议结论已确认。如项目负责人提出异议，请通过申诉流程处理；如需更正录入错误，应走后续专门更正流程。',
         );
+        await loadConsensus();
       } else {
         setConsensusError(formatReviewManagerErrorMessage(error));
       }
@@ -297,7 +298,13 @@ export function ReviewManagerProjectDetailPage({
       setNotice('最终合议已确认。');
       await Promise.all([loadConsensus(), loadProjectSummary()]);
     } catch (error) {
-      setConsensusError(formatReviewManagerErrorMessage(error));
+      const message = formatReviewManagerErrorMessage(error);
+
+      if (isConfirmedConsensusError(error)) {
+        await Promise.all([loadConsensus(), loadProjectSummary()]);
+      }
+
+      setConsensusError(message);
     } finally {
       setConfirmingConsensus(false);
     }

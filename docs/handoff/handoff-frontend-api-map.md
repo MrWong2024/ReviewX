@@ -180,7 +180,7 @@
 | `getProjectReviewSummary` | `GET /review-manager/projects/:projectId/review-summary` | 只读展示 assigned/submitted/draft/returned/notStarted、平均分、最高分、最低分和 perItemAverageScores；空分数显示“暂无” | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/consensus` |
 | `getProjectConsensus` | `GET /review-manager/projects/:projectId/consensus` | `404` 转换为 `null`，前端视为“暂无合议草稿”，不作为页面级错误；confirmed 记录可带 `confirmedByUser?: { id, name, phone? } | null`，其他错误继续抛出 | `/review-manager/projects/[projectId]`、`/review-manager/projects/[projectId]/review-organization`、`/review-manager/projects/[projectId]/consensus` |
 | `generateProjectConsensusDraft` | `POST /review-manager/projects/:projectId/consensus/draft` | 默认不传 `force`；后端提示已存在 draft 时二次确认后以 `force=true` 重试；confirmed 状态不提供覆盖草稿入口 | `/review-manager/projects/[projectId]/consensus` |
-| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 再次提交前提示会覆盖当前最终结论；成功响应兼容确认人 `confirmedByUser` 摘要 | `/review-manager/projects/[projectId]/consensus` |
+| `confirmProjectConsensus` | `POST /review-manager/projects/:projectId/consensus/confirm` | 请求仅包含 `finalOpinion/finalScore/finalLevel`；“使用草稿填入”只是把 draftOpinion/draftScore 填入表单；finalOpinion 1-10000，finalScore 优先按评分方案总分前端校验，finalLevel 优先提交 `review_level.code`，字典为空 fallback A/B/C/D；confirmed 状态前端不展示确认表单，若旧状态或并发导致接口返回 `409 CONSENSUS_ALREADY_CONFIRMED`，展示后端业务 message 并重新拉取 consensus；成功响应兼容确认人 `confirmedByUser` 摘要 | `/review-manager/projects/[projectId]/consensus` |
 | `listReviewManagerAppeals` | `GET /review-manager/projects/:projectId/appeals` | 当前评审负责人负责项目的申诉列表；只读展示状态、原因摘要、等级前后变化和附件数量 | `/review-manager/projects/[projectId]/appeals` |
 | `getReviewManagerAppeal` | `GET /review-manager/projects/:projectId/appeals/:appealId` | 当前评审负责人负责项目的申诉详情；附件另行调用附件接口 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
 | `listReviewManagerAppealAttachments` | `GET /review-manager/projects/:projectId/appeals/:appealId/attachments` | 只读获取申诉附件列表；评审负责人不提供上传、删除 | `/review-manager/projects/[projectId]/appeals/[appealId]` |
@@ -199,7 +199,7 @@
 - 合议草稿生成只使用后端 `rule_based` draft，不做真实 AI 或大模型调用。
 - `GET /consensus` 的 404 表示暂无合议记录，展示“暂无合议草稿”。
 - 已有 draft 时覆盖生成必须经后端 409 提示后用户二次确认，再以 `force=true` 重试。
-- 已 confirmed 时前端不展示“覆盖草稿”入口；仍允许按后端能力重新确认最终意见、最终分数和最终等级，并提示“重新确认会覆盖当前最终结论”。
+- 已 confirmed 时前端只读展示最终意见、最终分数、最终等级、确认人、确认时间和既有只读统计；不展示“覆盖草稿”入口、“使用草稿填入”、确认表单或“重新确认最终结论”按钮；后续调整走申诉处理或未来专门更正流程。
 - `/review-manager/projects/[projectId]/appeals` 和 `/review-manager/projects/[projectId]/appeals/[appealId]` 只调用 review-manager 命名空间的申诉接口；不调用 admin 或 project_owner 申诉接口。
 - 评审负责人当前无 `GET /review-manager/projects/:projectId/level-history`，前端不得伪造或调用该接口；等级变更历史只在 project-owner 和 admin 侧读取。
 - 评审负责人申诉处理支持 accepted / rejected；accepted 需提交 active `review_level.code`，rejected 不提交 `newFinalLevel`。
@@ -229,7 +229,7 @@
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示；项目负责人后续推进需求、材料上传、提交和删除遇到 `PROJECT_OWNER_CONTENT_LOCKED` 时固定展示“评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。”，不显示 HTTP 状态码或技术字段；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
+- `409`：展示后端 message 或默认冲突提示；项目负责人后续推进需求、材料上传、提交和删除遇到 `PROJECT_OWNER_CONTENT_LOCKED` 时固定展示“评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。”，不显示 HTTP 状态码或技术字段；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口；评审负责人确认合议遇到 `CONSENSUS_ALREADY_CONFIRMED` 时展示后端业务 message 并重新拉取 consensus
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径

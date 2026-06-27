@@ -243,7 +243,11 @@ export function isConfirmedConsensusError(error: unknown): boolean {
   return (
     isApiError(error) &&
     error.status === 409 &&
-    error.message.includes('Confirmed consensus review cannot be overwritten')
+    (error.code === 'CONSENSUS_ALREADY_CONFIRMED' ||
+      error.message.includes(
+        '最终合议结论已确认，不能在合议页重新覆盖',
+      ) ||
+      error.message.includes('Confirmed consensus review cannot be overwritten'))
   );
 }
 
