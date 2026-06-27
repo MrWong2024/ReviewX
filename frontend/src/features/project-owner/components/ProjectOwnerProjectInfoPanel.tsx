@@ -121,7 +121,7 @@ export function ProjectOwnerProjectInfoPanel({
                 项目基础信息
               </h2>
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                当前页面仅展示本人负责项目，后端按 ownerUserId 过滤。
+                展示项目基础信息、承担单位、学科方向和材料数量。
               </p>
             </div>
             <Badge tone={project.isActive ? 'success' : 'muted'}>
@@ -139,7 +139,7 @@ export function ProjectOwnerProjectInfoPanel({
               评审安排
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              仅展示管理员录入的评审信息和会议链接，平台本阶段不接腾讯会议 API。
+              展示管理员录入的评审信息和会议链接。
             </p>
           </div>
           <InfoGrid items={reviewItems} />

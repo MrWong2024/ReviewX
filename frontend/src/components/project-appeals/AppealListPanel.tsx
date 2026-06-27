@@ -39,7 +39,7 @@ export function AppealListPanel({
           <div>
             <h2 className="m-0 text-lg font-black text-slate-950">{title}</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              单项目申诉最多 3 次；submitted / processing 视为未处理。
+              每个项目最多可提交 3 次申诉。已有申诉正在处理时，暂不能重复提交。
             </p>
           </div>
           <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-bold text-slate-600">

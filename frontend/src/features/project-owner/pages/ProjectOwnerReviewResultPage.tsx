@@ -254,7 +254,8 @@ export function ProjectOwnerReviewResultPage({
                     发起申诉
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    每个项目最多申诉 {PROJECT_APPEAL_MAX_COUNT} 次；存在未处理申诉时不能再次提交。
+                    每个项目最多可提交 {PROJECT_APPEAL_MAX_COUNT}{' '}
+                    次申诉。已有申诉正在处理时，暂不能重复提交。
                   </p>
                 </div>
                 <Button
@@ -438,11 +439,11 @@ function getCreateAppealDisabledReason({
   }
 
   if (appealCount >= PROJECT_APPEAL_MAX_COUNT) {
-    return '该项目申诉次数已达 3 次上限。';
+    return '该项目申诉次数已达上限。';
   }
 
   if (pendingAppeal) {
-    return '该项目存在未处理申诉，处理完成前不能再次提交。';
+    return '该项目已有申诉正在处理，暂不能重复提交。';
   }
 
   return null;
