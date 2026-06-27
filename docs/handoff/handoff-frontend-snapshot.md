@@ -132,6 +132,7 @@ frontend/
 - 合议响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`；项目负责人评审结果页当前不新增确认人 UI，但不得显示 `confirmedByUserId` 或短 ID。
 - confirmed 合议不可在评审负责人合议页重新覆盖；后续最终等级调整走申诉处理或未来专门更正流程，不在前端新增更正入口。
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`，当前不接腾讯会议 API、直播、推流或回看。
+- 项目材料和申诉附件文件名展示继续使用后端返回的 `originalFilename`；中文文件名 mojibake 修复由后端上传入口统一归一化，前端不使用 `Buffer`、`decodeURIComponent`、`escape/unescape` 或其他编码猜测兜底。
 - 文件下载只打开后端 `download-url` 返回 URL，不前端拼接 OSS objectKey。
 
 ## 9. 维护规则

@@ -16,6 +16,7 @@
 - 专家分配 mutation 已加入项目级锁定：`reviewTime` 已到、任一 `ExpertReview`、任一 `ConsensusReview` 或项目已有最终等级 / 最终结论时，admin 和 review_manager 的追加、替换、移除、批量设置专家均禁止继续调整并返回 `EXPERT_ASSIGNMENT_LOCKED`。
 - 项目材料：已实现项目负责人项目列表、详情、`followUpNeeds` 更新、材料上传、材料列表、短期下载 URL、材料提交、物理删除和删除审计；新上传材料默认 `draft`，项目负责人提交后进入 `submitted`，legacy `active` 按草稿兼容。
 - 材料可见性：项目负责人 / admin 可见 `draft/submitted/legacy active`，评审负责人 / 专家只可见 `submitted`；项目负责人只能物理删除 `draft/legacy active`，`submitted` 返回 `409`；admin 删除材料必须填写原因并保留删除审计。
+- 上传文件名归一化：后端 common `normalizeUploadedFilename()` 已覆盖项目材料和申诉附件上传，保存用户可见 `originalFilename`、生成 `safeFilename/objectKey` 和多文件失败明细前会保守修复常见中文文件名 mojibake，并清理控制字符和路径字符；历史已保存乱码文件名不自动迁移。
 - 门户参考数据：已实现 `/portal/reference-data/*` 只读接口，允许 `project_owner/expert/review_manager/client/admin` 登录读取展示型最小摘要；用户摘要仅允许 `review_manager/expert/project_owner`，禁止查询 admin 用户。
 - 专家评分与合议：已实现已分配专家评分任务、草稿 / 提交、本人 draft 草稿删除、提交评分评审时间窗口校验、评审负责人查看 / 退回、评分汇总、`rule_based` 合议草稿和人工确认合议；首次确认会写 `ConsensusReview` 与 `Project.finalLevel/originalLevel`，已 confirmed 合议再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖最终结论。
 - 合议响应已补确认人摘要：`ConsensusReviewResponse`、`ProjectOwnerConsensusResponse` 和申诉详情里的关联合议摘要可返回 `confirmedByUser?: { id, name, phone? } | null`；只读查询 `users.name/phone`，不返回密码、完整角色权限、改密状态、session/token；确认人用户不可解析时为 `null` 且接口不失败。
@@ -272,7 +273,7 @@ backend/
 - 当前已实现项目材料上传、列表、短期下载 URL、提交、物理删除和删除审计；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
 - 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。新上传材料默认 `draft`；历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
-- 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage
+- 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；上传时先规范化文件名，保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件 failures 前均使用归一化结果；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage；历史已入库乱码附件不迁移、不重命名 objectKey 或存储对象
 - 当前仍未实现真实 AI 合议、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
 
 ### 4.6 外部服务集成
@@ -299,7 +300,7 @@ backend/
 - 已包含 `src/modules/project-imports/services/project-imports.service.spec.ts`，用于验证导入任务删除规则：非法 ID、任务不存在、`parsing`、`confirmedRows`、confirmed 行兜底检查、删除成功清理 rows 且不调用项目入库能力
 - 已包含 `src/modules/project-imports/services/project-import-field-mappings.service.spec.ts`，用于验证 Excel 字段映射配置标准字段清单、完整配置视图、upsert/update/delete/reset-defaults、effective alias map、非法字段、空别名、同字段重复、跨字段冲突和停用 fallback
 - 已包含 `src/modules/project-imports/utils/import-normalizer.spec.ts`，用于验证项目导入标准化：通用多值字段仍按顿号拆分，学科字段不按顿号拆分但仍按逗号、分号和换行拆分，重复学科去重，空值返回空数组
-- 已包含 `src/common/utils/uploaded-filename.util.spec.ts`，用于验证通用上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底和非乱码边界不误改
+- 已包含 `src/common/utils/uploaded-filename.util.spec.ts`，用于验证通用上传文件名保守修正：正常中文/英文不变、典型 latin1 mojibake 修正、空值兜底、路径字符清理和非乱码边界不误改
 - 已包含 `src/modules/project-imports/utils/project-import-filename.util.spec.ts`，用于验证项目导入上传文件名兼容转发仍可用
 - 已包含 `test/project-import-field-mappings.e2e-spec.ts`，用于验证 `/admin/project-import-field-mappings*` 401/403/admin 权限、标准字段清单、PUT、GET 列表/详情、PATCH、reset-defaults、DELETE 和错误口径
 - `test/project-imports.e2e-spec.ts` 当前也覆盖自定义字段映射别名参与上传解析、删除配置后默认内置别名 fallback 仍可用，以及包含顿号的完整学科名称在上传解析后按完整名称匹配 `treeType=discipline` 节点
@@ -309,7 +310,7 @@ backend/
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复、project-owner 项目响应评审负责人摘要、confirmed 合议 / `finalLevel` 后 project-owner 写操作锁定且读取 / 下载仍可用，以及既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、draft 首次确认、已 confirmed 再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖合议 / 项目等级 / 确认人 / 确认时间、管理员兜底查看、Project 等级写入、确认响应含 `confirmedByUser.name/phone`，以及确认人用户不可解析时 `confirmedByUser=null` 且接口不失败
-- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/下载 URL/软删除、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
+- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/中文文件名归一化/下载 URL/软删除、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回
 - 已包含 `test/portal-reference-data.e2e-spec.ts`，用于验证 `/portal/reference-data/*` 401/403、project_owner 读取 `material_type/project_status/discipline/batches/organizations/review-schemes/users?role=review_manager`、`users?role=admin` 返回 `400`、`users?role=review_manager` 仍排除含 admin 角色的多角色用户、admin 复用门户接口以及 POST/PATCH/DELETE 不存在

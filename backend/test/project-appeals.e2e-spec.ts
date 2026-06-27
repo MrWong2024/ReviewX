@@ -451,6 +451,96 @@ describe('Project appeal APIs (e2e)', () => {
       .expect(409);
   });
 
+  it('normalizes mojibake Chinese appeal attachment filenames on upload and list', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+    const managerCookie = await login(data.reviewManager.phone);
+    const appeal = await createAppeal(ownerCookie, data.project.id);
+    const appealId = getString(appeal, 'id');
+    const boundary = '----reviewx-appeal-filename-test';
+    const filename = '申诉补充材料-测试.pdf';
+
+    const uploadResponse = await request(httpServer)
+      .post(
+        `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments`,
+      )
+      .set('Cookie', ownerCookie)
+      .set('Content-Type', `multipart/form-data; boundary=${boundary}`)
+      .send(
+        buildMultipartAppealAttachmentUploadBody({
+          boundary,
+          filename,
+          remark: '  中文附件备注  ',
+          contentType: 'application/pdf',
+          content: 'appeal-pdf-content',
+        }),
+      )
+      .expect(201);
+    const uploadBody = getJsonBody(uploadResponse);
+    const attachment = getRecordArray(uploadBody, 'attachments')[0];
+
+    if (!attachment) {
+      throw new Error('uploaded appeal attachment is required');
+    }
+
+    expect(uploadBody).toMatchObject({
+      successCount: 1,
+      failedCount: 0,
+      failures: [],
+    });
+    expect(attachment).toMatchObject({
+      appealId,
+      projectId: data.project.id,
+      originalFilename: filename,
+      remark: '中文附件备注',
+      status: 'active',
+    });
+    expect(getString(attachment, 'objectKey')).toContain(
+      `/projects/${data.project.id}/appeals/${appealId}/`,
+    );
+    expect(getString(attachment, 'objectKey')).toContain(
+      `-${getString(attachment, 'safeFilename')}`,
+    );
+    expect(getString(attachment, 'objectKey')).not.toContain('ç');
+
+    const storedAttachment = await attachmentModel
+      .findById(getString(attachment, 'id'))
+      .lean<Record<string, unknown> | null>()
+      .exec();
+    expect(storedAttachment).toMatchObject({
+      originalFilename: filename,
+      safeFilename: getString(attachment, 'safeFilename'),
+      objectKey: getString(attachment, 'objectKey'),
+    });
+
+    const listResponse = await request(httpServer)
+      .get(
+        `/review-manager/projects/${data.project.id}/appeals/${appealId}/attachments`,
+      )
+      .set('Cookie', managerCookie)
+      .expect(200);
+    const listedAttachment = getJsonArray(listResponse)[0];
+
+    if (!listedAttachment) {
+      throw new Error('listed appeal attachment is required');
+    }
+
+    expect(listedAttachment).toMatchObject({
+      originalFilename: filename,
+      safeFilename: getString(attachment, 'safeFilename'),
+    });
+
+    await request(httpServer)
+      .get(
+        `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments/${getString(
+          attachment,
+          'id',
+        )}/download-url`,
+      )
+      .set('Cookie', ownerCookie)
+      .expect(200);
+  });
+
   it('lets review managers and admins handle appeals, writes level change logs, and enforces max 3 appeals', async () => {
     const data = await seedData();
     const ownerCookie = await login(data.owner.phone);
@@ -918,4 +1008,30 @@ function getString(record: Record<string, unknown>, key: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function buildMultipartAppealAttachmentUploadBody(input: {
+  boundary: string;
+  filename: string;
+  remark: string;
+  contentType: string;
+  content: string;
+}): Buffer {
+  return Buffer.concat([
+    Buffer.from(
+      `--${input.boundary}\r\n` +
+        'Content-Disposition: form-data; name="remark"\r\n\r\n' +
+        `${input.remark}\r\n` +
+        `--${input.boundary}\r\n` +
+        'Content-Disposition: form-data; name="files"; filename="',
+      'utf8',
+    ),
+    Buffer.from(input.filename, 'utf8'),
+    Buffer.from(
+      `"\r\nContent-Type: ${input.contentType}\r\n\r\n` +
+        `${input.content}\r\n` +
+        `--${input.boundary}--\r\n`,
+      'utf8',
+    ),
+  ]);
 }

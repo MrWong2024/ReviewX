@@ -29,10 +29,10 @@ describe('normalizeUploadedFilename', () => {
   });
 
   it('uses a fallback filename for empty or non-string inputs', () => {
-    expect(normalizeUploadedFilename('')).toBe('uploaded.xlsx');
-    expect(normalizeUploadedFilename('   ')).toBe('uploaded.xlsx');
+    expect(normalizeUploadedFilename('')).toBe('unnamed-file');
+    expect(normalizeUploadedFilename('   ')).toBe('unnamed-file');
     expect(normalizeUploadedFilename(undefined as unknown as string)).toBe(
-      'uploaded.xlsx',
+      'unnamed-file',
     );
   });
 
@@ -43,5 +43,17 @@ describe('normalizeUploadedFilename', () => {
     expect(normalizeUploadedFilename('report-ç-version.pdf')).toBe(
       'report-ç-version.pdf',
     );
+  });
+
+  it('trims spaces and removes unsafe path characters without dropping Chinese text', () => {
+    const result = normalizeUploadedFilename(
+      ' ..\\申诉材料/项目补充\u0000资料.pdf ',
+    );
+
+    expect(result).toBe('申诉材料 项目补充资料.pdf');
+    expect(result).not.toContain('/');
+    expect(result).not.toContain('\\');
+    expect(result).not.toContain('..');
+    expect(result).not.toContain('\u0000');
   });
 });

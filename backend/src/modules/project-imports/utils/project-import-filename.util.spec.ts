@@ -30,10 +30,10 @@ describe('normalizeUploadedFilename', () => {
   });
 
   it('uses a fallback filename for empty or non-string inputs', () => {
-    expect(normalizeUploadedFilename('')).toBe('uploaded.xlsx');
-    expect(normalizeUploadedFilename('   ')).toBe('uploaded.xlsx');
+    expect(normalizeUploadedFilename('')).toBe('unnamed-file');
+    expect(normalizeUploadedFilename('   ')).toBe('unnamed-file');
     expect(normalizeUploadedFilename(undefined as unknown as string)).toBe(
-      'uploaded.xlsx',
+      'unnamed-file',
     );
   });
 

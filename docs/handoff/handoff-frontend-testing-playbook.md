@@ -134,6 +134,15 @@ npm run build
 
 注意：confirmed 合议在评审负责人合议页只读展示最终结论，不显示“重新确认最终结论”、确认表单或“使用草稿填入”；后端 `POST /review-manager/projects/:id/consensus/confirm` 和 admin 兜底确认对已 confirmed 合议返回 `409 CONSENSUS_ALREADY_CONFIRMED`，不覆盖合议最终意见 / 分数 / 等级、项目最终等级、确认人或确认时间。后续调整走申诉处理或未来专门更正流程。
 
+本次 ReviewX 第七阶段小修：上传文件中文名归一化已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+
+注意：项目材料和申诉附件上传入口会在后端保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件失败明细前统一归一化文件名；前端继续展示后端 `originalFilename`，不做编码 hack；历史已保存乱码文件名本次不批量修复。
+
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
 - `npm run lint`
@@ -571,26 +580,27 @@ Workspace 入口：
 10. 不调用 `/admin/dictionaries`
 11. 不写死“汇报 PPT、评价报告、证明材料、财务资料、其他”等材料类型 ID
 12. 已上传材料列表展示材料类型名称、文件名、状态、大小、扩展名、上传时间和备注
-13. 材料类型筛选项来自 portal `material_type`，显示名称
-14. 材料响应内联 `materialType.name` 存在时优先展示；否则使用 portal material_type 映射；仍未命中时显示“未知材料类型（短ID）”
-15. 草稿 `draft` 状态显示“草稿”，说明评审负责人和专家不可见，可删除
-16. legacy `active` 状态显示“历史草稿”，可提交或删除
-17. `submitted` 状态显示“已提交评审”，删除按钮禁用并提示“已提交评审，不能删除”
-18. 点击“提交全部草稿材料”前出现二次确认，确认文案说明提交后评审负责人和专家可见，项目负责人不能再删除
-19. 提交全部草稿材料调用 `POST /project-owner/projects/:id/materials/submit`
-20. 提交成功后显示 submittedCount / alreadySubmittedCount / skippedCount，并刷新材料列表和项目详情 materialCount
-21. skipped 非空时展示“部分材料未提交”明细，优先显示文件名，reason 中文化或原样兜底
-22. 无草稿时“提交全部草稿材料”按钮禁用
-23. 对草稿材料点击删除出现二次确认，文案说明会物理删除文件和材料记录且不可恢复
-24. 对 legacy active 材料点击删除，确认文案提示历史草稿状态且物理删除不可恢复
-25. 确认删除草稿后调用 project_owner DELETE，成功后刷新项目详情和材料列表
-26. submitted 材料如通过异常方式触发 DELETE 并返回 409，页面显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
-27. DELETE 返回 404 时显示“材料不存在或已被删除。”
-28. storage 删除相关 500 应提示文件存储删除失败、材料未删除，并保留错误信息
-29. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
-30. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
-31. 不提供材料恢复、admin 删除材料页面、删除日志查询、文件预览或自动提交上传后的材料
-32. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
+13. 上传中文文件名材料，例如“评价报告-测试.docx”，材料列表应显示正常中文 `originalFilename`，不出现 mojibake；review-manager / admin / expert 可见的 submitted 材料列表也应显示同一文件名
+14. 材料类型筛选项来自 portal `material_type`，显示名称
+15. 材料响应内联 `materialType.name` 存在时优先展示；否则使用 portal material_type 映射；仍未命中时显示“未知材料类型（短ID）”
+16. 草稿 `draft` 状态显示“草稿”，说明评审负责人和专家不可见，可删除
+17. legacy `active` 状态显示“历史草稿”，可提交或删除
+18. `submitted` 状态显示“已提交评审”，删除按钮禁用并提示“已提交评审，不能删除”
+19. 点击“提交全部草稿材料”前出现二次确认，确认文案说明提交后评审负责人和专家可见，项目负责人不能再删除
+20. 提交全部草稿材料调用 `POST /project-owner/projects/:id/materials/submit`
+21. 提交成功后显示 submittedCount / alreadySubmittedCount / skippedCount，并刷新材料列表和项目详情 materialCount
+22. skipped 非空时展示“部分材料未提交”明细，优先显示文件名，reason 中文化或原样兜底
+23. 无草稿时“提交全部草稿材料”按钮禁用
+24. 对草稿材料点击删除出现二次确认，文案说明会物理删除文件和材料记录且不可恢复
+25. 对 legacy active 材料点击删除，确认文案提示历史草稿状态且物理删除不可恢复
+26. 确认删除草稿后调用 project_owner DELETE，成功后刷新项目详情和材料列表
+27. submitted 材料如通过异常方式触发 DELETE 并返回 409，页面显示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”
+28. DELETE 返回 404 时显示“材料不存在或已被删除。”
+29. storage 删除相关 500 应提示文件存储删除失败、材料未删除，并保留错误信息
+30. 点击下载应调用 download-url 接口，并打开后端返回的签名 URL
+31. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
+32. 不提供材料恢复、admin 删除材料页面、删除日志查询、文件预览或自动提交上传后的材料
+33. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
 
 评审结果确认后项目负责人内容锁定：
 
@@ -913,9 +923,11 @@ Workspace 和守卫：
 2. Network 使用 `GET /project-owner/projects/:id/appeals/:appealId`、`GET /attachments`
 3. submitted 状态显示上传附件入口和删除附件入口
 4. 上传附件调用 `POST /project-owner/projects/:id/appeals/:appealId/attachments`，FormData 字段为 `files` 和可选 `remark`
-5. 删除附件调用 `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId`，删除前二次确认，成功后刷新附件列表
-6. accepted / rejected 状态附件只读，不显示上传或删除
-7. 下载附件只调用 project-owner 命名空间 `download-url`，只打开后端返回 URL，不拼接 OSS objectKey
+5. 上传中文文件名附件，例如“申诉补充材料-测试.pdf”，项目负责人附件列表应显示正常中文 `originalFilename`，不出现 mojibake
+6. review_manager 和 admin 打开同一申诉详情时，附件列表也应显示正常中文文件名
+7. 删除附件调用 `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId`，删除前二次确认，成功后刷新附件列表
+8. accepted / rejected 状态附件只读，不显示上传或删除
+9. 下载附件只调用 project-owner 命名空间 `download-url`，只打开后端返回 URL，不拼接 OSS objectKey
 
 评审负责人处理申诉：
 

@@ -12,6 +12,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { createHash } from 'node:crypto';
 import { Model, Types } from 'mongoose';
 import { TimestampFields, toObjectId } from '../../../common/utils/mongo-query';
+import { normalizeUploadedFilename } from '../../../common/utils/uploaded-filename.util';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
 import { ConsensusReview } from '../../consensus-reviews/schemas/consensus-review.schema';
 import { REVIEW_LEVEL_DICT_TYPE } from '../../consensus-reviews/constants/consensus-review.constants';
@@ -245,6 +246,7 @@ type DictionaryLean = {
 
 type ValidatedFile = {
   file: UploadedProjectAppealFile;
+  originalFilename: string;
   safeFilename: string;
   extension: string;
   mimeType: string;
@@ -756,7 +758,7 @@ export class ProjectAppealsService {
         }
 
         failures.push({
-          originalFilename: file.originalname,
+          originalFilename: normalizeUploadedFilename(file.originalname),
           message,
         });
       }
@@ -811,7 +813,7 @@ export class ProjectAppealsService {
         appealId: input.appeal._id,
         projectId: input.project._id,
         uploadedByUserId: toObjectId(input.uploadedByUserId, 'userId'),
-        originalFilename: input.validatedFile.file.originalname,
+        originalFilename: input.validatedFile.originalFilename,
         safeFilename: input.validatedFile.safeFilename,
         objectKey: uploaded.objectKey,
         bucket: uploaded.bucket,
@@ -854,7 +856,8 @@ export class ProjectAppealsService {
       throw new BadRequestException('File is too large');
     }
 
-    const safeFilename = sanitizeFilename(file.originalname);
+    const originalFilename = normalizeUploadedFilename(file.originalname);
+    const safeFilename = sanitizeFilename(originalFilename);
     const extension = getLowercaseExtension(safeFilename);
 
     if (!extension) {
@@ -871,6 +874,7 @@ export class ProjectAppealsService {
 
     return {
       file,
+      originalFilename,
       safeFilename,
       extension,
       mimeType: file.mimetype?.trim() || 'application/octet-stream',
