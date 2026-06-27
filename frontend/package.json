@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "lint:file": "eslint",
     "lint:file:fix": "eslint --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.0",

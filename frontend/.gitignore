@@ -1,4 +1,6 @@
 .next
+# Next.js generated types
+/next-env.d.ts
 node_modules
 out
 build
