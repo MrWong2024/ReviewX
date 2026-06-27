@@ -45,7 +45,6 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - `handoff-frontend-route-map.md`：前端路由地图
 - `handoff-frontend-api-map.md`：前端 API 对接地图
 - `handoff-frontend-component-map.md`：前端组件地图
-- `handoff-frontend-changelog.md`：前端变更记录
 - `handoff-frontend-testing-playbook.md`：前端验证手册
 
 ## 6. 后续同步规则
@@ -54,4 +53,6 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - 修改认证跳转、默认入口、API Client、全局 layout 或导航时，同步 frontend snapshot
 - 新增或调整后端接口对接时，同步 frontend API map
 - 新增稳定复用组件时，同步 component map
-- 完成阶段性前端任务时，同步 changelog 和 testing playbook
+- 完成阶段性前端任务时，如验证口径变化，同步 testing playbook
+- 若当前阶段、已完成能力、未完成能力或下一阶段建议变化，同步 handoff-roadmap.md
+- 若前端全局事实、角色级能力、运行配置、认证协作或关键风险变化，同步 handoff-frontend-snapshot.md
