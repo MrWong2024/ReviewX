@@ -6,16 +6,19 @@ import { Button } from '@/src/components/ui/Button';
 import { Input } from '@/src/components/ui/Input';
 import { Select } from '@/src/components/ui/Select';
 import { Textarea } from '@/src/components/ui/Textarea';
-import { getErrorMessage } from '@/src/lib/api/errors';
 import { uploadProjectOwnerMaterials } from '../api';
 import type { MaterialTypeSummary, UploadProjectMaterialsResult } from '../types';
 import {
   ALLOWED_PROJECT_MATERIAL_EXTENSIONS,
+  getProjectOwnerContentLockedErrorMessage,
   MATERIAL_REMARK_MAX_LENGTH,
+  PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   validateProjectMaterialFiles,
 } from '../utils';
 
 type MaterialUploadPanelProps = {
+  locked?: boolean;
+  lockedMessage?: string;
   materialTypes: MaterialTypeSummary[];
   materialTypesError?: string | null;
   onUploaded: (result: UploadProjectMaterialsResult) => void;
@@ -23,6 +26,8 @@ type MaterialUploadPanelProps = {
 };
 
 export function MaterialUploadPanel({
+  locked = false,
+  lockedMessage = PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   materialTypes,
   materialTypesError,
   onUploaded,
@@ -55,6 +60,11 @@ export function MaterialUploadPanel({
     setError(null);
     setFailures([]);
     setNotice(null);
+
+    if (locked) {
+      setError(lockedMessage);
+      return;
+    }
 
     if (disabledReason) {
       setError(disabledReason);
@@ -97,7 +107,7 @@ export function MaterialUploadPanel({
       setFailures(result.failures);
       onUploaded(result);
     } catch (uploadError) {
-      setError(getErrorMessage(uploadError));
+      setError(getProjectOwnerContentLockedErrorMessage(uploadError));
     } finally {
       setUploading(false);
     }
@@ -113,6 +123,11 @@ export function MaterialUploadPanel({
       </div>
 
       <ErrorAlert message={error} />
+      {locked ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+          {lockedMessage}
+        </div>
+      ) : null}
       {notice ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
           {notice}
@@ -133,12 +148,14 @@ export function MaterialUploadPanel({
           </ul>
         </div>
       ) : null}
-      {disabledReason ? (
+      {!locked && disabledReason ? (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium leading-6 text-amber-800 shadow-sm">
           {disabledReason}
         </div>
       ) : null}
 
+      {locked ? null : (
+        <>
       <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.7fr)_minmax(260px,1fr)]">
         <Select
           disabled={Boolean(disabledReason) || uploading}
@@ -198,6 +215,8 @@ export function MaterialUploadPanel({
           {uploading ? '上传中...' : '上传材料'}
         </Button>
       </div>
+        </>
+      )}
     </section>
   );
 }

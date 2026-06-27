@@ -98,6 +98,18 @@ npm run build
 
 注意：项目负责人材料提交只调用 `POST /project-owner/projects/:id/materials/submit`；项目负责人删除材料只调用 `DELETE /project-owner/projects/:id/materials/:materialId`，不得调用 `/admin/*` 删除接口。
 
+本次 ReviewX 第七阶段小修：项目负责人详情页评审负责人显示与确认后只读锁定已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+
+注意：项目负责人项目详情的评审负责人显示优先使用项目响应 `reviewManager` 摘要；评审结果确认后，project-owner 后续推进需求和材料上传 / 提交 / 删除只读锁定，后端仍以 `409 PROJECT_OWNER_CONTENT_LOCKED` 兜底。材料查看 / 下载、评审结果与申诉、submitted 申诉附件上传 / 删除不受该锁定影响。
+
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
 - `npm run lint`
@@ -508,15 +520,18 @@ Workspace 入口：
 2. 并发加载项目详情、材料列表和 portal reference-data
 3. 显示项目编号、名称、批次名称、项目类型名称、项目状态名称、承担单位名称、合作单位名称、学科名称、受理处室名称、拨款总额、已拨款和材料数量
 4. 显示评审负责人名称、评审方案名称、评审时间、评审地点和会议链接
-5. meetingUrl 有值时可打开
-6. 页面说明当前仅展示会议链接，不接腾讯会议 API
-7. 显示当前 followUpNeeds
-8. 输入后续推进需求，字数计数正确
-9. 超过 5000 字前端提示或禁止提交
-10. 点击保存后调用 `PATCH /project-owner/projects/:id/follow-up-needs`
-11. 保存成功后提示“后续推进需求已保存”
-12. 清空内容并保存，如后端允许应成功
-13. reference-data 加载失败时基础信息可用短 ID 兜底展示，上传区禁用并显示错误
+5. 评审负责人名称优先来自项目详情响应 `reviewManager.name`；不得显示“未知评审负责人（短ID）”
+6. 项目未设置评审负责人时显示“暂未设置评审负责人”
+7. 项目设置了 `reviewManagerId` 但用户无法解析时显示“评审负责人信息暂不可用”，不显示短 ID
+8. meetingUrl 有值时可打开
+9. 页面说明当前仅展示会议链接，不接腾讯会议 API
+10. 显示当前 followUpNeeds
+11. 输入后续推进需求，字数计数正确
+12. 超过 5000 字前端提示或禁止提交
+13. 点击保存后调用 `PATCH /project-owner/projects/:id/follow-up-needs`
+14. 保存成功后提示“后续推进需求已保存”
+15. 清空内容并保存，如后端允许应成功
+16. reference-data 加载失败时通用基础信息可用短 ID 兜底展示，上传区禁用并显示错误；评审负责人不得回退显示短 ID
 
 材料管理：
 
@@ -552,6 +567,24 @@ Workspace 入口：
 30. 后端未返回 `url/downloadUrl/string` 时显示错误，不拼接 objectKey
 31. 不提供材料恢复、admin 删除材料页面、删除日志查询、文件预览或自动提交上传后的材料
 32. 后端停止、401、403、404、409、400、500 等错误态应显示友好错误，不应白屏
+
+评审结果确认后项目负责人内容锁定：
+
+1. 准备存在 confirmed 合议、或项目已有 `finalLevel` / `originalLevel` 的项目
+2. 进入 `/project-owner/projects/[projectId]`
+3. 页面显示统一提示：“评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。”
+4. 后续推进需求 textarea 禁用或只读，保存按钮隐藏或不可用
+5. 材料上传区域不允许选择文件、材料类型或填写备注，上传按钮不可用或表单不渲染
+6. “提交全部草稿材料”按钮禁用，点击不应打开提交确认弹窗
+7. 材料列表筛选仍可用
+8. 材料下载仍调用 project-owner download-url 并打开后端返回 URL
+9. 草稿 / 历史草稿材料删除按钮禁用或隐藏，页面展示锁定原因
+10. “查看评审结果与申诉”入口仍可用
+11. `/project-owner/projects/[projectId]/review-result` 仍可查看 confirmed 合议、等级历史和本人申诉
+12. submitted 状态申诉的申诉附件上传 / 删除仍按原规则可用
+13. 直接调用 `PATCH /project-owner/projects/:id/follow-up-needs`、`POST /materials`、`POST /materials/submit`、`DELETE /materials/:materialId` 应返回 `409 PROJECT_OWNER_CONTENT_LOCKED`
+14. 直接调用 `GET /materials` 和 `GET /materials/:materialId/download-url` 应成功
+15. 未锁定项目仍可编辑后续推进需求、上传材料、提交草稿材料和删除草稿材料
 
 文件校验实现口径：
 

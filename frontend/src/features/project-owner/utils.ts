@@ -4,8 +4,11 @@ import type {
   ProjectMaterial,
   ProjectMaterialStatus,
   ProjectOwnerLookupMaps,
+  ProjectOwnerConsensus,
+  ProjectOwnerProject,
   ProjectOwnerReferenceData,
 } from './types';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import {
   buildReviewLevelLabelMap,
   getReviewLevelOptions,
@@ -15,6 +18,10 @@ export const MAX_PROJECT_MATERIAL_FILES = 20;
 export const MAX_PROJECT_MATERIAL_FILE_SIZE_BYTES = 500 * 1024 * 1024;
 export const FOLLOW_UP_NEEDS_MAX_LENGTH = 5000;
 export const MATERIAL_REMARK_MAX_LENGTH = 1000;
+export const PROJECT_OWNER_CONTENT_LOCKED_CODE =
+  'PROJECT_OWNER_CONTENT_LOCKED';
+export const PROJECT_OWNER_CONTENT_LOCKED_MESSAGE =
+  '评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。';
 
 export const ALLOWED_PROJECT_MATERIAL_EXTENSIONS = [
   'pdf',
@@ -252,6 +259,62 @@ export function formatSubmitSkippedReason(reason: string): string {
   }
 }
 
+export function isProjectOwnerContentLocked(
+  project: ProjectOwnerProject | null | undefined,
+  consensus: ProjectOwnerConsensus | null | undefined,
+): boolean {
+  if (!project) {
+    return false;
+  }
+
+  if (project.ownerContentLocked || project.reviewFinalized) {
+    return true;
+  }
+
+  return (
+    hasNonEmptyString(project.finalLevel) ||
+    hasNonEmptyString(project.originalLevel) ||
+    Boolean(consensus)
+  );
+}
+
+export function getProjectOwnerContentLockedErrorMessage(
+  error: unknown,
+): string {
+  if (isProjectOwnerContentLockedError(error)) {
+    return PROJECT_OWNER_CONTENT_LOCKED_MESSAGE;
+  }
+
+  return getErrorMessage(error);
+}
+
+export function isProjectOwnerContentLockedError(error: unknown): boolean {
+  return (
+    isApiError(error) &&
+    error.status === 409 &&
+    error.code === PROJECT_OWNER_CONTENT_LOCKED_CODE
+  );
+}
+
+export function resolveReviewManagerDisplayName(
+  project: ProjectOwnerProject,
+  userNameById: Map<string, string>,
+): string {
+  const inlineName = project.reviewManager?.name?.trim();
+
+  if (inlineName) {
+    return inlineName;
+  }
+
+  if (project.reviewManagerId) {
+    return (
+      userNameById.get(project.reviewManagerId) ?? '评审负责人信息暂不可用'
+    );
+  }
+
+  return '暂未设置评审负责人';
+}
+
 export function createEmptyProjectOwnerLookupMaps(): ProjectOwnerLookupMaps {
   return {
     batchNameById: new Map<string, string>(),
@@ -336,4 +399,8 @@ export function formatNames(
   }
 
   return ids.map((id) => formatLookupName(id, nameById, unknownLabel)).join('、');
+}
+
+function hasNonEmptyString(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
 }

@@ -4,17 +4,24 @@ import { useEffect, useState } from 'react';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { Button } from '@/src/components/ui/Button';
 import { Textarea } from '@/src/components/ui/Textarea';
-import { getErrorMessage } from '@/src/lib/api/errors';
 import { updateProjectOwnerFollowUpNeeds } from '../api';
 import type { ProjectOwnerProject } from '../types';
-import { FOLLOW_UP_NEEDS_MAX_LENGTH } from '../utils';
+import {
+  FOLLOW_UP_NEEDS_MAX_LENGTH,
+  getProjectOwnerContentLockedErrorMessage,
+  PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
+} from '../utils';
 
 type FollowUpNeedsPanelProps = {
+  locked?: boolean;
+  lockedMessage?: string;
   onSaved: (project: ProjectOwnerProject) => void;
   project: ProjectOwnerProject;
 };
 
 export function FollowUpNeedsPanel({
+  locked = false,
+  lockedMessage = PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   onSaved,
   project,
 }: FollowUpNeedsPanelProps) {
@@ -31,6 +38,11 @@ export function FollowUpNeedsPanel({
     setError(null);
     setNotice(null);
 
+    if (locked) {
+      setError(lockedMessage);
+      return;
+    }
+
     if (value.length > FOLLOW_UP_NEEDS_MAX_LENGTH) {
       setError(`后续推进需求最多 ${FOLLOW_UP_NEEDS_MAX_LENGTH} 字。`);
       return;
@@ -45,7 +57,7 @@ export function FollowUpNeedsPanel({
       setNotice('后续推进需求已保存。');
       onSaved(updated);
     } catch (saveError) {
-      setError(getErrorMessage(saveError));
+      setError(getProjectOwnerContentLockedErrorMessage(saveError));
     } finally {
       setSaving(false);
     }
@@ -76,6 +88,11 @@ export function FollowUpNeedsPanel({
         </div>
 
         <ErrorAlert message={error} />
+        {locked ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+            {lockedMessage}
+          </div>
+        ) : null}
         {notice ? (
           <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
             {notice}
@@ -84,17 +101,28 @@ export function FollowUpNeedsPanel({
 
         <Textarea
           error={tooLong ? '内容超过最大长度' : undefined}
+          disabled={locked}
           id="project-owner-follow-up-needs"
           maxLength={FOLLOW_UP_NEEDS_MAX_LENGTH + 200}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(event) => {
+            if (!locked) {
+              setValue(event.target.value);
+            }
+          }}
           placeholder="填写项目后续推进需求。留空并保存可清空该字段。"
           value={value}
         />
-        <div className="mt-4 flex justify-end">
-          <Button disabled={saving || tooLong} onClick={handleSave} variant="primary">
-            {saving ? '保存中...' : '保存后续推进需求'}
-          </Button>
-        </div>
+        {!locked ? (
+          <div className="mt-4 flex justify-end">
+            <Button
+              disabled={saving || tooLong}
+              onClick={handleSave}
+              variant="primary"
+            >
+              {saving ? '保存中...' : '保存后续推进需求'}
+            </Button>
+          </div>
+        ) : null}
       </div>
     </section>
   );

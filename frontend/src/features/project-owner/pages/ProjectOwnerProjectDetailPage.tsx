@@ -8,8 +8,9 @@ import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { ProjectOwnerShell } from '@/src/components/layout/ProjectOwnerShell';
 import { Button } from '@/src/components/ui/Button';
 import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
-import { getErrorMessage } from '@/src/lib/api/errors';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import {
+  getProjectOwnerConsensus,
   getProjectOwnerProject,
   listProjectOwnerMaterials,
   loadProjectOwnerReferenceData,
@@ -21,6 +22,7 @@ import { MaterialUploadPanel } from '../components/MaterialUploadPanel';
 import { ProjectOwnerProjectInfoPanel } from '../components/ProjectOwnerProjectInfoPanel';
 import type {
   ProjectMaterial,
+  ProjectOwnerConsensus,
   ProjectOwnerReferenceData,
   ProjectOwnerProject,
   SubmitProjectMaterialsResult,
@@ -30,6 +32,10 @@ import {
   canSubmitMaterial,
   createEmptyProjectOwnerLookupMaps,
   formatSubmitSkippedReason,
+  getProjectOwnerContentLockedErrorMessage,
+  isProjectOwnerContentLocked,
+  isProjectOwnerContentLockedError,
+  PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   shortId,
 } from '../utils';
 
@@ -47,6 +53,11 @@ export function ProjectOwnerProjectDetailPage({
   const [materialsError, setMaterialsError] = useState<string | null>(null);
   const [materialsLoading, setMaterialsLoading] = useState(true);
   const [project, setProject] = useState<ProjectOwnerProject | null>(null);
+  const [confirmedConsensus, setConfirmedConsensus] =
+    useState<ProjectOwnerConsensus | null>(null);
+  const [consensusStatusError, setConsensusStatusError] = useState<
+    string | null
+  >(null);
   const [referenceData, setReferenceData] =
     useState<ProjectOwnerReferenceData | null>(null);
   const [referenceDataError, setReferenceDataError] = useState<string | null>(
@@ -68,6 +79,11 @@ export function ProjectOwnerProjectDetailPage({
     [referenceData],
   );
   const materialTypes = referenceData?.materialTypes ?? [];
+  const ownerContentLocked = isProjectOwnerContentLocked(
+    project,
+    confirmedConsensus,
+  );
+  const ownerContentLockedMessage = PROJECT_OWNER_CONTENT_LOCKED_MESSAGE;
   const materialTypesError = referenceDataError
     ? `基础数据加载失败：${referenceDataError}`
     : null;
@@ -118,18 +134,37 @@ export function ProjectOwnerProjectDetailPage({
     }
   }
 
+  async function loadConfirmedConsensus() {
+    setConsensusStatusError(null);
+
+    try {
+      setConfirmedConsensus(await getProjectOwnerConsensus(projectId));
+    } catch (loadError) {
+      setConfirmedConsensus(null);
+
+      if (isApiError(loadError) && loadError.status === 404) {
+        return;
+      }
+
+      setConsensusStatusError(getErrorMessage(loadError));
+    }
+  }
+
   async function loadInitialData() {
     setLoading(true);
     setMaterialsLoading(true);
     setError(null);
     setMaterialsError(null);
+    setConfirmedConsensus(null);
+    setConsensusStatusError(null);
     setReferenceData(null);
     setReferenceDataError(null);
 
-    const [projectResult, materialsResult, referenceResult] =
+    const [projectResult, materialsResult, consensusResult, referenceResult] =
       await Promise.allSettled([
         getProjectOwnerProject(projectId),
         listProjectOwnerMaterials(projectId),
+        getProjectOwnerConsensus(projectId),
         loadProjectOwnerReferenceData(),
       ]);
 
@@ -147,6 +182,19 @@ export function ProjectOwnerProjectDetailPage({
       setMaterialsError(getErrorMessage(materialsResult.reason));
     }
 
+    if (consensusResult.status === 'fulfilled') {
+      setConfirmedConsensus(consensusResult.value);
+    } else if (
+      isApiError(consensusResult.reason) &&
+      consensusResult.reason.status === 404
+    ) {
+      setConfirmedConsensus(null);
+      setConsensusStatusError(null);
+    } else {
+      setConfirmedConsensus(null);
+      setConsensusStatusError(getErrorMessage(consensusResult.reason));
+    }
+
     if (referenceResult.status === 'fulfilled') {
       setReferenceData(referenceResult.value);
     } else {
@@ -158,11 +206,16 @@ export function ProjectOwnerProjectDetailPage({
   }
 
   async function refreshAfterMaterialChange() {
-    await Promise.all([loadProject(), loadMaterials()]);
+    await Promise.all([loadProject(), loadMaterials(), loadConfirmedConsensus()]);
   }
 
   function handleSubmitAllDraftMaterials() {
     setSubmitError(null);
+
+    if (ownerContentLocked) {
+      setSubmitError(ownerContentLockedMessage);
+      return;
+    }
 
     if (materialStatusStats.submittableCount === 0) {
       setSubmitError('当前没有可提交的草稿材料。');
@@ -178,6 +231,13 @@ export function ProjectOwnerProjectDetailPage({
     setSubmitNotice(null);
     setSubmitSkipped([]);
 
+    if (ownerContentLocked) {
+      setSubmitConfirmOpen(false);
+      setSubmitError(ownerContentLockedMessage);
+      setSubmittingMaterials(false);
+      return;
+    }
+
     try {
       const result = await submitProjectOwnerMaterials(projectId, {});
       setSubmitNotice(formatSubmitResultNotice(result));
@@ -187,8 +247,14 @@ export function ProjectOwnerProjectDetailPage({
     } catch (error) {
       setSubmitConfirmOpen(false);
       setSubmitError(
-        `提交评审材料失败，请稍后重试。${getErrorMessage(error)}`,
+        isProjectOwnerContentLockedError(error)
+          ? getProjectOwnerContentLockedErrorMessage(error)
+          : `提交评审材料失败，请稍后重试。${getErrorMessage(error)}`,
       );
+
+      if (isProjectOwnerContentLockedError(error)) {
+        await refreshAfterMaterialChange();
+      }
     } finally {
       setSubmittingMaterials(false);
     }
@@ -237,13 +303,28 @@ export function ProjectOwnerProjectDetailPage({
               message={`基础数据加载失败，部分名称将使用短 ID 兜底：${referenceDataError}`}
             />
           ) : null}
+          {consensusStatusError ? (
+            <ErrorAlert
+              message={`评审结果确认状态加载失败，写操作仍以后端校验为准：${consensusStatusError}`}
+            />
+          ) : null}
+          {ownerContentLocked ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+              {ownerContentLockedMessage}
+            </div>
+          ) : null}
 
           <ProjectOwnerProjectInfoPanel
             lookupMaps={lookupMaps}
             project={project}
           />
 
-          <FollowUpNeedsPanel onSaved={setProject} project={project} />
+          <FollowUpNeedsPanel
+            locked={ownerContentLocked}
+            lockedMessage={ownerContentLockedMessage}
+            onSaved={setProject}
+            project={project}
+          />
 
           <section className="panel" id="materials">
             <div className="panel-body">
@@ -255,6 +336,11 @@ export function ProjectOwnerProjectDetailPage({
                   上传材料默认为草稿，提交评审后评审负责人和专家可见，项目负责人不能再删除。
                 </p>
               </div>
+              {ownerContentLocked ? (
+                <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+                  {ownerContentLockedMessage}
+                </div>
+              ) : null}
 
               <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
@@ -270,11 +356,14 @@ export function ProjectOwnerProjectDetailPage({
                     disabled={
                       submittingMaterials ||
                       materialsLoading ||
+                      ownerContentLocked ||
                       materialStatusStats.submittableCount === 0
                     }
                     onClick={handleSubmitAllDraftMaterials}
                     title={
-                      materialStatusStats.submittableCount === 0
+                      ownerContentLocked
+                        ? ownerContentLockedMessage
+                        : materialStatusStats.submittableCount === 0
                         ? '当前没有可提交的草稿材料。'
                         : undefined
                     }
@@ -330,6 +419,8 @@ export function ProjectOwnerProjectDetailPage({
               </div>
 
               <MaterialUploadPanel
+                locked={ownerContentLocked}
+                lockedMessage={ownerContentLockedMessage}
                 materialTypes={materialTypes}
                 materialTypesError={materialTypesError}
                 onUploaded={() => {
@@ -341,6 +432,8 @@ export function ProjectOwnerProjectDetailPage({
               <div className="mt-5">
                 <ErrorAlert message={materialsError} />
                 <MaterialListPanel
+                  locked={ownerContentLocked}
+                  lockedMessage={ownerContentLockedMessage}
                   loading={materialsLoading}
                   materialTypeNameById={lookupMaps.materialTypeNameById}
                   materialTypes={materialTypes}
@@ -358,7 +451,7 @@ export function ProjectOwnerProjectDetailPage({
                 loading={submittingMaterials}
                 onCancel={() => setSubmitConfirmOpen(false)}
                 onConfirm={handleConfirmSubmitMaterials}
-                open={submitConfirmOpen}
+                open={submitConfirmOpen && !ownerContentLocked}
                 title="确认提交评审材料？"
               />
             </div>

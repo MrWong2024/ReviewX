@@ -7,6 +7,17 @@
 - 后续不应记录与前端接续无关的后端内部小修流水账；如小修影响前端接入、页面口径或用户可见行为，可摘要记录。
 - 当前事实应沉淀到 snapshot / route-map / component-map / API map 等对应文档，避免本文件扩张成全量流水账。
 
+## 2026-06-27
+
+### ReviewX 第七阶段小修：项目负责人详情页评审负责人显示与确认后只读锁定
+
+- 后端 project-owner 项目列表 / 详情响应新增 `reviewManager?: { id, name, phone? } | null` 摘要和 `ownerContentLocked`，负责人用户不存在时返回 `reviewManager=null`，不返回敏感字段。
+- 项目负责人项目详情“评审负责人”显示优先使用 `project.reviewManager?.name`，其次使用 portal `review_manager` 映射；有负责人 ID 但无法解析时显示“评审负责人信息暂不可用”，未设置时显示“暂未设置评审负责人”，不再显示“未知评审负责人（短ID）”。
+- 项目负责人详情页新增内容只读锁定：`ownerContentLocked/reviewFinalized/finalLevel/originalLevel/confirmed consensus` 任一成立时，后续推进需求不可保存，材料上传、提交全部草稿材料和材料删除禁用；材料查看、筛选、下载、评审结果与申诉入口、申诉附件上传 / 删除仍可用。
+- 后端对 `PATCH /project-owner/projects/:id/follow-up-needs`、`POST /project-owner/projects/:id/materials`、`POST /project-owner/projects/:id/materials/submit`、`DELETE /project-owner/projects/:id/materials/:materialId` 增加 `409 PROJECT_OWNER_CONTENT_LOCKED` 兜底，锁定条件为 confirmed 合议、项目 `finalLevel` 或 `originalLevel`。
+- 本小修未修改申诉业务规则、申诉附件规则、admin 材料治理、review-manager / expert 材料只读查看、合议算法、专家分配锁定、package / lock / env，也未实现第八阶段甲方看板、文件预览、腾讯会议或真实 AI。
+- 本次验证：backend `npm run lint`、`npm run build`、`npm run test -- --runInBand`、`npm run test:e2e` 通过；frontend `npm run lint`、`npm run typecheck`、`npm run build` 通过。
+
 ## 2026-06-24
 
 ### ReviewX 第七阶段小修：项目负责人申诉前置等级口径修正

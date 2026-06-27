@@ -82,6 +82,12 @@ export type PortalUserSummary = {
   isActive: boolean;
 };
 
+export type ProjectOwnerUserSummary = {
+  id: string;
+  name: string;
+  phone?: string | null;
+};
+
 export type ProjectOwnerReferenceData = {
   batches: PortalBatchSummary[];
   dictionaries: PortalDictionarySummary[];
@@ -116,8 +122,11 @@ export type ProjectOwnerProject = {
   meetingUrl?: string;
   originalLevel?: string;
   followUpNeeds?: string;
+  reviewManager?: ProjectOwnerUserSummary | null;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   isActive: boolean;
+  ownerContentLocked?: boolean;
+  reviewFinalized?: boolean;
   materialCount: number;
   createdAt: string;
   updatedAt: string;

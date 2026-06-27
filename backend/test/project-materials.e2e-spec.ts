@@ -8,6 +8,7 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
@@ -39,10 +40,15 @@ type SeedData = {
   wrongTypeId: string;
   project: { id: string };
   otherProject: { id: string };
+  missingManagerProject: {
+    id: string;
+    reviewManagerId: string;
+  };
 };
 
 type TestUser = {
   id: string;
+  name: string;
   phone: string;
 };
 
@@ -56,6 +62,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
   let dictionaryModel: Model<Dictionary>;
   let organizationModel: Model<Organization>;
   let projectModel: Model<Project>;
+  let consensusReviewModel: Model<ConsensusReview>;
   let assignmentModel: Model<ProjectExpertAssignment>;
   let materialModel: Model<ProjectMaterial>;
   let deletionLogModel: Model<ProjectMaterialDeletionLog>;
@@ -82,6 +89,9 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       getModelToken(Organization.name),
     );
     projectModel = app.get<Model<Project>>(getModelToken(Project.name));
+    consensusReviewModel = app.get<Model<ConsensusReview>>(
+      getModelToken(ConsensusReview.name),
+    );
     assignmentModel = app.get<Model<ProjectExpertAssignment>>(
       getModelToken(ProjectExpertAssignment.name),
     );
@@ -98,6 +108,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       dictionaryModel,
       organizationModel,
       projectModel,
+      consensusReviewModel,
       assignmentModel,
       materialModel,
       deletionLogModel,
@@ -144,16 +155,50 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     });
     expect(getRecordArray(listBody, 'items')[0]).toMatchObject({
       id: data.project.id,
+      reviewManagerId: data.reviewManager.id,
+      reviewManager: {
+        id: data.reviewManager.id,
+        name: data.reviewManager.name,
+        phone: data.reviewManager.phone,
+      },
       reviewLocation: 'Room A',
       meetingUrl: 'https://meeting.example/room-a',
       followUpNeeds: 'Initial needs',
+      ownerContentLocked: false,
       materialCount: 0,
     });
+    expectResponseHasNoForbiddenFields(getRecordArray(listBody, 'items')[0]);
 
     await request(httpServer)
       .get(`/project-owner/projects/${data.project.id}`)
       .set('Cookie', otherOwnerCookie)
       .expect(403);
+
+    const detailResponse = await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(getJsonBody(detailResponse)).toMatchObject({
+      id: data.project.id,
+      reviewManagerId: data.reviewManager.id,
+      reviewManager: {
+        id: data.reviewManager.id,
+        name: data.reviewManager.name,
+        phone: data.reviewManager.phone,
+      },
+      ownerContentLocked: false,
+    });
+    expectResponseHasNoForbiddenFields(getJsonBody(detailResponse));
+
+    const missingManagerDetailResponse = await request(httpServer)
+      .get(`/project-owner/projects/${data.missingManagerProject.id}`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(getJsonBody(missingManagerDetailResponse)).toMatchObject({
+      id: data.missingManagerProject.id,
+      reviewManagerId: data.missingManagerProject.reviewManagerId,
+      reviewManager: null,
+    });
 
     const updateResponse = await request(httpServer)
       .patch(`/project-owner/projects/${data.project.id}/follow-up-needs`)
@@ -376,6 +421,121 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       )
       .set('Cookie', ownerCookie)
       .expect(409);
+  });
+
+  it('locks project owner follow-up needs and material writes after confirmed consensus while keeping reads available', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+    const upload = await uploadMaterial(
+      ownerCookie,
+      data.project.id,
+      data.materialTypeId,
+      'locked-draft.pdf',
+    );
+    const materialId = getString(getRecordArray(upload, 'materials')[0], 'id');
+
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(data.project.id),
+      reviewSchemeSnapshot: {},
+      status: 'confirmed',
+      finalOpinion: '同意通过',
+      finalScore: 86,
+      finalLevel: 'A',
+      confirmedAt: new Date(),
+      confirmedByUserId: new Types.ObjectId(data.reviewManager.id),
+    });
+
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .patch(`/project-owner/projects/${data.project.id}/follow-up-needs`)
+        .set('Cookie', ownerCookie)
+        .send({ followUpNeeds: 'locked update' }),
+    );
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .post(`/project-owner/projects/${data.project.id}/materials`)
+        .set('Cookie', ownerCookie)
+        .field('materialTypeId', data.materialTypeId)
+        .attach('files', Buffer.from('content'), 'new-upload.pdf'),
+    );
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .post(`/project-owner/projects/${data.project.id}/materials/submit`)
+        .set('Cookie', ownerCookie)
+        .send({}),
+    );
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .delete(
+          `/project-owner/projects/${data.project.id}/materials/${materialId}`,
+        )
+        .set('Cookie', ownerCookie),
+    );
+
+    await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}`)
+      .set('Cookie', ownerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          id: data.project.id,
+          ownerContentLocked: true,
+        });
+      });
+
+    await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}/materials`)
+      .set('Cookie', ownerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(1);
+      });
+
+    await request(httpServer)
+      .get(
+        `/project-owner/projects/${data.project.id}/materials/${materialId}/download-url`,
+      )
+      .set('Cookie', ownerCookie)
+      .expect(200);
+
+    const storedMaterial = await materialModel
+      .findById(materialId)
+      .lean<ProjectMaterial | null>()
+      .exec();
+    expect(storedMaterial).toMatchObject({ status: 'draft' });
+  });
+
+  it('locks project owner content writes when project finalLevel exists without confirmed consensus', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+
+    await projectModel
+      .findByIdAndUpdate(data.project.id, { $set: { finalLevel: 'B' } })
+      .exec();
+
+    await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}`)
+      .set('Cookie', ownerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          finalLevel: 'B',
+          ownerContentLocked: true,
+        });
+      });
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .patch(`/project-owner/projects/${data.project.id}/follow-up-needs`)
+        .set('Cookie', ownerCookie)
+        .send({ followUpNeeds: 'locked by final level' }),
+    );
+    await expectProjectOwnerContentLocked(
+      request(httpServer)
+        .post(`/project-owner/projects/${data.project.id}/materials`)
+        .set('Cookie', ownerCookie)
+        .field('materialTypeId', data.materialTypeId)
+        .attach('files', Buffer.from('content'), 'final-level-lock.pdf'),
+    );
   });
 
   it('normalizes mojibake Chinese material filenames on upload and list', async () => {
@@ -664,7 +824,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
     expect(getJsonBody(projectsResponse)).toMatchObject({
       page: 1,
       pageSize: 100,
-      total: 2,
+      total: 3,
     });
 
     const managerProjectsResponse = await request(httpServer)
@@ -758,6 +918,15 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       reviewManagerId: new Types.ObjectId(otherReviewManager.id),
       isActive: true,
     });
+    const missingReviewManagerId = new Types.ObjectId();
+    const missingManagerProject = await projectModel.create({
+      batchId: batch._id,
+      projectNo: 'P-MAT-003',
+      name: 'Missing Review Manager Project',
+      ownerUserId: new Types.ObjectId(owner.id),
+      reviewManagerId: missingReviewManagerId,
+      isActive: true,
+    });
 
     await assignmentModel.create({
       projectId: project._id,
@@ -793,6 +962,10 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       wrongTypeId: wrongType._id.toString(),
       project: { id: project._id.toString() },
       otherProject: { id: otherProject._id.toString() },
+      missingManagerProject: {
+        id: missingManagerProject._id.toString(),
+        reviewManagerId: missingReviewManagerId.toString(),
+      },
     };
   }
 
@@ -810,7 +983,7 @@ describe('Project owner materials and visibility APIs (e2e)', () => {
       mustChangePassword: false,
     });
 
-    return { id: userId.toString(), phone };
+    return { id: userId.toString(), name: `User ${phone.slice(-4)}`, phone };
   }
 
   async function login(phone: string): Promise<string> {
@@ -896,6 +1069,45 @@ function getString(record: Record<string, unknown>, key: string): string {
   }
 
   return value;
+}
+
+async function expectProjectOwnerContentLocked(
+  requestPromise: Promise<Response>,
+): Promise<void> {
+  const response = await requestPromise;
+
+  expect(response.status).toBe(409);
+  expect(getJsonBody(response)).toMatchObject({
+    code: 'PROJECT_OWNER_CONTENT_LOCKED',
+    message:
+      '评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。',
+  });
+}
+
+function expectResponseHasNoForbiddenFields(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      expectResponseHasNoForbiddenFields(item);
+    }
+    return;
+  }
+
+  if (!isRecord(value)) {
+    return;
+  }
+
+  expect(value).not.toHaveProperty('passwordHash');
+  expect(value).not.toHaveProperty('refreshToken');
+  expect(value).not.toHaveProperty('resetToken');
+  expect(value).not.toHaveProperty('mustChangePassword');
+  expect(value).not.toHaveProperty('token');
+  expect(value).not.toHaveProperty('sessionToken');
+  expect(value).not.toHaveProperty('session');
+  expect(value).not.toHaveProperty('roles');
+
+  for (const childValue of Object.values(value)) {
+    expectResponseHasNoForbiddenFields(childValue);
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

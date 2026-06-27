@@ -21,6 +21,7 @@ import {
 } from '../../../common/utils/mongo-query';
 import { normalizeUploadedFilename } from '../../../common/utils/uploaded-filename.util';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
+import { ConsensusReview } from '../../consensus-reviews/schemas/consensus-review.schema';
 import { Dictionary } from '../../dictionaries/schemas/dictionary.schema';
 import { ProjectExpertAssignment } from '../../project-expert-assignments/schemas/project-expert-assignment.schema';
 import { Project } from '../../projects/schemas/project.schema';
@@ -42,6 +43,8 @@ import {
   MATERIAL_TYPE_DICT_TYPE,
   PROJECT_MATERIAL_MAX_FILE_SIZE_BYTES,
   PROJECT_MATERIAL_MAX_FILES,
+  PROJECT_OWNER_CONTENT_LOCKED_CODE,
+  PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   ProjectMaterialPersistedStatus,
   ProjectMaterialStatus,
 } from '../constants/project-material.constants';
@@ -57,6 +60,7 @@ import {
   ProjectMaterialDeletionLog,
 } from '../schemas/project-material-deletion-log.schema';
 import { ProjectMaterial } from '../schemas/project-material.schema';
+import { User } from '../../users/schemas/user.schema';
 
 export type UploadedProjectMaterialFile = {
   originalname: string;
@@ -97,6 +101,12 @@ export type ProjectMaterialResponse = {
   updatedAt: Date;
 };
 
+export type ProjectOwnerUserSummary = {
+  id: string;
+  name: string;
+  phone?: string;
+};
+
 export type ProjectPortalResponse = {
   id: string;
   batchId: string;
@@ -112,13 +122,17 @@ export type ProjectPortalResponse = {
   disciplineIds: string[];
   departmentId?: string | null;
   reviewManagerId?: string | null;
+  reviewManager?: ProjectOwnerUserSummary | null;
   reviewSchemeId?: string | null;
   reviewTime?: Date | null;
   reviewLocation?: string;
   meetingUrl?: string;
   followUpNeeds?: string;
+  finalLevel?: string;
+  originalLevel?: string;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   isActive: boolean;
+  ownerContentLocked?: boolean;
   materialCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -176,6 +190,8 @@ type ProjectLean = TimestampFields & {
   reviewLocation?: string;
   meetingUrl?: string;
   followUpNeeds?: string;
+  finalLevel?: string;
+  originalLevel?: string;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   isActive: boolean;
 };
@@ -213,6 +229,16 @@ type MaterialTypeLean = {
   name: string;
   sortOrder: number;
   isActive: boolean;
+};
+
+type ReviewManagerLean = {
+  _id: Types.ObjectId;
+  name: string;
+  phone?: string;
+};
+
+type ConsensusProjectIdLean = {
+  projectId: Types.ObjectId;
 };
 
 type AssignmentProjectIdLean = {
@@ -253,10 +279,14 @@ export class ProjectMaterialsService {
     private readonly deletionLogModel: Model<ProjectMaterialDeletionLog>,
     @InjectModel(Project.name)
     private readonly projectModel: Model<Project>,
+    @InjectModel(ConsensusReview.name)
+    private readonly consensusReviewModel: Model<ConsensusReview>,
     @InjectModel(Dictionary.name)
     private readonly dictionaryModel: Model<Dictionary>,
     @InjectModel(ProjectExpertAssignment.name)
     private readonly assignmentModel: Model<ProjectExpertAssignment>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<User>,
     @Inject(STORAGE_SERVICE)
     private readonly storageService: StorageService,
     private readonly storageConfigService: StorageConfigService,
@@ -275,6 +305,7 @@ export class ProjectMaterialsService {
       filter,
       query,
       OWNER_VISIBLE_MATERIAL_STATUSES,
+      { includeProjectOwnerContext: true },
     );
   }
 
@@ -286,7 +317,7 @@ export class ProjectMaterialsService {
       projectId,
       currentUser.user.id,
     );
-    return this.toProjectPortalResponse(
+    return this.toProjectPortalResponseWithLookups(
       project,
       await this.countMaterialsByStatuses(
         project._id,
@@ -304,6 +335,7 @@ export class ProjectMaterialsService {
       projectId,
       currentUser.user.id,
     );
+    await this.assertProjectOwnerContentMutable(project);
     const updated = await this.projectModel
       .findByIdAndUpdate(
         project._id,
@@ -317,7 +349,7 @@ export class ProjectMaterialsService {
       throw new NotFoundException('Project not found');
     }
 
-    return this.toProjectPortalResponse(
+    return this.toProjectPortalResponseWithLookups(
       updated,
       await this.countMaterialsByStatuses(
         updated._id,
@@ -389,6 +421,7 @@ export class ProjectMaterialsService {
       input.projectId,
       input.currentUser.user.id,
     );
+    await this.assertProjectOwnerContentMutable(project);
     const files = input.files ?? [];
 
     if (files.length === 0) {
@@ -467,7 +500,11 @@ export class ProjectMaterialsService {
     dto: SubmitProjectMaterialsDto,
     currentUser: AuthenticatedUser,
   ): Promise<SubmitProjectMaterialsResult> {
-    await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
+    const project = await this.assertProjectOwnerAccess(
+      projectId,
+      currentUser.user.id,
+    );
+    await this.assertProjectOwnerContentMutable(project);
     const requestedMaterialIds = [...new Set(dto.materialIds ?? [])];
     const submitAll = requestedMaterialIds.length === 0;
     const projectObjectId = toObjectId(projectId, 'projectId');
@@ -575,7 +612,11 @@ export class ProjectMaterialsService {
     materialId: string,
     currentUser: AuthenticatedUser,
   ): Promise<DeleteProjectMaterialResult> {
-    await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
+    const project = await this.assertProjectOwnerAccess(
+      projectId,
+      currentUser.user.id,
+    );
+    await this.assertProjectOwnerContentMutable(project);
     const material = await this.findMaterialByProjectAndStatuses(
       projectId,
       materialId,
@@ -862,6 +903,7 @@ export class ProjectMaterialsService {
     filter: Record<string, unknown>,
     query: PaginationQueryDto,
     materialCountStatuses: ProjectMaterialStatus[],
+    options: { includeProjectOwnerContext?: boolean } = {},
   ): Promise<PaginatedResponse<ProjectPortalResponse>> {
     const [items, total] = await Promise.all([
       this.projectModel
@@ -877,18 +919,173 @@ export class ProjectMaterialsService {
       items.map((item) => item._id),
       materialCountStatuses,
     );
+    let reviewManagerMap = new Map<string, ProjectOwnerUserSummary>();
+    let ownerContentLockMap = new Map<string, boolean>();
+
+    if (options.includeProjectOwnerContext) {
+      [reviewManagerMap, ownerContentLockMap] = await Promise.all([
+        this.getReviewManagerMap(
+          items
+            .map((item) => item.reviewManagerId)
+            .filter((id): id is Types.ObjectId => Boolean(id)),
+        ),
+        this.getProjectOwnerContentLockMap(items),
+      ]);
+    }
 
     return {
       items: items.map((item) =>
         this.toProjectPortalResponse(
           item,
           counts.get(item._id.toString()) ?? 0,
+          options.includeProjectOwnerContext
+            ? {
+                ownerContentLocked:
+                  ownerContentLockMap.get(item._id.toString()) ?? false,
+                reviewManager: item.reviewManagerId
+                  ? (reviewManagerMap.get(item.reviewManagerId.toString()) ??
+                    null)
+                  : null,
+              }
+            : undefined,
         ),
       ),
       page: query.page,
       pageSize: query.pageSize,
       total,
     };
+  }
+
+  private async toProjectPortalResponseWithLookups(
+    project: ProjectLean,
+    materialCount: number,
+  ): Promise<ProjectPortalResponse> {
+    const [reviewManager, ownerContentLocked] = await Promise.all([
+      this.getReviewManagerSummary(project.reviewManagerId),
+      this.isProjectOwnerContentLocked(project),
+    ]);
+
+    return this.toProjectPortalResponse(project, materialCount, {
+      ownerContentLocked,
+      reviewManager,
+    });
+  }
+
+  private async getReviewManagerMap(
+    reviewManagerIds: Types.ObjectId[],
+  ): Promise<Map<string, ProjectOwnerUserSummary>> {
+    if (reviewManagerIds.length === 0) {
+      return new Map();
+    }
+
+    const uniqueIds = [
+      ...new Set(reviewManagerIds.map((id) => id.toString())),
+    ].map((id) => toObjectId(id, 'reviewManagerId'));
+    const reviewManagers = await this.userModel
+      .find({ _id: { $in: uniqueIds } })
+      .select({ name: 1, phone: 1 })
+      .lean<ReviewManagerLean[]>()
+      .exec();
+
+    return new Map(
+      reviewManagers.map((reviewManager) => [
+        reviewManager._id.toString(),
+        {
+          id: reviewManager._id.toString(),
+          name: reviewManager.name,
+          phone: reviewManager.phone,
+        },
+      ]),
+    );
+  }
+
+  private async getReviewManagerSummary(
+    reviewManagerId?: Types.ObjectId | null,
+  ): Promise<ProjectOwnerUserSummary | null> {
+    if (!reviewManagerId) {
+      return null;
+    }
+
+    return (
+      (await this.getReviewManagerMap([reviewManagerId])).get(
+        reviewManagerId.toString(),
+      ) ?? null
+    );
+  }
+
+  private async getProjectOwnerContentLockMap(
+    projects: ProjectLean[],
+  ): Promise<Map<string, boolean>> {
+    const lockMap = new Map<string, boolean>();
+    const projectsNeedingConsensusCheck: Types.ObjectId[] = [];
+
+    for (const project of projects) {
+      const projectId = project._id.toString();
+      const lockedByProjectLevel = this.hasProjectFinalConclusion(project);
+
+      lockMap.set(projectId, lockedByProjectLevel);
+
+      if (!lockedByProjectLevel) {
+        projectsNeedingConsensusCheck.push(project._id);
+      }
+    }
+
+    if (projectsNeedingConsensusCheck.length === 0) {
+      return lockMap;
+    }
+
+    const confirmedConsensus = await this.consensusReviewModel
+      .find({
+        projectId: { $in: projectsNeedingConsensusCheck },
+        status: 'confirmed',
+      })
+      .select({ projectId: 1 })
+      .lean<ConsensusProjectIdLean[]>()
+      .exec();
+
+    for (const consensus of confirmedConsensus) {
+      lockMap.set(consensus.projectId.toString(), true);
+    }
+
+    return lockMap;
+  }
+
+  private async isProjectOwnerContentLocked(
+    project: ProjectLean,
+  ): Promise<boolean> {
+    if (this.hasProjectFinalConclusion(project)) {
+      return true;
+    }
+
+    const confirmedConsensus = await this.consensusReviewModel
+      .exists({ projectId: project._id, status: 'confirmed' })
+      .exec();
+
+    return Boolean(confirmedConsensus);
+  }
+
+  private async assertProjectOwnerContentMutable(
+    project: ProjectLean,
+  ): Promise<void> {
+    if (!(await this.isProjectOwnerContentLocked(project))) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
+      code: PROJECT_OWNER_CONTENT_LOCKED_CODE,
+    });
+  }
+
+  private hasProjectFinalConclusion(project: ProjectLean): boolean {
+    return (
+      this.hasNonEmptyString(project.finalLevel) ||
+      this.hasNonEmptyString(project.originalLevel)
+    );
+  }
+
+  private hasNonEmptyString(value: string | null | undefined): boolean {
+    return typeof value === 'string' && value.trim().length > 0;
   }
 
   private buildProjectFilter(
@@ -1177,8 +1374,12 @@ export class ProjectMaterialsService {
   private toProjectPortalResponse(
     project: ProjectLean,
     materialCount: number,
+    ownerContext?: {
+      ownerContentLocked: boolean;
+      reviewManager: ProjectOwnerUserSummary | null;
+    },
   ): ProjectPortalResponse {
-    return {
+    const response: ProjectPortalResponse = {
       id: project._id.toString(),
       batchId: project.batchId.toString(),
       projectNo: project.projectNo,
@@ -1200,12 +1401,21 @@ export class ProjectMaterialsService {
       reviewLocation: project.reviewLocation,
       meetingUrl: project.meetingUrl,
       followUpNeeds: project.followUpNeeds,
+      finalLevel: project.finalLevel,
+      originalLevel: project.originalLevel,
       reviewSchemeSnapshot: project.reviewSchemeSnapshot,
       isActive: project.isActive,
       materialCount,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
     };
+
+    if (ownerContext) {
+      response.reviewManager = ownerContext.reviewManager;
+      response.ownerContentLocked = ownerContext.ownerContentLocked;
+    }
+
+    return response;
   }
 
   private toMaterialResponse(

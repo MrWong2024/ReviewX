@@ -23,7 +23,7 @@
 | `/admin/projects/[projectId]/appeals/[appealId]` | `frontend/app/admin/projects/[projectId]/appeals/[appealId]/page.tsx` | 需要登录 + admin 角色 | implemented | 管理员申诉详情 / 处理页，查看申诉详情、附件和等级变更历史，submitted / processing 状态可处理 |
 | `/project-owner` | `frontend/app/project-owner/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人概览，基于第一页项目做轻量展示并提供“我的项目”入口 |
 | `/project-owner/projects` | `frontend/app/project-owner/projects/page.tsx` | 需要登录 + project_owner 角色 | implemented | 我的项目列表，按后端 ownerUserId 过滤；支持分页、portal reference-data 名称映射和批次 / 项目类型 / 项目状态 / 评审负责人 / 评审方案 select 筛选；项目类型筛选使用统一树形 option 缩进 |
-| `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目详情、评审安排、后续推进需求、portal reference-data 名称映射，以及材料上传草稿、状态展示、提交评审、下载、草稿物理删除和 submitted 删除禁用闭环 |
+| `/project-owner/projects/[projectId]` | `frontend/app/project-owner/projects/[projectId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目详情、评审安排、后续推进需求、portal reference-data 名称映射，以及材料上传草稿、状态展示、提交评审、下载、草稿物理删除和 submitted 删除禁用闭环；评审负责人显示优先使用项目响应 `reviewManager` 摘要，评审结果确认后后续推进需求和项目材料写操作只读锁定 |
 | `/project-owner/projects/[projectId]/review-result` | `frontend/app/project-owner/projects/[projectId]/review-result/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人查看已确认合议结果、最终等级、等级变更历史和本人申诉列表，并发起申诉 |
 | `/project-owner/projects/[projectId]/appeals/[appealId]` | `frontend/app/project-owner/projects/[projectId]/appeals/[appealId]/page.tsx` | 需要登录 + project_owner 角色 | implemented | 项目负责人查看本人申诉详情、处理意见和附件；submitted 状态可继续上传或删除申诉附件 |
 | `/expert` | `frontend/app/expert/page.tsx` | 需要登录 + expert 角色 | implemented | 专家工作台首页，说明任务 / 材料 / 评分流程，并提供“我的评审任务”入口 |

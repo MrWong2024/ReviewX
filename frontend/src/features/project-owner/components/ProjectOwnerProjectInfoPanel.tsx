@@ -1,3 +1,5 @@
+'use client';
+
 import { Badge } from '@/src/components/feedback/Badge';
 import { Button } from '@/src/components/ui/Button';
 import { formatDateTime } from '@/src/lib/format/date';
@@ -11,6 +13,7 @@ import {
   formatMoney,
   formatNames,
   formatOptionalName,
+  resolveReviewManagerDisplayName,
 } from '../utils';
 
 type ProjectOwnerProjectInfoPanelProps = {
@@ -94,11 +97,7 @@ export function ProjectOwnerProjectInfoPanel({
   const reviewItems: InfoItem[] = [
     {
       label: '评审负责人',
-      value: formatOptionalName(
-        project.reviewManagerId,
-        lookupMaps.userNameById,
-        '未知评审负责人',
-      ),
+      value: resolveReviewManagerDisplayName(project, lookupMaps.userNameById),
     },
     {
       label: '评审方案',

@@ -87,16 +87,16 @@
 
 | 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
 | --- | --- | --- | --- |
-| `listProjectOwnerProjects` | `GET /project-owner/projects` | 分页对象；只提交 `page/pageSize/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId`，不提交 `ownerUserId`，不提交 `keyword` | `/project-owner`、`/project-owner/projects` |
-| `getProjectOwnerProject` | `GET /project-owner/projects/:id` | `ProjectOwnerProject`；后端按当前登录用户校验 owner 权限 | `/project-owner/projects/[projectId]` |
-| `updateProjectOwnerFollowUpNeeds` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只提交 `{ followUpNeeds }`，最大长度 5000 由前后端共同校验 | `/project-owner/projects/[projectId]` |
+| `listProjectOwnerProjects` | `GET /project-owner/projects` | 分页对象；只提交 `page/pageSize/batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId`，不提交 `ownerUserId`，不提交 `keyword`；响应可含 `reviewManager` 摘要和 `ownerContentLocked` | `/project-owner`、`/project-owner/projects` |
+| `getProjectOwnerProject` | `GET /project-owner/projects/:id` | `ProjectOwnerProject`；后端按当前登录用户校验 owner 权限；响应优先使用 `reviewManager?.name` 展示评审负责人，`ownerContentLocked` 作为详情页只读体验判断之一 | `/project-owner/projects/[projectId]` |
+| `updateProjectOwnerFollowUpNeeds` | `PATCH /project-owner/projects/:id/follow-up-needs` | 只提交 `{ followUpNeeds }`，最大长度 5000 由前后端共同校验；`409 PROJECT_OWNER_CONTENT_LOCKED` 显示固定业务文案 | `/project-owner/projects/[projectId]` |
 | `listProjectOwnerMaterials` | `GET /project-owner/projects/:id/materials` | `ProjectMaterial[]`；项目负责人可见 `draft/submitted/legacy active`，`deleted` 仅作 legacy 兜底；材料类型名称优先使用响应内联 `materialType.name`，否则使用 portal `material_type` 映射 | `/project-owner/projects/[projectId]` |
-| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；新上传材料为 `draft`，提交前评审负责人和专家不可见；材料类型来自 portal active `material_type` 字典 | `/project-owner/projects/[projectId]` |
-| `submitProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials/submit` | 请求 `{ materialIds?: string[] }`；当前前端提交全部草稿材料时传 `{}`；返回 `submittedCount/alreadySubmittedCount/skippedCount/submittedMaterialIds/skipped`；不修改文件本体或 objectKey | `/project-owner/projects/[projectId]` |
+| `uploadProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials` | `FormData`；字段名固定为 `files/materialTypeId/remark`；不手动设置 `Content-Type`；新上传材料为 `draft`，提交前评审负责人和专家不可见；材料类型来自 portal active `material_type` 字典；`409 PROJECT_OWNER_CONTENT_LOCKED` 显示固定业务文案 | `/project-owner/projects/[projectId]` |
+| `submitProjectOwnerMaterials` | `POST /project-owner/projects/:id/materials/submit` | 请求 `{ materialIds?: string[] }`；当前前端提交全部草稿材料时传 `{}`；返回 `submittedCount/alreadySubmittedCount/skippedCount/submittedMaterialIds/skipped`；不修改文件本体或 objectKey；锁定时禁用入口，后端 `409 PROJECT_OWNER_CONTENT_LOCKED` 仍会刷新权威数据并显示业务文案 | `/project-owner/projects/[projectId]` |
 | `getProjectOwnerMaterialDownloadUrl` | `GET /project-owner/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；不在前端拼接 OSS objectKey | `/project-owner/projects/[projectId]` |
-| `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
+| `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；锁定时禁用删除入口，后端 `409 PROJECT_OWNER_CONTENT_LOCKED` 显示固定业务文案；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
-| `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，不作为整页错误 | `/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，在项目详情页视为未查到 confirmed 合议且不作为整页错误；项目详情页用它辅助计算只读锁定态 | `/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，展示原等级、变更后等级、原因、来源、时间和操作人 | `/project-owner/projects/[projectId]/review-result` |
 | `listProjectOwnerAppeals` | `GET /project-owner/projects/:id/appeals` | 获取当前项目负责人对该项目提交的本人申诉列表 | `/project-owner/projects/[projectId]/review-result` |
 | `getProjectOwnerAppeal` | `GET /project-owner/projects/:id/appeals/:appealId` | 获取本人申诉详情；附件列表另行调用附件接口 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
@@ -229,7 +229,7 @@
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
 - `400`：展示后端 message 或默认输入错误提示
-- `409`：展示后端 message 或默认冲突提示；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
+- `409`：展示后端 message 或默认冲突提示；项目负责人后续推进需求、材料上传、提交和删除遇到 `PROJECT_OWNER_CONTENT_LOCKED` 时固定展示“评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。”，不显示 HTTP 状态码或技术字段；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口
 - `500`：展示默认服务异常提示
 
 ## 4.1 前端展示映射口径
@@ -259,7 +259,9 @@
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
 - 管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials`、`/admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`；删除必须提交 `reason`，不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称。
 - 管理员材料删除成功后刷新列表；`400` reason 问题、`403` 权限、`404` 已删除和 `500`/storage 删除失败均在材料卡片或删除弹窗内展示，不在成功前从列表乐观移除。
-- 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；未命中时显示“未知项（短ID）”类兜底，不默认展示裸 ID
+- 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；项目详情评审负责人显示优先级为 `project.reviewManager?.name`、`lookupMaps.userNameById.get(project.reviewManagerId)`、有 `reviewManagerId` 时“评审负责人信息暂不可用”、无 `reviewManagerId` 时“暂未设置评审负责人”，不再显示“未知评审负责人（短ID）”；其他基础数据未命中时仍可显示“未知项（短ID）”类兜底，不默认展示裸 ID
+- 项目负责人详情页只读锁定体验层判断优先使用 `project.ownerContentLocked` / `project.reviewFinalized`，再看 `project.finalLevel`、`project.originalLevel` 和 `GET /project-owner/projects/:id/consensus` 是否返回 confirmed 合议；consensus 404 视为未确认，其他错误仅提示并以后端 409 兜底。
+- 项目负责人详情页锁定后，后续推进需求 textarea 禁用且隐藏保存按钮；材料上传表单不渲染；提交全部草稿材料按钮禁用；材料列表删除按钮禁用；材料筛选和下载继续可用；“查看评审结果与申诉”入口继续可用。
 - 项目负责人项目列表筛选使用批次、项目类型、项目状态、评审负责人、评审方案 select；提交给后端的仍是对应 ID，不新增 keyword
 - 项目负责人材料列表类型展示优先使用 `ProjectMaterial.materialType.name`，其次使用 portal `material_type` 映射，仍未命中时显示“未知材料类型（短ID）”
 - 项目负责人材料列表显示材料状态 Badge；`draft/active` 可提交或删除，`submitted` 禁用删除，`deleted/unknown` 禁用操作。

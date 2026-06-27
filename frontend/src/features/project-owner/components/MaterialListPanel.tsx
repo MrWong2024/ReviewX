@@ -20,11 +20,16 @@ import {
   canProjectOwnerDeleteMaterial,
   formatFileSize,
   formatLookupName,
+  getProjectOwnerContentLockedErrorMessage,
+  isProjectOwnerContentLockedError,
   getMaterialDeleteDisabledReason,
   getMaterialStatusView,
+  PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
 } from '../utils';
 
 type MaterialListPanelProps = {
+  locked?: boolean;
+  lockedMessage?: string;
   loading: boolean;
   materialTypeNameById: Map<string, string>;
   materialTypes: MaterialTypeSummary[];
@@ -36,6 +41,8 @@ type MaterialListPanelProps = {
 };
 
 export function MaterialListPanel({
+  locked = false,
+  lockedMessage = PROJECT_OWNER_CONTENT_LOCKED_MESSAGE,
   loading,
   materialTypeNameById,
   materialTypes,
@@ -84,6 +91,12 @@ export function MaterialListPanel({
 
   async function handleDelete() {
     if (!deleteTarget) {
+      return;
+    }
+
+    if (locked) {
+      setDeleteTarget(null);
+      setError(lockedMessage);
       return;
     }
 
@@ -162,7 +175,9 @@ export function MaterialListPanel({
     {
       key: 'actions',
       render: (item) => {
-        const deleteDisabledReason = getMaterialDeleteDisabledReason(item);
+        const deleteDisabledReason = locked
+          ? lockedMessage
+          : getMaterialDeleteDisabledReason(item);
 
         return (
           <div>
@@ -177,7 +192,7 @@ export function MaterialListPanel({
               <Button
                 disabled={Boolean(deleteDisabledReason)}
                 onClick={() => {
-                  if (canProjectOwnerDeleteMaterial(item)) {
+                  if (!locked && canProjectOwnerDeleteMaterial(item)) {
                     setDeleteTarget(item);
                   }
                 }}
@@ -215,6 +230,11 @@ export function MaterialListPanel({
       </div>
 
       <ErrorAlert message={error} />
+      {locked ? (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
+          {lockedMessage}
+        </div>
+      ) : null}
       {notice ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
           {notice}
@@ -289,6 +309,10 @@ function getDeleteConfirmDescription(material: ProjectMaterial | null): string {
 
 function getDeleteErrorMessage(error: unknown): string {
   if (isApiError(error)) {
+    if (isProjectOwnerContentLockedError(error)) {
+      return getProjectOwnerContentLockedErrorMessage(error);
+    }
+
     if (error.status === 409) {
       return '该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。';
     }

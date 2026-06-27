@@ -10,6 +10,10 @@ import {
   DictionarySchema,
 } from '../../dictionaries/schemas/dictionary.schema';
 import {
+  ConsensusReview,
+  ConsensusReviewSchema,
+} from '../../consensus-reviews/schemas/consensus-review.schema';
+import {
   ProjectExpertAssignment,
   ProjectExpertAssignmentSchema,
 } from '../../project-expert-assignments/schemas/project-expert-assignment.schema';
@@ -32,6 +36,7 @@ import {
   ProjectMaterial,
   ProjectMaterialSchema,
 } from '../schemas/project-material.schema';
+import { User, UserSchema } from '../../users/schemas/user.schema';
 import {
   ProjectMaterialsService,
   ProjectMaterialResponse,
@@ -45,6 +50,11 @@ type SeedData = {
   currentUser: ReturnType<typeof buildCurrentUser>;
   adminUser: ReturnType<typeof buildCurrentUser>;
   reviewManagerUser: ReturnType<typeof buildCurrentUser>;
+  reviewManagerSummary: {
+    id: string;
+    name: string;
+    phone: string;
+  };
   expertUser: ReturnType<typeof buildCurrentUser>;
   materialTypeId: string;
   projectId: string;
@@ -78,6 +88,8 @@ describe('ProjectMaterialsService', () => {
   let materialModel: Model<ProjectMaterial>;
   let deletionLogModel: Model<ProjectMaterialDeletionLog>;
   let assignmentModel: Model<ProjectExpertAssignment>;
+  let consensusReviewModel: Model<ConsensusReview>;
+  let userModel: Model<User>;
   let uploadFileMock: jest.MockedFunction<StorageService['uploadFile']>;
   let getSignedUrlMock: jest.MockedFunction<StorageService['getSignedUrl']>;
   let deleteObjectMock: jest.MockedFunction<StorageService['deleteObject']>;
@@ -136,11 +148,13 @@ describe('ProjectMaterialsService', () => {
             schema: ProjectMaterialDeletionLogSchema,
           },
           { name: Project.name, schema: ProjectSchema },
+          { name: ConsensusReview.name, schema: ConsensusReviewSchema },
           { name: Dictionary.name, schema: DictionarySchema },
           {
             name: ProjectExpertAssignment.name,
             schema: ProjectExpertAssignmentSchema,
           },
+          { name: User.name, schema: UserSchema },
         ]),
       ],
       providers: [
@@ -168,12 +182,18 @@ describe('ProjectMaterialsService', () => {
     assignmentModel = moduleRef.get<Model<ProjectExpertAssignment>>(
       getModelToken(ProjectExpertAssignment.name),
     );
+    consensusReviewModel = moduleRef.get<Model<ConsensusReview>>(
+      getModelToken(ConsensusReview.name),
+    );
+    userModel = moduleRef.get<Model<User>>(getModelToken(User.name));
     models = [
       projectModel,
+      consensusReviewModel,
       dictionaryModel,
       materialModel,
       deletionLogModel,
       assignmentModel,
+      userModel,
     ];
 
     for (const model of models) {
@@ -287,6 +307,123 @@ describe('ProjectMaterialsService', () => {
       },
     ]);
     await expect(materialModel.countDocuments({}).exec()).resolves.toBe(1);
+  });
+
+  it('returns review manager summary and owner content lock state for project owner project responses', async () => {
+    const data = await seedData();
+
+    const detail = await service.getProjectOwnerProject(
+      data.projectId,
+      data.currentUser,
+    );
+    expect(detail).toMatchObject({
+      id: data.projectId,
+      reviewManagerId: data.reviewManagerSummary.id,
+      reviewManager: data.reviewManagerSummary,
+      ownerContentLocked: false,
+    });
+    expect(detail.reviewManager).not.toHaveProperty('roles');
+    expect(detail.reviewManager).not.toHaveProperty('passwordHash');
+
+    const missingReviewManagerId = new Types.ObjectId();
+    await projectModel
+      .findByIdAndUpdate(data.projectId, {
+        $set: { reviewManagerId: missingReviewManagerId },
+      })
+      .exec();
+
+    await expect(
+      service.getProjectOwnerProject(data.projectId, data.currentUser),
+    ).resolves.toMatchObject({
+      reviewManagerId: missingReviewManagerId.toString(),
+      reviewManager: null,
+      ownerContentLocked: false,
+    });
+
+    await projectModel
+      .findByIdAndUpdate(data.projectId, {
+        $set: {
+          reviewManagerId: new Types.ObjectId(data.reviewManagerSummary.id),
+        },
+      })
+      .exec();
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(data.projectId),
+      reviewSchemeSnapshot: {},
+      status: 'confirmed',
+      finalOpinion: '同意通过',
+      finalScore: 80,
+      finalLevel: 'A',
+      confirmedAt: new Date(),
+      confirmedByUserId: new Types.ObjectId(data.reviewManagerSummary.id),
+    });
+
+    await expect(
+      service.getProjectOwnerProject(data.projectId, data.currentUser),
+    ).resolves.toMatchObject({
+      reviewManager: data.reviewManagerSummary,
+      ownerContentLocked: true,
+    });
+
+    const list = await service.listProjectOwnerProjects(
+      { page: 1, pageSize: 100 },
+      data.currentUser,
+    );
+    expect(list.items[0]).toMatchObject({
+      id: data.projectId,
+      reviewManager: data.reviewManagerSummary,
+      ownerContentLocked: true,
+    });
+  });
+
+  it('blocks project owner content writes after confirmed consensus', async () => {
+    const data = await seedData();
+    const material = await uploadOneMaterial(data, 'locked-draft.pdf');
+
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(data.projectId),
+      reviewSchemeSnapshot: {},
+      status: 'confirmed',
+      finalOpinion: '同意通过',
+      finalScore: 85,
+      finalLevel: 'A',
+      confirmedAt: new Date(),
+      confirmedByUserId: new Types.ObjectId(data.reviewManagerSummary.id),
+    });
+    uploadFileMock.mockClear();
+    deleteObjectMock.mockClear();
+
+    await expectProjectOwnerContentLocked(
+      service.updateFollowUpNeeds(
+        data.projectId,
+        { followUpNeeds: 'locked update' },
+        data.currentUser,
+      ),
+    );
+    await expectProjectOwnerContentLocked(
+      service.uploadOwnerMaterials({
+        projectId: data.projectId,
+        dto: { materialTypeId: data.materialTypeId },
+        files: [buildFile('new-upload.pdf', 'file-content')],
+        currentUser: data.currentUser,
+      }),
+    );
+    await expectProjectOwnerContentLocked(
+      service.submitOwnerMaterials(data.projectId, {}, data.currentUser),
+    );
+    await expectProjectOwnerContentLocked(
+      service.deleteOwnerMaterial(
+        data.projectId,
+        material.id,
+        data.currentUser,
+      ),
+    );
+
+    expect(uploadFileMock).not.toHaveBeenCalled();
+    expect(deleteObjectMock).not.toHaveBeenCalled();
+    await expect(findStoredMaterial(material.id)).resolves.toMatchObject({
+      status: 'draft',
+    });
   });
 
   it('hides draft materials from review roles until owner submits them', async () => {
@@ -531,6 +668,21 @@ describe('ProjectMaterialsService', () => {
       source: 'manual',
       status: 'assigned',
     });
+    const reviewManagerSummary = {
+      id: reviewManagerUserId.toString(),
+      name: '评审负责人张三',
+      phone: '+8613900001001',
+    };
+    await userModel.create({
+      _id: reviewManagerUserId,
+      phone: reviewManagerSummary.phone,
+      passwordHash: 'hashed-password',
+      name: reviewManagerSummary.name,
+      roles: ['review_manager'],
+      status: 'active',
+      isActive: true,
+      mustChangePassword: false,
+    });
 
     return {
       currentUser: buildCurrentUser(ownerUserId.toString()),
@@ -538,6 +690,7 @@ describe('ProjectMaterialsService', () => {
       reviewManagerUser: buildCurrentUser(reviewManagerUserId.toString(), [
         'review_manager',
       ]),
+      reviewManagerSummary,
       expertUser: buildCurrentUser(expertUserId.toString(), ['expert']),
       materialTypeId: materialType._id.toString(),
       projectId: project._id.toString(),
@@ -662,6 +815,19 @@ function getOnlyMaterial(
   }
 
   return material;
+}
+
+async function expectProjectOwnerContentLocked(
+  promise: Promise<unknown>,
+): Promise<void> {
+  await expect(promise).rejects.toMatchObject({
+    response: {
+      code: 'PROJECT_OWNER_CONTENT_LOCKED',
+      message:
+        '评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。',
+    },
+    status: 409,
+  });
 }
 
 function toLatin1Mojibake(value: string): string {

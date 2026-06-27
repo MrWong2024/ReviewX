@@ -69,11 +69,11 @@
 | `AliasChips` | `frontend/src/features/admin/components/project-import-field-mappings/AliasChips.tsx` | 字段映射别名 chips 展示，限制表格宽度并显示剩余数量 |
 | `ProjectOwnerDashboardPage` | `frontend/src/features/project-owner/pages/ProjectOwnerDashboardPage.tsx` | 项目负责人概览，读取本人第一页项目，展示轻量统计、最近项目和我的项目入口 |
 | `ProjectOwnerProjectsPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectsPage.tsx` | 项目负责人我的项目列表，加载 portal reference-data，支持后端分页、名称映射和 `batchId/statusId/projectTypeId/reviewManagerId/reviewSchemeId` select 筛选；项目类型 select 使用统一 `treeOptionLabel` 缩进 |
-| `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，并发加载项目、材料和 portal reference-data，串联基础信息、评审安排、后续推进需求、材料上传、草稿统计、提交全部草稿材料和提交后刷新 |
-| `ProjectOwnerProjectInfoPanel` | `frontend/src/features/project-owner/components/ProjectOwnerProjectInfoPanel.tsx` | 使用 lookup maps 展示批次、项目类型、项目状态、单位、学科、受理处室、评审负责人、评审方案、评审时间、地点和会议链接 |
-| `FollowUpNeedsPanel` | `frontend/src/features/project-owner/components/FollowUpNeedsPanel.tsx` | 填写和保存项目后续推进需求，前端限制 5000 字，调用 project_owner follow-up-needs 接口 |
-| `MaterialUploadPanel` | `frontend/src/features/project-owner/components/MaterialUploadPanel.tsx` | 使用 portal active `material_type` 选项启用材料上传，保留文件数量 / 大小 / 扩展名校验、FormData 上传和 successCount / failedCount / failures 展示；上传成功提示新材料为草稿，提交前评审负责人和专家不可见 |
-| `MaterialListPanel` | `frontend/src/features/project-owner/components/MaterialListPanel.tsx` | 展示项目材料列表，按 portal `material_type` 生成筛选项，材料类型名称优先使用响应摘要，其次使用 lookup map；显示材料状态 Badge，支持签名 URL 下载，`draft/legacy active` 可物理删除，`submitted` 删除禁用并映射 409 友好提示 |
+| `ProjectOwnerProjectDetailPage` | `frontend/src/features/project-owner/pages/ProjectOwnerProjectDetailPage.tsx` | 项目负责人项目详情，并发加载项目、材料、confirmed 合议状态和 portal reference-data，串联基础信息、评审安排、后续推进需求、材料上传、草稿统计、提交全部草稿材料和提交后刷新；根据 `ownerContentLocked/reviewFinalized/finalLevel/originalLevel/confirmed consensus` 计算项目负责人内容只读锁定态 |
+| `ProjectOwnerProjectInfoPanel` | `frontend/src/features/project-owner/components/ProjectOwnerProjectInfoPanel.tsx` | 使用 lookup maps 展示批次、项目类型、项目状态、单位、学科、受理处室、评审负责人、评审方案、评审时间、地点和会议链接；评审负责人优先展示项目响应 `reviewManager.name`，无法解析时显示业务文案，不显示负责人短 ID |
+| `FollowUpNeedsPanel` | `frontend/src/features/project-owner/components/FollowUpNeedsPanel.tsx` | 填写和保存项目后续推进需求，前端限制 5000 字，调用 project_owner follow-up-needs 接口；支持 `locked/lockedMessage`，锁定时 textarea 禁用、保存按钮隐藏并显示统一锁定提示 |
+| `MaterialUploadPanel` | `frontend/src/features/project-owner/components/MaterialUploadPanel.tsx` | 使用 portal active `material_type` 选项启用材料上传，保留文件数量 / 大小 / 扩展名校验、FormData 上传和 successCount / failedCount / failures 展示；上传成功提示新材料为草稿，提交前评审负责人和专家不可见；支持锁定态，锁定时不渲染上传表单并显示统一提示 |
+| `MaterialListPanel` | `frontend/src/features/project-owner/components/MaterialListPanel.tsx` | 展示项目材料列表，按 portal `material_type` 生成筛选项，材料类型名称优先使用响应摘要，其次使用 lookup map；显示材料状态 Badge，支持签名 URL 下载，`draft/legacy active` 可物理删除，`submitted` 删除禁用并映射 409 友好提示；支持锁定态，锁定时禁用删除但保留筛选和下载 |
 | `ExpertHomePage` | `frontend/src/features/expert/pages/ExpertHomePage.tsx` | 专家工作台首页，展示专家评审流程提示和“我的评审任务”入口 |
 | `ExpertReviewTasksPage` | `frontend/src/features/expert/pages/ExpertReviewTasksPage.tsx` | 专家评审任务列表，并发加载任务和 portal reference-data，支持状态 / 批次 / 评审负责人 / 评审方案筛选、分页、刷新；评审负责人显示优先使用任务响应内联 `project.reviewManager`，再 fallback 到 reference-data 映射和短 ID |
 | `ExpertReviewTaskDetailPage` | `frontend/src/features/expert/pages/ExpertReviewTaskDetailPage.tsx` | 专家评审任务详情，并发加载任务详情、submitted 材料和 portal reference-data，串联项目资料、材料下载和评分表单；根据 `project.reviewTime` 计算评审未开始提交禁用提示 |
@@ -130,8 +130,8 @@
 | project review organization API | `frontend/src/features/admin/api/project-review-organization.ts` | 管理员项目评审组织详情、专家候选 / 分配，以及项目材料列表 / 下载 URL / 带原因删除 API 封装；材料删除只调用 admin 材料接口 |
 | project review organization types | `frontend/src/features/admin/types/project-review-organization.ts` | 管理员项目评审组织、专家候选 / 分配、已分配专家评分状态标记，以及 admin 项目材料状态、材料、下载 URL 和删除结果类型 |
 | project-owner API | `frontend/src/features/project-owner/api.ts` | 项目负责人项目、后续推进需求、材料列表 / 上传 / 提交 / 下载 URL / 删除，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin-only 字典接口或 admin 材料删除接口 |
-| project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、材料、`draft/submitted/active/deleted` 状态、提交结果、上传结果、删除结果、下载 URL、查询参数、portal reference-data 摘要和 lookup map 类型 |
-| project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化、材料状态展示 / 可提交 / 可删除判断、skipped reason 中文化、reference-data lookup map 构造和“未知项（短ID）”名称兜底展示辅助 |
+| project-owner types | `frontend/src/features/project-owner/types.ts` | 项目负责人项目、`reviewManager` 摘要、`ownerContentLocked`、材料、`draft/submitted/active/deleted` 状态、提交结果、上传结果、删除结果、下载 URL、查询参数、portal reference-data 摘要和 lookup map 类型 |
+| project-owner utils | `frontend/src/features/project-owner/utils.ts` | 材料文件大小、扩展名、数量校验、文件大小格式化、材料状态展示 / 可提交 / 可删除判断、项目负责人内容锁定判断、`PROJECT_OWNER_CONTENT_LOCKED` 错误文案、评审负责人显示优先级、skipped reason 中文化、reference-data lookup map 构造和“未知项（短ID）”名称兜底展示辅助 |
 | expert API | `frontend/src/features/expert/api.ts` | 专家评分任务、专家材料列表 / 下载 URL、删除本人 draft 草稿，以及 `/portal/reference-data/*` 只读数据 API 封装；不调用 admin / project_owner / review_manager 材料接口 |
 | expert types | `frontend/src/features/expert/types.ts` | 专家任务、任务详情、评分方案快照、评分项、专家材料、保存 / 提交输入、portal reference-data 摘要、lookup map 类型和 `ExpertReviewManagerSummary` |
 | expert utils | `frontend/src/features/expert/utils.ts` | 专家评分状态文案、操作文案、draft 草稿可删除判断、`reviewTime` 未开始判断、score 范围校验、低分 / 重大问题改进建议必填判断、实时总分、文件大小格式化、lookup map 构造、评审负责人显示优先级和专家错误文案映射 |
