@@ -133,6 +133,8 @@
 | project-appeals | `GET` | `/admin/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/appealId/attachmentId` | `{ url, expiresAt }` | implemented | admin 获取任意项目 active 附件短期下载 URL |
 | project-appeals | `POST` | `/admin/projects/:id/appeals/:appealId/handle` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `HandleProjectAppealDto` | `ProjectAppealDetailResponse` | implemented | admin 兜底处理任意项目申诉；处理时同样执行最终等级兜底和懒回填；同样不修改 `ConsensusReview.finalLevel` |
 | project-appeals | `GET` | `/admin/projects/:id/level-history` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | admin 查看任意项目等级变更历史；响应含 `changedByUser?: { id, name, phone? } \| null` |
+| client-dashboard | `GET` | `/client/dashboard/overview` | `ClientDashboardController` | `ClientDashboardService` | `SessionAuthGuard` + `RolesGuard(client)` | `QueryClientDashboardOverviewDto` | `ClientDashboardOverviewResponse` | implemented | 甲方看板总览统计；只读查询全部 `isActive=true` 项目，支持基础字段和派生口径过滤，不写回业务数据 |
+| client-dashboard | `GET` | `/client/dashboard/projects` | `ClientDashboardController` | `ClientDashboardService` | `SessionAuthGuard` + `RolesGuard(client)` | `QueryClientDashboardProjectsDto` | `{ items, page, pageSize, total }`，items 为 `ClientDashboardProjectItem[]` | implemented | 甲方看板项目钻取列表；支持分页与 overview 同口径过滤；默认按 `reviewTime` 升序、空时间排后、同时间按 `createdAt` 倒序 |
 
 ## 3.1 项目申诉最终等级有效口径
 
@@ -219,10 +221,22 @@
 - 用户不存在或不可解析时 `changedByUser=null`，接口不失败。
 - 本口径只调整响应展示契约，不修改 `ProjectLevelChangeLog` schema、等级变更日志生成规则、申诉处理规则、合议、项目材料锁定或专家分配锁定。
 
+## 3.9 甲方看板统计 API 口径
+
+- `/client/dashboard/*` 只开放 `client` 角色，不开放 admin / review-manager / expert / project-owner 命名空间的新接口。
+- 本阶段 client 可见全部 `isActive=true` 项目；不做单位、行政区划、处室账号绑定或细粒度数据隔离。
+- overview 和 projects 均支持 `batchId/projectTypeId/statusId/departmentId/disciplineId/reviewManagerId/reviewSchemeId/finalLevel/progressStage/hasMeetingUrl/hasPendingAppeal/keyword` 过滤；projects 额外支持 `page/pageSize`。
+- 有效最终等级为 `trim(Project.finalLevel) || trim(confirmed ConsensusReview.finalLevel) || ''`；项目最终等级优先，原始等级只展示，不参与计算；本接口不写回 `Project.finalLevel` 或 `ConsensusReview.finalLevel`。
+- 材料只统计 `ProjectMaterial.status=submitted` 且 `deletedAt` 为空或不存在；`draft/active/deleted` 不计入 submitted 材料统计。
+- 专家分配只统计 `ProjectExpertAssignment.status=assigned`；专家评分只统计 `ExpertReview.status=submitted`；完成口径为 `assignedExpertCount > 0 && submittedExpertReviewCount >= assignedExpertCount`。
+- 合议 `confirmed` 计入 `consensus_confirmed`；`draft/reopened` 计入 `consensus_draft`；申诉 pending 为 `submitted/processing`，handled 为 `accepted/rejected/canceled`。
+- `hasMeetingUrl` 按 `meetingUrl.trim()` 是否非空判断；projects 返回 `meetingUrl/reviewTime/reviewLocation` 供前端后续展示评审现场监管入口。
+- 进度阶段可多选命中，`progressStage` 过滤表示项目命中该阶段；`primaryStage` 按 `appeal_pending > final_level_set > consensus_confirmed > consensus_draft > expert_reviews_completed > expert_reviews_started > materials_submitted > experts_assigned > scheduled > review_assigned > imported` 取最高阶段。
+
 ## 4. 列表返回结构口径
 
 - 非分页数组：`GET /admin/dictionaries`、`GET /admin/tree-dictionaries`、`GET /admin/review-schemes`
-- 分页对象：`GET /admin/users`、`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`、`GET /admin/project-imports`、`GET /admin/project-imports/:id/rows`、`GET /review-manager/projects`、`GET /project-owner/projects`、`GET /expert/projects`、`GET /expert/review-tasks`、专家候选列表
+- 分页对象：`GET /admin/users`、`GET /admin/batches`、`GET /admin/organizations`、`GET /admin/projects`、`GET /admin/project-imports`、`GET /admin/project-imports/:id/rows`、`GET /review-manager/projects`、`GET /project-owner/projects`、`GET /expert/projects`、`GET /expert/review-tasks`、`GET /client/dashboard/projects`、专家候选列表
 - 非分页材料数组：`GET /project-owner/projects/:id/materials`、`GET /review-manager/projects/:id/materials`、`GET /expert/projects/:id/materials`、`GET /admin/projects/:id/materials`；项目负责人/admin 返回 `draft/submitted/legacy active`，评审负责人/专家只返回 `submitted`
 - 非分页申诉数组：单项目 `appeals` 列表最多 3 条，返回数组；单个申诉 `attachments` 列表返回 active 附件数组；`level-history` 返回等级变更日志数组
 - 非分页字段映射配置对象：`GET /admin/project-import-field-mappings/standard-fields` 和 `GET /admin/project-import-field-mappings` 返回 `{ items }`；配置列表始终覆盖所有固定标准字段
@@ -236,6 +250,7 @@
 - 已登录但无 `admin` 角色访问 `/admin/*`：`RolesGuard` 返回 `403`
 - 已登录且具备 `admin` 角色：允许访问本阶段管理接口
 - 门户参考数据 `/portal/reference-data/*`：要求 `SessionAuthGuard` 登录，允许 `project_owner/expert/review_manager/client/admin` 读取；无角色或非允许角色返回 `403`；`users` 摘要接口禁止查询 `admin` 角色且不返回含 `admin` 角色用户
+- 甲方看板 `/client/dashboard/*`：要求 `SessionAuthGuard` 登录和 `client` 角色；未登录返回 `401`，登录但非 client 返回 `403`；admin / review_manager / expert / project_owner 不通过该命名空间获得看板权限
 
 ## 6. 状态建议
 

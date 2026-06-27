@@ -24,7 +24,8 @@
 - 申诉创建前提：必须已有 confirmed 合议，必须存在有效最终等级，同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交。
 - 申诉有效最终等级后端口径为 `project.finalLevel ?? confirmedConsensus.finalLevel`；历史数据中 `Project.finalLevel` 缺失但 confirmed 合议有 `finalLevel` 时允许创建申诉并懒回填 `projects.finalLevel/originalLevel`，懒回填不写等级变更日志。
 - 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`；development / test 默认 fake，production 默认 oss。
-- 当前仍未实现甲方看板统计 API、甲方看板权限与数据口径、真实 AI 汇总、腾讯会议 API / 直播 / 推流 / 回看、文件预览 / 在线转换、用户自助改密、忘记密码 / 短信验证码、用户 / 专家批量导入和细粒度权限矩阵。
+- 当前已实现甲方看板后端统计 API：`GET /client/dashboard/overview` 和 `GET /client/dashboard/projects`，仅 `client` 角色可访问，按全部 `isActive=true` 项目做只读统计与钻取，不做甲方细粒度数据隔离。
+- 当前仍未实现甲方看板前端、真实 AI 汇总、腾讯会议 API / 直播 / 推流 / 回看、文件预览 / 在线转换、用户自助改密、忘记密码 / 短信验证码、用户 / 专家批量导入和细粒度权限矩阵。
 - 接口细节见 `handoff-backend-api-map.md`，DTO 字段和枚举见 `handoff-backend-dto-cheatsheet.md`，Service 职责边界见 `handoff-backend-service-map.md`，配置项见 `handoff-backend-config-matrix.md`。
 ## 3. 技术基线
 
@@ -44,7 +45,7 @@ backend/
 │  ├─ app.*、main.ts、app.setup.ts
 │  ├─ common/        # filters、guards、decorators、utils 等通用能力
 │  ├─ config/        # configuration 与 env validation
-│  └─ modules/       # auth、sessions、users、主数据、项目导入、评审组织、材料、评分、合议、申诉、storage、portal-reference-data
+│  └─ modules/       # auth、sessions、users、主数据、项目导入、评审组织、材料、评分、合议、申诉、storage、portal-reference-data、client-dashboard
 ├─ test/             # e2e specs
 ├─ scripts/          # create-local-user、sync-indexes 等受控脚本
 └─ package / tsconfig / eslint / nest 配置
@@ -149,6 +150,13 @@ backend/
   - `ProjectAppeal` schema
   - `ProjectAppealAttachment` schema
   - `ProjectLevelChangeLog` schema
+- 当前已有第八阶段甲方看板统计模块：
+  - `ClientDashboardModule`
+  - `ClientDashboardController`
+  - `ClientDashboardService`
+  - `QueryClientDashboardOverviewDto`
+  - `QueryClientDashboardProjectsDto`
+  - `ClientDashboardProgressStage`
 - 当前 users 基础模块本身不包含普通用户 Controller；管理员用户维护 HTTP API 由 `AdminUsersModule` 下的 `AdminUsersController` 暴露
 - 当前 sessions 模块不包含 Controller，也未暴露 HTTP API
 
@@ -247,6 +255,7 @@ backend/
 - 当前 project-owner / admin `level-history` 响应保留 `changedByUserId` 并补充 `changedByUser?: { id, name, phone? } | null` 操作人摘要；用户不可解析时为 `null` 且接口不失败；不修改等级变更日志生成规则或 schema
 - 当前申诉处理也对历史数据做最终等级兜底：优先 `Project.finalLevel`，再读取申诉关联 confirmed 合议或当前项目 confirmed 合议的 `finalLevel`，最后兜底 `appeal.levelBeforeAppeal`；兜底成功且 `Project.finalLevel` 缺失时懒回填 `projects.finalLevel/originalLevel`，懒回填不写 `ProjectLevelChangeLog`
 - 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
+- 当前甲方看板统计 API 使用只读内存归并：先查 `isActive=true` 项目，再批量读取 `project_expert_assignments`、`expert_reviews`、`consensus_reviews`、`project_materials`、`project_appeals`，按项目生成统计项和阶段，不写回任何业务集合；有效最终等级为 `trim(Project.finalLevel) || trim(confirmed ConsensusReview.finalLevel) || ''`，且不修改 `ConsensusReview.finalLevel` 或 `Project.finalLevel`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
 - 当前 `project_import_jobs.originalFilename` 仅用于展示，上传新任务入库前会保守修正常见中文文件名 mojibake；历史已入库乱码数据不自动迁移
 - 当前可通过 `DELETE /admin/project-imports/:id` 物理删除误上传 / 测试上传的未确认导入任务；如果 `confirmedRows > 0` 或存在 `status=confirmed` 的导入行则返回 `409`，避免破坏导入确认审计链路
@@ -275,7 +284,7 @@ backend/
 - 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。新上传材料默认 `draft`；历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
 - 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；上传时先规范化文件名，保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件 failures 前均使用归一化结果；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage；历史已入库乱码附件不迁移、不重命名 objectKey 或存储对象
-- 当前仍未实现真实 AI 合议、甲方看板、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
+- 当前仍未实现真实 AI 合议、甲方看板前端、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
 
 ### 4.6 外部服务集成
 
@@ -312,6 +321,7 @@ backend/
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、draft 首次确认、已 confirmed 再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖合议 / 项目等级 / 确认人 / 确认时间、管理员兜底查看、Project 等级写入、确认响应含 `confirmedByUser.name/phone`，以及确认人用户不可解析时 `confirmedByUser=null` 且接口不失败
 - 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/中文文件名归一化/下载 URL、删除接口返回 409 且附件仍 active、submitted 状态仍可补充上传、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕和 `changedByUser` 摘要，以及 `ConsensusReview.finalLevel` 不被覆盖
+- 已包含 `test/client-dashboard.e2e-spec.ts`，用于验证 `/client/dashboard/overview` 和 `/client/dashboard/projects` 的 401/403/client 权限、分页结构、`isActive=false` 排除、effectiveFinalLevel 优先级、submitted 材料统计、assigned 专家与 submitted 评分完成口径、pending 申诉、meetingUrl trim、progressStage 和 keyword / 多字段过滤
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回
 - 已包含 `test/portal-reference-data.e2e-spec.ts`，用于验证 `/portal/reference-data/*` 401/403、project_owner 读取 `material_type/project_status/discipline/batches/organizations/review-schemes/users?role=review_manager`、`users?role=admin` 返回 `400`、`users?role=review_manager` 仍排除含 admin 角色的多角色用户、admin 复用门户接口以及 POST/PATCH/DELETE 不存在
@@ -324,7 +334,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、门户端只读基础数据接口、专家评分、规则化合议评审、项目申诉和等级变更留痕后端能力；仍不包含 frontend 页面、真实 AI 接入、甲方看板或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、门户端只读基础数据接口、专家评分、规则化合议评审、项目申诉和等级变更留痕、甲方看板后端统计 API；仍不包含甲方看板前端、真实 AI 接入或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务；合议草稿为 `rule_based`，不调用外部大模型
 - 后续业务模块仍需按架构文档逐步扩展，不得绕过当前 auth、角色和数据隔离口径

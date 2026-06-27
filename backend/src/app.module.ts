@@ -8,6 +8,7 @@ import configuration from './config/configuration';
 import { envValidationSchema } from './config/env.validation';
 import { AuthModule } from './modules/auth/auth.module';
 import { BatchesModule } from './modules/batches/batches.module';
+import { ClientDashboardModule } from './modules/client-dashboard/client-dashboard.module';
 import { ConsensusReviewsModule } from './modules/consensus-reviews/consensus-reviews.module';
 import { DictionariesModule } from './modules/dictionaries/dictionaries.module';
 import { ExpertReviewsModule } from './modules/expert-reviews/expert-reviews.module';
@@ -59,6 +60,7 @@ import { UsersModule } from './modules/users/users.module';
     ConsensusReviewsModule,
     ProjectAppealsModule,
     PortalReferenceDataModule,
+    ClientDashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, AllExceptionsFilter],

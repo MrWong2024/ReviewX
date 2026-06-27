@@ -106,6 +106,15 @@
 - 该错误发生时不更新 `project_appeal_attachments.status/deletedAt/deletedByUserId`，不删除 OSS object，附件列表仍返回原 active 附件。
 - submitted 状态下的 `POST /attachments` 继续用于补充上传；非 submitted 状态上传仍按原规则返回冲突。
 
+## 3.5 甲方看板 DTO 与响应摘要
+
+- `QueryClientDashboardOverviewDto`：用于 `GET /client/dashboard/overview`，字段均可选：`batchId/projectTypeId/statusId/departmentId/disciplineId/reviewManagerId/reviewSchemeId/finalLevel/progressStage/hasMeetingUrl/hasPendingAppeal/keyword`。
+- `QueryClientDashboardProjectsDto`：用于 `GET /client/dashboard/projects`，继承 overview 全部过滤字段，额外支持 `page/pageSize`，默认 `page=1`、`pageSize=100`、最大 `1000`。
+- ObjectId 字段使用 `@IsMongoId`；boolean 字段支持 `true/false/'true'/'false'`；`keyword/finalLevel` trim；非法 `progressStage` 返回 `400`。
+- `ClientDashboardOverviewResponse`：包含 `generatedAt`、标准化 `filters`、`projectTotals`、`funding`、`expertReviewTotals`、`appealTotals`、`breakdowns`。breakdowns 包含 byBatch / byProjectType / byStatus / byDepartment / byFinalLevel / byProgressStage。
+- `ClientDashboardProjectItem`：包含项目基础字段、资金、学科/处室/评审负责人/评审方案、`reviewTime/reviewLocation/meetingUrl`、`finalLevel/originalLevel/effectiveFinalLevel/effectiveFinalLevelSource`、`primaryStage/stages`、`metrics`、`consensus`、`latestAppeal`、`createdAt/updatedAt`。
+- `ClientDashboardProjectItem.metrics` 固定包含 `assignedExpertCount/submittedExpertReviewCount/submittedMaterialCount/appealTotalCount/pendingAppealCount`；不返回用户密码、session token、OSS AccessKey、文件内容或材料 objectKey。
+
 ## 4. 类型 / 状态
 
 | 名称           | 可选值 / 字段                                                                     | 含义              | 是否对前端暴露        | 是否可持久化 | 备注                       |
@@ -148,6 +157,8 @@
 | `ProjectAppealStatus` | `submitted`、`processing`、`accepted`、`rejected`、`canceled` | 项目申诉状态 | 是 | 是 | 本阶段实际使用 `submitted/accepted/rejected`；`processing/canceled` 仅预留，不实现撤回 |
 | `ProjectAppealAttachmentStatus` | `active`、`deleted` | 申诉附件状态 | 是 | 是 | 旧状态保留；project-owner 删除申诉附件接口已改为 409，不再新写 `deleted/deletedAt/deletedByUserId` |
 | `ProjectLevelChangeSource` | `consensus_confirm`、`appeal_handling`、`admin_correction` | 项目等级变更来源 | 是 | 是 | 本阶段只在申诉处理等级变更时写 `appeal_handling`；不回填第五阶段历史合议确认 |
+| `ClientDashboardProgressStage` | `imported`、`review_assigned`、`scheduled`、`experts_assigned`、`materials_submitted`、`expert_reviews_started`、`expert_reviews_completed`、`consensus_draft`、`consensus_confirmed`、`final_level_set`、`appeal_pending` | 甲方看板项目进度阶段 | 是 | 否 | 项目可同时命中多个阶段；`primaryStage` 按业务推进优先级取最高阶段 |
+| `ClientDashboardEffectiveFinalLevelSource` | `project_final_level`、`confirmed_consensus`、`null` | 甲方看板有效最终等级来源 | 是 | 否 | `project.finalLevel` 优先于 confirmed 合议 `finalLevel`；空字符串时为 `null` |
 
 ## 5. 当前 HTTP 响应结构
 
@@ -185,6 +196,8 @@
 | 申诉附件删除 | `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED` | 不返回文件内容或 OSS AccessKey | project-owner 已上传申诉附件不可删除；不软删除、不物理删除 OSS object、不修改附件列表 |
 | 等级变更历史 | `ProjectLevelChangeLogResponse[]` | 不返回用户密码或 session token | 包含 `fromLevel/toLevel/source/reason/changedByUserId/changedByUser/changedAt/appealId/consensusReviewId`；`changedByUser` 为 `{ id, name, phone? } | null`；无日志返回空数组 |
 | 管理员用户列表 | `{ items: AdminUserResponse[], page, pageSize, total }` | 不返回 `passwordHash` | `page=1`、`pageSize=100`、最大 `1000`；支持 `keyword/role/isActive/organizationId/disciplineId` |
+| `GET /client/dashboard/overview` | `ClientDashboardOverviewResponse` | 不返回 `passwordHash/token/secret/credential`、文件内容、材料 objectKey 或用户敏感字段 | 只读统计全部 `isActive=true` 项目；支持基础字段、有效最终等级、进度阶段、会议链接、pending 申诉和 keyword 过滤 |
+| `GET /client/dashboard/projects` | `{ items: ClientDashboardProjectItem[], page, pageSize, total }` | 不返回 `passwordHash/token/secret/credential`、文件内容、材料 objectKey 或用户敏感字段 | 分页钻取；默认 `reviewTime` 升序，空评审时间排后，同时间按 `createdAt` 倒序；返回 stages 与 primaryStage |
 
 ## 6. Excel 导入字段映射
 
