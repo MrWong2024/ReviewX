@@ -46,11 +46,6 @@ body {
   font-size: 14px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
 button,
 input,
 select,
@@ -83,6 +78,13 @@ textarea {
   background:
     radial-gradient(circle at 76% 0%, rgba(14, 147, 174, 0.14), transparent 28%),
     linear-gradient(135deg, #eef4fb 0%, #f9fbff 54%, #e8eff8 100%);
+}
+
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 @layer components {

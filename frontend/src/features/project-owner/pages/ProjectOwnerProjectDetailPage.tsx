@@ -276,7 +276,7 @@ export function ProjectOwnerProjectDetailPage({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:shadow-md"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:text-white hover:shadow-md focus-visible:text-white active:text-white"
             href={`/project-owner/projects/${projectId}/review-result`}
           >
             查看评审结果与申诉

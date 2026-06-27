@@ -67,7 +67,7 @@ export function ProjectOwnerDashboardPage() {
           </p>
         </div>
         <Link
-          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(20,43,107,0.27)]"
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] transition hover:-translate-y-0.5 hover:text-white hover:shadow-[0_16px_30px_rgba(20,43,107,0.27)] focus-visible:text-white active:text-white"
           href="/project-owner/projects"
         >
           进入我的项目

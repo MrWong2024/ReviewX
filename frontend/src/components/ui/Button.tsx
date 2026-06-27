@@ -24,7 +24,7 @@ export function Button({
         size === 'md' && 'min-h-10 px-4 py-2 text-sm',
         size === 'lg' && 'min-h-11 px-5 py-2.5 text-sm',
         variant === 'primary' &&
-          'border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(20,43,107,0.27)]',
+          'border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] hover:-translate-y-0.5 hover:text-white hover:shadow-[0_16px_30px_rgba(20,43,107,0.27)] focus-visible:text-white active:text-white disabled:text-white',
         variant === 'secondary' &&
           'border-slate-200 bg-white/[0.85] text-slate-700 hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950',
         variant === 'ghost' &&

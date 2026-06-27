@@ -57,7 +57,7 @@ export function ExpertShell({ children }: ExpertShellProps) {
             当前账号没有访问专家工作台的权限。
           </p>
           <Link
-            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] transition hover:-translate-y-0.5"
+            className="mt-3 inline-flex min-h-10 items-center justify-center rounded-lg border border-transparent bg-gradient-to-r from-[#1b255f] via-[#263a8a] to-[#0f8fa7] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(20,43,107,0.22)] transition hover:-translate-y-0.5 hover:text-white focus-visible:text-white active:text-white"
             href="/workspace"
           >
             返回工作台
