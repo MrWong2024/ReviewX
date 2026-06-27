@@ -136,9 +136,6 @@ export function ReviewManagerProjectAppealsPage({
             lookupMaps={lookupMaps}
             project={project}
           />
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-            当前后端未提供 review-manager 命名空间等级变更历史接口；本页不调用不存在的接口，等级变化在申诉列表和详情中展示。
-          </div>
           <AppealListPanel
             appeals={appeals}
             detailHref={(appeal) =>
