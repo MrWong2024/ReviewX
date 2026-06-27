@@ -16,11 +16,13 @@ export type ProjectLevelChangeSource =
 
 export type AppealTone = 'danger' | 'muted' | 'primary' | 'success' | 'warning';
 
-export type ConsensusUserSummary = {
+export type UserSummary = {
   id: string;
   name: string;
   phone?: string | null;
 };
+
+export type ConsensusUserSummary = UserSummary;
 
 export type ProjectOwnerConsensus = {
   id: string;
@@ -94,7 +96,8 @@ export type ProjectLevelChangeLog = {
   fromLevel: string;
   toLevel: string;
   reason?: string;
-  changedByUserId: string;
+  changedByUserId?: string | null;
+  changedByUser?: UserSummary | null;
   changedAt: string;
   source: ProjectLevelChangeSource;
   createdAt: string;

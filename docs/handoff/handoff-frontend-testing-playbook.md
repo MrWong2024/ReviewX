@@ -108,7 +108,7 @@ npm run build
 - frontend `npm run typecheck`
 - frontend `npm run build`
 
-注意：项目负责人项目详情的评审负责人显示优先使用项目响应 `reviewManager` 摘要；评审结果确认后，project-owner 后续推进需求和材料上传 / 提交 / 删除只读锁定，后端仍以 `409 PROJECT_OWNER_CONTENT_LOCKED` 兜底。材料查看 / 下载、评审结果与申诉、submitted 申诉附件上传 / 删除不受该锁定影响。
+注意：项目负责人项目详情的评审负责人显示优先使用项目响应 `reviewManager` 摘要；评审结果确认后，project-owner 后续推进需求和材料上传 / 提交 / 删除只读锁定，后端仍以 `409 PROJECT_OWNER_CONTENT_LOCKED` 兜底。材料查看 / 下载、评审结果与申诉、submitted 申诉附件补充上传不受该锁定影响；已上传申诉附件不可删除。
 
 本次 ReviewX 第七阶段小修：合议确认人显示修正已执行并通过：
 
@@ -142,6 +142,17 @@ npm run build
 - backend `npm run test:e2e`
 
 注意：项目材料和申诉附件上传入口会在后端保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件失败明细前统一归一化文件名；前端继续展示后端 `originalFilename`，不做编码 hack；历史已保存乱码文件名本次不批量修复。
+
+本次 ReviewX 第七阶段小修：申诉附件留痕锁定与等级变更历史业务化展示已执行并通过：
+
+- backend `npm run lint`
+- backend `npm run build`
+- backend `npm run test -- --runInBand`
+- backend `npm run test:e2e`
+- frontend `npm run lint`
+- frontend `npm run typecheck`
+- frontend `npm run build`
+- 手工重点：project-owner 已上传申诉附件不显示删除按钮，直接 DELETE 返回 `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED` 且附件仍在；submitted 状态仍可补充上传；等级历史操作人显示姓名 / 姓名（手机号），不可解析时显示“操作人信息暂不可用”；不得显示操作人短 ID 或“关联申诉 短ID”，可构造链接时显示“查看关联申诉”。
 
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
@@ -615,7 +626,7 @@ Workspace 入口：
 9. 草稿 / 历史草稿材料删除按钮禁用或隐藏，页面展示锁定原因
 10. “查看评审结果与申诉”入口仍可用
 11. `/project-owner/projects/[projectId]/review-result` 仍可查看 confirmed 合议、等级历史和本人申诉
-12. submitted 状态申诉的申诉附件上传 / 删除仍按原规则可用
+12. submitted 状态申诉的申诉附件补充上传仍可用；已上传附件作为申诉材料留痕，不显示删除按钮且不能删除
 13. 直接调用 `PATCH /project-owner/projects/:id/follow-up-needs`、`POST /materials`、`POST /materials/submit`、`DELETE /materials/:materialId` 应返回 `409 PROJECT_OWNER_CONTENT_LOCKED`
 14. 直接调用 `GET /materials` 和 `GET /materials/:materialId/download-url` 应成功
 15. 未锁定项目仍可编辑后续推进需求、上传材料、提交草稿材料和删除草稿材料
@@ -916,18 +927,26 @@ Workspace 和守卫：
 10. 提交 Network 使用 `POST /project-owner/projects/:id/appeals`，FormData 字段为 `reason` 和可选 `files`
 11. 历史数据项目提交成功后，申诉详情中的 `levelBeforeAppeal` 应等于 `consensus.finalLevel`，重新请求项目详情后 `project.finalLevel` 应已被后端懒回填
 12. 成功后关闭弹窗，重新拉取申诉列表、等级历史和项目详情，不只在前端追加假数据
+13. 等级变更历史操作人显示姓名；有手机号时显示“姓名（手机号）”
+14. 操作人用户不可解析时显示“操作人信息暂不可用”，无操作人时显示“-”
+15. 等级变更历史不显示操作人短 ID、ObjectId 或“用户（短ID）”
+16. 等级变更历史不显示“关联申诉 6a3f...eb3e”这类短 ID；存在关联申诉且页面可构造链接时显示“查看关联申诉”，点击进入项目负责人申诉详情
+17. 原因区域只显示业务原因 / 处理意见，不拼接内部申诉 ID
 
 项目负责人申诉附件：
 
 1. 从申诉列表进入 `/project-owner/projects/[projectId]/appeals/[appealId]`
 2. Network 使用 `GET /project-owner/projects/:id/appeals/:appealId`、`GET /attachments`
-3. submitted 状态显示上传附件入口和删除附件入口
-4. 上传附件调用 `POST /project-owner/projects/:id/appeals/:appealId/attachments`，FormData 字段为 `files` 和可选 `remark`
-5. 上传中文文件名附件，例如“申诉补充材料-测试.pdf”，项目负责人附件列表应显示正常中文 `originalFilename`，不出现 mojibake
-6. review_manager 和 admin 打开同一申诉详情时，附件列表也应显示正常中文文件名
-7. 删除附件调用 `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId`，删除前二次确认，成功后刷新附件列表
-8. accepted / rejected 状态附件只读，不显示上传或删除
-9. 下载附件只调用 project-owner 命名空间 `download-url`，只打开后端返回 URL，不拼接 OSS objectKey
+3. submitted 状态显示上传附件入口，不显示删除附件按钮
+4. submitted 状态显示提示：“申诉提交后，已上传附件将作为申诉材料留痕，不能删除；处理前可继续补充上传材料。”
+5. 上传附件调用 `POST /project-owner/projects/:id/appeals/:appealId/attachments`，FormData 字段为 `files` 和可选 `remark`
+6. 上传成功后重新拉取申诉详情和附件列表，新上传附件同样不显示删除按钮
+7. 上传中文文件名附件，例如“申诉补充材料-测试.pdf”，项目负责人附件列表应显示正常中文 `originalFilename`，不出现 mojibake
+8. review_manager 和 admin 打开同一申诉详情时，附件列表也应显示正常中文文件名
+9. 直接请求 `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` 返回 `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`
+10. DELETE 返回 409 后附件仍在列表中，下载仍可用，`deletedAt/deletedByUserId` 不应被写入
+11. accepted / rejected 状态附件只读，不显示上传或删除
+12. 下载附件只调用 project-owner 命名空间 `download-url`，只打开后端返回 URL，不拼接 OSS objectKey
 
 评审负责人处理申诉：
 
@@ -953,6 +972,7 @@ Workspace 和守卫：
 7. 提交调用 `POST /admin/projects/:id/appeals/:appealId/handle`
 8. 成功后重新拉取申诉详情、附件、等级历史和项目详情
 9. 等级变更历史只展示后端 `level-history` 返回数据，前端不得自行生成等级变更记录
+10. 等级变更历史操作人不显示短 ID；可构造关联申诉链接时显示“查看关联申诉”，点击进入 admin 申诉详情
 
 回归边界：
 

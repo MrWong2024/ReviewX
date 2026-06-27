@@ -90,8 +90,8 @@ frontend/
 - 已接入项目负责人 Shell、概览、我的项目列表、项目详情、后续推进需求、材料上传、材料列表、材料下载、提交全部草稿材料和草稿物理删除。
 - 项目详情评审负责人显示优先使用项目响应 `reviewManager.name`，其次使用 portal `review_manager` 映射；有负责人 ID 但无法解析时显示“评审负责人信息暂不可用”，未设置时显示“暂未设置评审负责人”，不向普通项目负责人展示负责人短 ObjectId。
 - 材料状态展示保持 `draft/submitted/legacy active` 口径：新上传材料为草稿，提交后评审负责人 / 专家才可见；`draft/legacy active` 可删除，`submitted` 删除禁用并映射后端 `409`。
-- 项目详情在 `ownerContentLocked/reviewFinalized/finalLevel/originalLevel/confirmed consensus` 任一成立时进入项目负责人内容只读态：后续推进需求不可保存，材料上传表单隐藏，提交全部草稿材料和材料删除禁用；材料列表、筛选、下载、评审结果与申诉入口和 submitted 申诉附件管理仍可用；后端 `PROJECT_OWNER_CONTENT_LOCKED` 是最终兜底。
-- 评审结果与申诉页已接入 confirmed 合议、等级历史、本人申诉列表、申诉详情和附件上传 / 删除；发起申诉要求 confirmed 合议、有效最终等级 `project.finalLevel ?? consensus.finalLevel`、最多 3 次且无 submitted / processing 申诉。
+- 项目详情在 `ownerContentLocked/reviewFinalized/finalLevel/originalLevel/confirmed consensus` 任一成立时进入项目负责人内容只读态：后续推进需求不可保存，材料上传表单隐藏，提交全部草稿材料和材料删除禁用；材料列表、筛选、下载、评审结果与申诉入口和 submitted 申诉附件补充上传仍可用；已上传申诉附件不可删除；后端 `PROJECT_OWNER_CONTENT_LOCKED` 是最终兜底。
+- 评审结果与申诉页已接入 confirmed 合议、等级历史、本人申诉列表、申诉详情和附件补充上传；发起申诉要求 confirmed 合议、有效最终等级 `project.finalLevel ?? consensus.finalLevel`、最多 3 次且无 submitted / processing 申诉；等级历史操作人使用 `changedByUser` 摘要展示，关联申诉显示“查看关联申诉”链接而不是短 ID。
 
 ### 6.4 专家端
 
@@ -127,9 +127,9 @@ frontend/
 - 合议最终等级优先使用 active `review_level.code`，字典为空时 fallback A/B/C/D。
 - 申诉有效最终等级前端口径必须保持 `project.finalLevel ?? consensus.finalLevel`，不得退回只看 `project.finalLevel`。
 - 项目负责人项目详情评审负责人不得回退到“未知评审负责人（短ID）”；负责人姓名应优先来自项目详情响应 `reviewManager` 摘要，reference-data 只作 fallback。
-- 评审结果确认后项目负责人端后续推进需求和项目材料管理必须保持只读锁定；锁定不影响项目详情读取、材料下载、评审结果与申诉、申诉附件上传 / 删除。
+- 评审结果确认后项目负责人端后续推进需求和项目材料管理必须保持只读锁定；锁定不影响项目详情读取、材料下载、评审结果与申诉、submitted 申诉附件补充上传；已上传申诉附件不可删除。
 - 评审负责人当前无 `GET /review-manager/projects/:projectId/level-history`，前端不得伪造或调用该接口；等级历史在 project-owner 和 admin 侧读取。
-- 合议响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`；项目负责人评审结果页当前不新增确认人 UI，但不得显示 `confirmedByUserId` 或短 ID。
+- 合议响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`；等级历史响应兼容 `changedByUser?: { id, name, phone? } | null`；项目负责人评审结果页不得显示 `confirmedByUserId`、`changedByUserId`、操作人短 ID 或关联申诉短 ID。
 - confirmed 合议不可在评审负责人合议页重新覆盖；后续最终等级调整走申诉处理或未来专门更正流程，不在前端新增更正入口。
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`，当前不接腾讯会议 API、直播、推流或回看。
 - 项目材料和申诉附件文件名展示继续使用后端返回的 `originalFilename`；中文文件名 mojibake 修复由后端上传入口统一归一化，前端不使用 `Buffer`、`decodeURIComponent`、`escape/unescape` 或其他编码猜测兜底。

@@ -97,14 +97,14 @@
 | `deleteProjectOwnerMaterial` | `DELETE /project-owner/projects/:id/materials/:materialId` | `{ deleted, alreadyDeleted?, deletionLogId? }`；项目负责人仅可物理删除 `draft/legacy active`，`submitted` 返回 `409`；锁定时禁用删除入口，后端 `409 PROJECT_OWNER_CONTENT_LOCKED` 显示固定业务文案；删除前二次确认说明物理删除且不可恢复；不调用 `/admin/*` 删除接口 | `/project-owner/projects/[projectId]` |
 | `resolveProjectMaterialDownloadUrl` | 前端解析辅助 | 从下载 URL 响应中解析 URL；无法解析时展示错误，不生成假 URL | `/project-owner/projects/[projectId]` |
 | `getProjectOwnerConsensus` | `GET /project-owner/projects/:id/consensus` | 获取本人项目 confirmed 合议；404 在评审结果页展示“暂无已确认合议结果”，在项目详情页视为未查到 confirmed 合议且不作为整页错误；响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`，项目详情页用它辅助计算只读锁定态 | `/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result`、`/project-owner/projects/[projectId]/appeals/[appealId]` |
-| `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，展示原等级、变更后等级、原因、来源、时间和操作人 | `/project-owner/projects/[projectId]/review-result` |
+| `listProjectOwnerLevelHistory` | `GET /project-owner/projects/:id/level-history` | 获取本人项目等级变更历史，类型支持 `changedByUser?: { id, name, phone? } \| null`；操作人显示姓名 / 姓名（手机号），摘要缺失时显示“操作人信息暂不可用” | `/project-owner/projects/[projectId]/review-result` |
 | `listProjectOwnerAppeals` | `GET /project-owner/projects/:id/appeals` | 获取当前项目负责人对该项目提交的本人申诉列表 | `/project-owner/projects/[projectId]/review-result` |
 | `getProjectOwnerAppeal` | `GET /project-owner/projects/:id/appeals/:appealId` | 获取本人申诉详情；附件列表另行调用附件接口 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `createProjectOwnerAppeal` | `POST /project-owner/projects/:id/appeals` | `FormData`，字段名 `reason/files`；前端展示最多 3 次、confirmed 合议、有效最终等级 `project.finalLevel ?? consensus.finalLevel` 和未处理互斥规则，后端最终校验；本小修未新增接口 | `/project-owner/projects/[projectId]/review-result` |
 | `uploadProjectOwnerAppealAttachments` | `POST /project-owner/projects/:id/appeals/:appealId/attachments` | `FormData`，字段名 `files`，批次备注 `remark` 选填；仅 submitted 状态可追加，成功后重新拉取详情和附件 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `listProjectOwnerAppealAttachments` | `GET /project-owner/projects/:id/appeals/:appealId/attachments` | 获取本人申诉 active 附件列表 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
 | `getProjectOwnerAppealAttachmentDownloadUrl` | `GET /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/project-owner/projects/[projectId]/appeals/[appealId]` |
-| `deleteProjectOwnerAppealAttachment` | `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` | 软删除申诉附件；仅 submitted 状态允许，删除前二次确认，成功后重新拉取附件 | `/project-owner/projects/[projectId]/appeals/[appealId]` |
+| `deleteProjectOwnerAppealAttachment` | `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` | API 封装保留兼容旧调用；当前项目负责人申诉详情页不再调用。后端统一返回 `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`，不软删除附件 | 未使用 |
 | `listPortalDictionaries` | `GET /portal/reference-data/dictionaries` | `{ items }`；读取 `dictTypes=material_type,project_status,review_level`，用于材料类型、项目状态、评审等级和普通字典名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]`、`/project-owner/projects/[projectId]/review-result` |
 | `listPortalTreeDictionaries` | `GET /portal/reference-data/tree-dictionaries` | `{ items }`；读取 `treeTypes=project_type,discipline,department,administrative_division`，用于项目类型、学科、受理处室和行政区划名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
 | `listPortalBatches` | `GET /portal/reference-data/batches` | `{ items }`；用于批次筛选和名称映射 | `/project-owner/projects`、`/project-owner/projects/[projectId]` |
@@ -216,12 +216,12 @@
 | `listAdminProjectAppealAttachments` | `GET /admin/projects/:projectId/appeals/:appealId/attachments` | 只读获取申诉附件列表；管理员不提供上传、删除 | `/admin/projects/[projectId]/appeals/[appealId]` |
 | `getAdminProjectAppealAttachmentDownloadUrl` | `GET /admin/projects/:projectId/appeals/:appealId/attachments/:attachmentId/download-url` | 获取申诉附件短期下载 URL，前端只打开后端返回 URL，不拼接 OSS URL | `/admin/projects/[projectId]/appeals/[appealId]` |
 | `handleAdminProjectAppeal` | `POST /admin/projects/:projectId/appeals/:appealId/handle` | 请求 `{ handlingResult, handlingOpinion, newFinalLevel? }`；accepted 必须选择新最终等级，rejected 不提交新等级；成功后重新拉取申诉、附件、等级历史和项目详情 | `/admin/projects/[projectId]/appeals/[appealId]` |
-| `listAdminProjectLevelHistory` | `GET /admin/projects/:projectId/level-history` | 管理员读取项目等级变更历史，展示申诉处理导致的等级变更留痕 | `/admin/projects/[projectId]/appeals`、`/admin/projects/[projectId]/appeals/[appealId]` |
+| `listAdminProjectLevelHistory` | `GET /admin/projects/:projectId/level-history` | 管理员读取项目等级变更历史，类型支持 `changedByUser?: { id, name, phone? } \| null`；操作人显示业务姓名，不显示短 ID | `/admin/projects/[projectId]/appeals`、`/admin/projects/[projectId]/appeals/[appealId]` |
 
 管理员项目申诉页口径：
 
 - `/admin/projects/[projectId]/appeals` 和 `/admin/projects/[projectId]/appeals/[appealId]` 只调用 admin 命名空间的申诉与等级历史接口，不调用 review-manager 或 project-owner 命名空间。
-- 管理员申诉附件只读下载，不提供上传或删除；项目负责人附件上传 / 删除能力只在 project-owner 命名空间开放。
+- 管理员申诉附件只读下载，不提供上传或删除；项目负责人仅可在 submitted 状态补充上传附件，已上传附件不可删除。
 - 管理员处理申诉后重新拉取申诉详情、附件列表、等级历史和项目详情，不在前端乐观改写最终等级。
 
 ## 4. 错误处理
@@ -277,8 +277,8 @@
 - 评审负责人合议确认人显示优先使用 `consensus.confirmedByUser.name`，有手机号时显示“姓名（手机号）”；`confirmedByUserId` 存在但摘要缺失时显示“确认人信息暂不可用”；无 `confirmedByUserId` 时显示“-”；不得显示“用户（短ID）”或原始 ObjectId。
 - 申诉状态展示为：`submitted=已提交`、`processing=处理中`、`accepted=已通过`、`rejected=已驳回`；submitted / processing 为待处理状态。
 - 项目负责人发起申诉要求已确认合议且存在有效最终等级 `project.finalLevel ?? consensus.finalLevel`；最多 3 次申诉，存在 submitted / processing 申诉时禁用再次提交。若 `project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在，前端允许打开申诉弹窗，后端创建成功后会懒回填项目主表。
-- 申诉附件下载只使用各角色命名空间下 `download-url` 返回 URL；项目负责人仅 submitted 状态可上传 / 删除附件，评审负责人和管理员附件只读。
-- 申诉处理 accepted 必须选择新最终等级，rejected 不提交新等级；等级变更历史由后端 `level-history` 返回，前端只展示不自行生成。
+- 申诉附件下载只使用各角色命名空间下 `download-url` 返回 URL；项目负责人仅 submitted 状态可补充上传附件，已上传附件不可删除，评审负责人和管理员附件只读。
+- 申诉处理 accepted 必须选择新最终等级，rejected 不提交新等级；等级变更历史由后端 `level-history` 返回，前端只展示不自行生成；操作人优先显示 `changedByUser.name` / `姓名（手机号）`，不显示用户短 ID；关联申诉不显示短 ID，project-owner/admin 页面可构造详情链接时显示“查看关联申诉”。
 
 ## 5. 当前未对接的后端接口
 

@@ -261,7 +261,7 @@ describe('Project appeal APIs (e2e)', () => {
       });
   });
 
-  it('uploads appeal attachments through fake storage, signs URLs, and soft deletes only while submitted', async () => {
+  it('uploads appeal attachments through fake storage, signs URLs, and rejects owner deletion after upload', async () => {
     const data = await seedData();
     const ownerCookie = await login(data.owner.phone);
     const otherOwnerCookie = await login(data.otherOwner.phone);
@@ -383,31 +383,27 @@ describe('Project appeal APIs (e2e)', () => {
         `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments/${attachmentId}`,
       )
       .set('Cookie', ownerCookie)
-      .expect(200);
+      .expect(409);
     expect(getJsonBody(deleteResponse)).toMatchObject({
-      deleted: true,
-      alreadyDeleted: false,
+      code: 'PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED',
+      message:
+        '申诉附件提交后将作为申诉材料留痕，不能删除。申诉处理前可继续补充上传材料。',
     });
 
-    await request(httpServer)
-      .delete(
-        `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments/${attachmentId}`,
-      )
-      .set('Cookie', ownerCookie)
-      .expect(200)
-      .expect((response) => {
-        expect(response.body).toMatchObject({
-          deleted: false,
-          alreadyDeleted: true,
-        });
-      });
+    const attachmentAfterDeleteAttempt = await attachmentModel
+      .findById(attachmentId)
+      .lean<Record<string, unknown> | null>()
+      .exec();
+    expect(attachmentAfterDeleteAttempt?.status).toBe('active');
+    expect(attachmentAfterDeleteAttempt?.deletedAt ?? null).toBeNull();
+    expect(attachmentAfterDeleteAttempt?.deletedByUserId ?? null).toBeNull();
 
     await request(httpServer)
       .get(
         `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments/${attachmentId}/download-url`,
       )
       .set('Cookie', ownerCookie)
-      .expect(404);
+      .expect(200);
 
     await request(httpServer)
       .get(
@@ -416,7 +412,32 @@ describe('Project appeal APIs (e2e)', () => {
       .set('Cookie', ownerCookie)
       .expect(200)
       .expect((response) => {
-        expect(getJsonArray(response)).toHaveLength(1);
+        expect(getJsonArray(response)).toHaveLength(2);
+      });
+
+    await request(httpServer)
+      .post(
+        `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments`,
+      )
+      .set('Cookie', ownerCookie)
+      .field('remark', '补充上传仍允许')
+      .attach('files', Buffer.from('supplement'), 'supplement.pdf')
+      .expect(201)
+      .expect((response) => {
+        expect(response.body).toMatchObject({
+          successCount: 1,
+          failedCount: 0,
+        });
+      });
+
+    await request(httpServer)
+      .get(
+        `/project-owner/projects/${data.project.id}/appeals/${appealId}/attachments`,
+      )
+      .set('Cookie', ownerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toHaveLength(3);
       });
 
     await request(httpServer)
@@ -691,6 +712,11 @@ describe('Project appeal APIs (e2e)', () => {
       source: 'appeal_handling',
       reason: '申诉有效，调整为 B',
       changedByUserId: data.reviewManager.id,
+      changedByUser: {
+        id: data.reviewManager.id,
+        name: data.reviewManager.name,
+        phone: data.reviewManager.phone,
+      },
     });
 
     await request(httpServer)
@@ -698,7 +724,38 @@ describe('Project appeal APIs (e2e)', () => {
       .set('Cookie', adminCookie)
       .expect(200)
       .expect((response) => {
-        expect(getJsonArray(response)).toHaveLength(1);
+        expect(getJsonArray(response)).toEqual([
+          expect.objectContaining({
+            changedByUserId: data.reviewManager.id,
+            changedByUser: {
+              id: data.reviewManager.id,
+              name: data.reviewManager.name,
+              phone: data.reviewManager.phone,
+            },
+          }),
+        ]);
+      });
+
+    const missingChangedByUserId = new Types.ObjectId();
+
+    await levelChangeLogModel
+      .updateOne(
+        { projectId: new Types.ObjectId(data.project.id) },
+        { $set: { changedByUserId: missingChangedByUserId } },
+      )
+      .exec();
+
+    await request(httpServer)
+      .get(`/project-owner/projects/${data.project.id}/level-history`)
+      .set('Cookie', ownerCookie)
+      .expect(200)
+      .expect((response) => {
+        expect(getJsonArray(response)).toEqual([
+          expect.objectContaining({
+            changedByUserId: missingChangedByUserId.toString(),
+            changedByUser: null,
+          }),
+        ]);
       });
 
     const thirdAppeal = await createAppeal(

@@ -95,6 +95,17 @@
   - `code`: `CONSENSUS_ALREADY_CONFIRMED`
 - 该错误发生时不更新 `consensus_reviews.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt`，不更新 `projects.finalLevel/originalLevel`；draft 或无合议记录的首次确认流程不变。
 
+## 3.4 申诉附件删除禁止错误
+
+- `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` 保留路由但不再返回删除结果。
+- 归属校验通过后统一返回 `409 Conflict`。
+- 错误码：`PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`。
+- 响应字段：
+  - `message`: 固定为“申诉附件提交后将作为申诉材料留痕，不能删除。申诉处理前可继续补充上传材料。”
+  - `code`: `PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`
+- 该错误发生时不更新 `project_appeal_attachments.status/deletedAt/deletedByUserId`，不删除 OSS object，附件列表仍返回原 active 附件。
+- submitted 状态下的 `POST /attachments` 继续用于补充上传；非 submitted 状态上传仍按原规则返回冲突。
+
 ## 4. 类型 / 状态
 
 | 名称           | 可选值 / 字段                                                                     | 含义              | 是否对前端暴露        | 是否可持久化 | 备注                       |
@@ -111,6 +122,7 @@
 | `PortalUserSummary` | `id`、`name`、`phone`、`roles`、`organizationIds`、`disciplineIds`、`isActive` | 门户业务用户展示摘要 | 是 | 否 | 仅允许查询 `review_manager/expert/project_owner`，结果排除 `admin` 用户；不含密码、改密、session/token 字段 |
 | `ProjectOwnerUserSummary` | `id`、`name`、`phone?` | project-owner 项目响应中的评审负责人摘要 | 是 | 否 | `ProjectPortalResponse.reviewManager` 使用；只返回展示必要字段，不返回 `roles/passwordHash/mustChangePassword/session/token`；负责人用户不存在时为 `null` |
 | `ConsensusUserSummary` | `id`、`name`、`phone?` | 合议响应中的确认人摘要 | 是 | 否 | `ConsensusReviewResponse.confirmedByUser` 和 `ProjectOwnerConsensusResponse.confirmedByUser` 使用；确认人用户不可解析时为 `null`，不返回密码、完整角色权限、改密状态、session/token |
+| `ProjectLevelChangeUserSummary` | `id`、`name`、`phone?` | 等级变更历史响应中的操作人摘要 | 是 | 否 | `ProjectLevelChangeLogResponse.changedByUser` 使用；操作人用户不可解析时为 `null`，不返回密码、完整角色权限、改密状态、session/token |
 | `PortalListResponse<T>` | `items: T[]` | 门户参考数据列表包装结构 | 是 | 否 | `/portal/reference-data/*` 统一非分页 `{ items }` |
 | `AuthIdentity` | `id`、`phone`、`passwordHash`、`roles`、`isActive`、`status` | auth 内部身份类型 | 否 | 否 | 仅供认证流程内部使用 |
 | `PublicSession` | `id`、`userId`、`expiresAt`、`revokedAt`、`lastSeenAt`、`userAgent`、`ip`、`createdAt`、`updatedAt` | 公开 session 返回类型 | 后续如暴露 API 再确认 | 否 | 不包含 `token` |
@@ -134,7 +146,7 @@
 | `ConsensusReviewStatus` | `draft`、`confirmed`、`reopened` | 合议评审状态 | 是 | 是 | `reopened` 当前仅预留 |
 | `ConsensusDraftSource` | `rule_based`、`manual`、`ai` | 合议草稿来源 | 是 | 是 | 当前阶段只生成 `rule_based`；`ai` 仅预留，不代表已实现真实 AI |
 | `ProjectAppealStatus` | `submitted`、`processing`、`accepted`、`rejected`、`canceled` | 项目申诉状态 | 是 | 是 | 本阶段实际使用 `submitted/accepted/rejected`；`processing/canceled` 仅预留，不实现撤回 |
-| `ProjectAppealAttachmentStatus` | `active`、`deleted` | 申诉附件状态 | 是 | 是 | 删除只标记 `deleted`，不物理删除 OSS object |
+| `ProjectAppealAttachmentStatus` | `active`、`deleted` | 申诉附件状态 | 是 | 是 | 旧状态保留；project-owner 删除申诉附件接口已改为 409，不再新写 `deleted/deletedAt/deletedByUserId` |
 | `ProjectLevelChangeSource` | `consensus_confirm`、`appeal_handling`、`admin_correction` | 项目等级变更来源 | 是 | 是 | 本阶段只在申诉处理等级变更时写 `appeal_handling`；不回填第五阶段历史合议确认 |
 
 ## 5. 当前 HTTP 响应结构
@@ -170,8 +182,8 @@
 | 申诉附件列表 | `ProjectAppealAttachmentResponse[]` | 不返回文件内容、OSS AccessKey 或持久化 URL | 只返回 active 附件；字段含 objectKey、bucket、storageDriver、文件名、MIME、扩展名、大小、sha256、remark、status |
 | 申诉附件上传 | `{ attachments, successCount, failedCount, failures }` | 不返回文件内容或 OSS AccessKey | 多文件允许部分成功；全部失败时按错误返回；数据库只保存文件引用和元数据 |
 | 申诉附件下载 URL | `{ url, expiresAt }` | 不返回 OSS AccessKey 或持久化 URL | 默认有效期 10 分钟；deleted 附件不可生成 URL |
-| 申诉附件软删除 | `{ deleted, alreadyDeleted }` | 不返回文件内容或 OSS AccessKey | 重复删除幂等成功；不物理删除 OSS object |
-| 等级变更历史 | `ProjectLevelChangeLogResponse[]` | 不返回用户密码或 session token | 包含 `fromLevel/toLevel/source/reason/changedByUserId/changedAt/appealId/consensusReviewId`；无日志返回空数组 |
+| 申诉附件删除 | `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED` | 不返回文件内容或 OSS AccessKey | project-owner 已上传申诉附件不可删除；不软删除、不物理删除 OSS object、不修改附件列表 |
+| 等级变更历史 | `ProjectLevelChangeLogResponse[]` | 不返回用户密码或 session token | 包含 `fromLevel/toLevel/source/reason/changedByUserId/changedByUser/changedAt/appealId/consensusReviewId`；`changedByUser` 为 `{ id, name, phone? } | null`；无日志返回空数组 |
 | 管理员用户列表 | `{ items: AdminUserResponse[], page, pageSize, total }` | 不返回 `passwordHash` | `page=1`、`pageSize=100`、最大 `1000`；支持 `keyword/role/isActive/organizationId/disciplineId` |
 
 ## 6. Excel 导入字段映射

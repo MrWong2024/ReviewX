@@ -150,6 +150,9 @@ export function ProjectAdminAppealsPage({
           />
           <LevelHistoryPanel
             error={historyError}
+            getAppealHref={(appealId) =>
+              `/admin/projects/${projectId}/appeals/${appealId}`
+            }
             history={history}
             levelLabelByValue={levelLabelByValue}
           />

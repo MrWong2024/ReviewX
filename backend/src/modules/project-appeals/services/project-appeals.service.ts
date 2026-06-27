@@ -37,6 +37,8 @@ import {
   sanitizeFilename,
 } from '../../storage/utils/object-key.util';
 import {
+  PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED_CODE,
+  PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED_MESSAGE,
   PROJECT_APPEAL_MAX_COUNT,
   PROJECT_APPEAL_PENDING_STATUSES,
   ProjectAppealAttachmentStatus,
@@ -64,7 +66,7 @@ export type ProjectOwnerConsensusResponse = {
   finalScore?: number | null;
   finalLevel?: string;
   confirmedByUserId?: string | null;
-  confirmedByUser?: ConsensusUserSummary | null;
+  confirmedByUser?: ProjectAppealUserSummary | null;
   confirmedAt?: Date | null;
   expertReviewStats: {
     expertCount: number;
@@ -75,7 +77,7 @@ export type ProjectOwnerConsensusResponse = {
   };
 };
 
-export type ConsensusUserSummary = {
+export type ProjectAppealUserSummary = {
   id: string;
   name: string;
   phone?: string | null;
@@ -151,6 +153,7 @@ export type ProjectLevelChangeLogResponse = {
   toLevel: string;
   reason?: string;
   changedByUserId: string;
+  changedByUser?: ProjectAppealUserSummary | null;
   changedAt: Date;
   source: ProjectLevelChangeSource;
   createdAt: Date;
@@ -491,37 +494,13 @@ export class ProjectAppealsService {
     currentUser: AuthenticatedUser,
   ): Promise<DeleteProjectAppealAttachmentResult> {
     await this.assertProjectOwnerAccess(projectId, currentUser.user.id);
-    const appeal = await this.findOwnerAppeal(
-      projectId,
-      appealId,
-      currentUser.user.id,
-    );
-    const attachment = await this.findAttachmentByAppeal(
-      projectId,
-      appealId,
-      attachmentId,
-    );
+    await this.findOwnerAppeal(projectId, appealId, currentUser.user.id);
+    void attachmentId;
 
-    if (attachment.status === 'deleted') {
-      return { deleted: false, alreadyDeleted: true };
-    }
-
-    this.assertAppealCanMutateAttachments(appeal);
-
-    await this.attachmentModel
-      .updateOne(
-        { _id: attachment._id },
-        {
-          $set: {
-            status: 'deleted',
-            deletedAt: new Date(),
-            deletedByUserId: toObjectId(currentUser.user.id, 'userId'),
-          },
-        },
-      )
-      .exec();
-
-    return { deleted: true, alreadyDeleted: false };
+    throw new ConflictException({
+      message: PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED_MESSAGE,
+      code: PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED_CODE,
+    });
   }
 
   async listReviewManagerAppeals(
@@ -997,8 +976,16 @@ export class ProjectAppealsService {
       .sort({ changedAt: 1, createdAt: 1 })
       .lean<ProjectLevelChangeLogLean[]>()
       .exec();
+    const changedByUserMap = await this.getUserSummaryMap(
+      logs.map((log) => log.changedByUserId),
+    );
 
-    return logs.map((log) => this.toLevelChangeLogResponse(log));
+    return logs.map((log) =>
+      this.toLevelChangeLogResponse(
+        log,
+        changedByUserMap.get(log.changedByUserId.toString()) ?? null,
+      ),
+    );
   }
 
   private async listActiveAttachments(
@@ -1164,27 +1151,6 @@ export class ProjectAppealsService {
     return attachment;
   }
 
-  private async findAttachmentByAppeal(
-    projectId: string,
-    appealId: string,
-    attachmentId: string,
-  ): Promise<ProjectAppealAttachmentLean> {
-    const attachment = await this.attachmentModel
-      .findOne({
-        _id: toObjectId(attachmentId, 'attachmentId'),
-        appealId: toObjectId(appealId, 'appealId'),
-        projectId: toObjectId(projectId, 'projectId'),
-      })
-      .lean<ProjectAppealAttachmentLean | null>()
-      .exec();
-
-    if (!attachment) {
-      throw new NotFoundException('Appeal attachment not found');
-    }
-
-    return attachment;
-  }
-
   private assertAppealCanMutateAttachments(appeal: ProjectAppealLean): void {
     if (appeal.status !== 'submitted') {
       throw new ConflictException(
@@ -1261,7 +1227,7 @@ export class ProjectAppealsService {
 
   private async getConfirmedByUserSummary(
     confirmedByUserId?: Types.ObjectId | string | null,
-  ): Promise<ConsensusUserSummary | null> {
+  ): Promise<ProjectAppealUserSummary | null> {
     if (!confirmedByUserId) {
       return null;
     }
@@ -1287,6 +1253,39 @@ export class ProjectAppealsService {
       name: user.name,
       phone: user.phone ?? null,
     };
+  }
+
+  private async getUserSummaryMap(
+    userIds: (Types.ObjectId | string)[],
+  ): Promise<Map<string, ProjectAppealUserSummary>> {
+    const uniqueIds = [
+      ...new Set(
+        userIds
+          .map((userId) => userId.toString())
+          .filter((userId) => Types.ObjectId.isValid(userId)),
+      ),
+    ].map((userId) => toObjectId(userId, 'userId'));
+
+    if (uniqueIds.length === 0) {
+      return new Map();
+    }
+
+    const users = await this.userModel
+      .find({ _id: { $in: uniqueIds } })
+      .select({ name: 1, phone: 1 })
+      .lean<UserSummaryLean[]>()
+      .exec();
+
+    return new Map(
+      users.map((user) => [
+        user._id.toString(),
+        {
+          id: user._id.toString(),
+          name: user.name,
+          phone: user.phone ?? null,
+        },
+      ]),
+    );
   }
 
   private toAppealResponse(
@@ -1343,6 +1342,7 @@ export class ProjectAppealsService {
 
   private toLevelChangeLogResponse(
     log: ProjectLevelChangeLogLean,
+    changedByUser: ProjectAppealUserSummary | null,
   ): ProjectLevelChangeLogResponse {
     return {
       id: log._id.toString(),
@@ -1353,6 +1353,7 @@ export class ProjectAppealsService {
       toLevel: log.toLevel,
       reason: log.reason,
       changedByUserId: log.changedByUserId.toString(),
+      changedByUser,
       changedAt: log.changedAt,
       source: log.source,
       createdAt: log.createdAt,

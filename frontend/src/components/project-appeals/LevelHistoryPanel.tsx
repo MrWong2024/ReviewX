@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { EmptyState } from '@/src/components/feedback/EmptyState';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
@@ -8,11 +9,11 @@ import type { ProjectLevelChangeLog } from '@/src/lib/project-appeals/types';
 import {
   formatLevel,
   formatLevelChangeSource,
-  shortId,
 } from '@/src/lib/project-appeals/utils';
 
 type LevelHistoryPanelProps = {
   error?: string | null;
+  getAppealHref?: (appealId: string) => string;
   history: ProjectLevelChangeLog[];
   levelLabelByValue: Map<string, string>;
   loading?: boolean;
@@ -21,6 +22,7 @@ type LevelHistoryPanelProps = {
 
 export function LevelHistoryPanel({
   error,
+  getAppealHref,
   history,
   levelLabelByValue,
   loading = false,
@@ -59,34 +61,44 @@ export function LevelHistoryPanel({
                 </tr>
               </thead>
               <tbody>
-                {history.map((item) => (
-                  <tr key={item.id} className="align-top">
-                    <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800">
-                      {formatLevel(item.fromLevel, levelLabelByValue)}
-                      {' -> '}
-                      {formatLevel(item.toLevel, levelLabelByValue)}
-                    </td>
-                    <td className="border-b border-slate-100 px-3 py-3">
-                      {formatLevelChangeSource(item.source)}
-                    </td>
-                    <td className="border-b border-slate-100 px-3 py-3">
-                      <div className="max-w-lg whitespace-pre-wrap text-slate-700">
-                        {item.reason || '-'}
-                      </div>
-                      {item.appealId ? (
-                        <div className="mt-1 text-xs text-slate-500">
-                          关联申诉 {shortId(item.appealId)}
+                {history.map((item) => {
+                  const appealHref =
+                    item.appealId && getAppealHref
+                      ? getAppealHref(item.appealId)
+                      : null;
+
+                  return (
+                    <tr key={item.id} className="align-top">
+                      <td className="border-b border-slate-100 px-3 py-3 font-semibold text-slate-800">
+                        {formatLevel(item.fromLevel, levelLabelByValue)}
+                        {' -> '}
+                        {formatLevel(item.toLevel, levelLabelByValue)}
+                      </td>
+                      <td className="border-b border-slate-100 px-3 py-3">
+                        {formatLevelChangeSource(item.source)}
+                      </td>
+                      <td className="border-b border-slate-100 px-3 py-3">
+                        <div className="max-w-lg whitespace-pre-wrap text-slate-700">
+                          {item.reason || '-'}
                         </div>
-                      ) : null}
-                    </td>
-                    <td className="border-b border-slate-100 px-3 py-3">
-                      {shortId(item.changedByUserId)}
-                    </td>
-                    <td className="border-b border-slate-100 px-3 py-3">
-                      {formatDateTime(item.changedAt)}
-                    </td>
-                  </tr>
-                ))}
+                        {appealHref ? (
+                          <Link
+                            className="mt-1 inline-flex text-xs font-bold text-cyan-700 transition hover:text-cyan-900"
+                            href={appealHref}
+                          >
+                            查看关联申诉
+                          </Link>
+                        ) : null}
+                      </td>
+                      <td className="border-b border-slate-100 px-3 py-3">
+                        {formatChangedByUser(item)}
+                      </td>
+                      <td className="border-b border-slate-100 px-3 py-3">
+                        {formatDateTime(item.changedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -94,4 +106,18 @@ export function LevelHistoryPanel({
       </div>
     </section>
   );
+}
+
+function formatChangedByUser(item: ProjectLevelChangeLog): string {
+  if (item.changedByUser?.name) {
+    return item.changedByUser.phone
+      ? `${item.changedByUser.name}（${item.changedByUser.phone}）`
+      : item.changedByUser.name;
+  }
+
+  if (item.changedByUserId) {
+    return '操作人信息暂不可用';
+  }
+
+  return '-';
 }

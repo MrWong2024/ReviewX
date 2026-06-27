@@ -20,7 +20,6 @@ import {
   resolveAppealAttachmentDownloadUrl,
 } from '@/src/lib/project-appeals/utils';
 import {
-  deleteProjectOwnerAppealAttachment,
   getProjectOwnerAppeal,
   getProjectOwnerAppealAttachmentDownloadUrl,
   getProjectOwnerConsensus,
@@ -67,7 +66,7 @@ export function ProjectOwnerAppealDetailPage({
         : createEmptyProjectOwnerLookupMaps(),
     [referenceData],
   );
-  const canMutateAttachments =
+  const canUploadAttachments =
     appeal !== null && canOwnerMutateAppealAttachments(appeal);
 
   async function loadAppeal() {
@@ -179,11 +178,6 @@ export function ProjectOwnerAppealDetailPage({
     return result;
   }
 
-  async function handleDelete(attachment: ProjectAppealAttachment) {
-    await deleteProjectOwnerAppealAttachment(projectId, appealId, attachment.id);
-    await Promise.all([loadAppeal(), loadAttachments()]);
-  }
-
   useEffect(() => {
     void loadPage();
   }, [appealId, projectId]);
@@ -231,12 +225,12 @@ export function ProjectOwnerAppealDetailPage({
 
           <AppealAttachmentsPanel
             attachments={attachments}
-            canMutate={canMutateAttachments}
+            canUpload={canUploadAttachments}
             error={attachmentsError}
-            onDelete={handleDelete}
             onDownload={handleDownload}
-            onUpload={canMutateAttachments ? handleUpload : undefined}
-            readonlyReason="仅 submitted 状态申诉允许继续上传或删除附件；当前状态下附件只读。"
+            onUpload={canUploadAttachments ? handleUpload : undefined}
+            readonlyReason="当前申诉状态下附件只读，可下载，不能继续上传或删除。"
+            uploadDescription="申诉提交后，已上传附件将作为申诉材料留痕，不能删除；处理前可继续补充上传材料。"
           />
         </div>
       )}

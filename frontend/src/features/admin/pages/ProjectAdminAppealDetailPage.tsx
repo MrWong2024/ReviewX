@@ -246,7 +246,7 @@ export function ProjectAdminAppealDetailPage({
             attachments={attachments}
             error={attachmentsError}
             onDownload={handleDownload}
-            readonlyReason="管理员可查看和下载申诉附件；附件上传和删除仍由项目负责人在 submitted 状态维护。"
+            readonlyReason="管理员可查看和下载申诉附件；不提供上传或删除。"
           />
 
           {appeal && canHandle ? (
@@ -275,6 +275,9 @@ export function ProjectAdminAppealDetailPage({
 
           <LevelHistoryPanel
             error={historyError}
+            getAppealHref={(historyAppealId) =>
+              `/admin/projects/${projectId}/appeals/${historyAppealId}`
+            }
             history={history}
             levelLabelByValue={levelLabelByValue}
           />

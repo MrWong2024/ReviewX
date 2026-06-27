@@ -114,14 +114,14 @@
 | consensus-reviews | `GET` | `/admin/projects/:id/consensus` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ConsensusReviewResponse` | implemented | admin 可查看任意项目合议记录；响应含 `confirmedByUser` 摘要，不返回密码或权限字段 |
 | consensus-reviews | `POST` | `/admin/projects/:id/consensus/confirm` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | admin 可兜底确认任意未确认项目合议；已有 confirmed 记录同样返回 `409 CONSENSUS_ALREADY_CONFIRMED`，不能绕过合议页不可覆盖规则；成功响应含确认人 `confirmedByUser` 摘要 |
 | project-appeals | `GET` | `/project-owner/projects/:id/consensus` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectOwnerConsensusResponse` | implemented | 项目负责人只能查看本人项目 `status=confirmed` 的正式合议结果；未 confirmed 返回 `404`；响应兼容 `confirmedByUserId` 和 `confirmedByUser` 摘要 |
-| project-appeals | `GET` | `/project-owner/projects/:id/level-history` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | 项目负责人查看本人项目等级变更历史；无日志返回空数组 |
+| project-appeals | `GET` | `/project-owner/projects/:id/level-history` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | 项目负责人查看本人项目等级变更历史；响应含 `changedByUser?: { id, name, phone? } \| null`，无日志返回空数组 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id` | `ProjectAppealResponse[]` | implemented | 本人项目、本用户提交的申诉列表；单项目最多 3 条，按 `appealNo` 升序 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals/:appealId` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId` | `ProjectAppealDetailResponse` | implemented | 返回申诉详情、处理信息、附件数量；不内联附件列表 |
 | project-appeals | `POST` | `/project-owner/projects/:id/appeals` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | `CreateProjectAppealDto`；multipart 可选 `files` | `ProjectAppealResponse` | implemented | 仅本人项目；必须已有 confirmed 合议且有效最终等级 `project.finalLevel ?? confirmedConsensus.finalLevel` 非空；`Project.finalLevel` 缺失但 confirmed 合议有等级时懒回填 `Project.finalLevel/originalLevel`；最多 3 次；存在未处理申诉返回 `409`；`appealNo` 后端生成 |
 | project-appeals | `POST` | `/project-owner/projects/:id/appeals/:appealId/attachments` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | multipart `files` + `UploadProjectAppealAttachmentsDto` | `{ attachments, successCount, failedCount, failures }` | implemented | 仅 `submitted` 申诉可追加；文件字段名 `files`，单次最多 20 个，单文件最大 500MB；保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件失败明细前会执行上传文件名归一化；不使用 material_type |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals/:appealId/attachments` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId` | `ProjectAppealAttachmentResponse[]` | implemented | 只返回 active 附件，不分页 |
 | project-appeals | `GET` | `/project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId/attachmentId` | `{ url, expiresAt }` | implemented | active 附件生成默认 10 分钟短期签名 URL；deleted 返回 `404` |
-| project-appeals | `DELETE` | `/project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId/attachmentId` | `{ deleted, alreadyDeleted }` | implemented | 仅 `submitted` 申诉可软删除 active 附件；重复删除幂等成功；不物理删除 OSS object |
+| project-appeals | `DELETE` | `/project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` | `ProjectOwnerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(project_owner)` | path `id/appealId/attachmentId` | `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED` | implemented | 路由保留兼容旧请求；归属校验后统一返回 409，不软删除，不修改 `ProjectAppealAttachment.deletedAt/deletedByUserId/status` |
 | project-appeals | `GET` | `/review-manager/projects/:id/appeals` | `ReviewManagerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ProjectAppealResponse[]` | implemented | 必须是当前评审负责人负责项目；单项目最多 3 条 |
 | project-appeals | `GET` | `/review-manager/projects/:id/appeals/:appealId` | `ReviewManagerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id/appealId` | `ProjectAppealDetailResponse` | implemented | 必须是当前评审负责人负责项目；返回申诉详情、confirmed 合议摘要、处理信息和附件数量 |
 | project-appeals | `GET` | `/review-manager/projects/:id/appeals/:appealId/attachments` | `ReviewManagerAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id/appealId` | `ProjectAppealAttachmentResponse[]` | implemented | 必须是当前评审负责人负责项目；查看 active 申诉附件 |
@@ -132,7 +132,7 @@
 | project-appeals | `GET` | `/admin/projects/:id/appeals/:appealId/attachments` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/appealId` | `ProjectAppealAttachmentResponse[]` | implemented | admin 查看任意项目 active 申诉附件 |
 | project-appeals | `GET` | `/admin/projects/:id/appeals/:appealId/attachments/:attachmentId/download-url` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/appealId/attachmentId` | `{ url, expiresAt }` | implemented | admin 获取任意项目 active 附件短期下载 URL |
 | project-appeals | `POST` | `/admin/projects/:id/appeals/:appealId/handle` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | `HandleProjectAppealDto` | `ProjectAppealDetailResponse` | implemented | admin 兜底处理任意项目申诉；处理时同样执行最终等级兜底和懒回填；同样不修改 `ConsensusReview.finalLevel` |
-| project-appeals | `GET` | `/admin/projects/:id/level-history` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | admin 查看任意项目等级变更历史 |
+| project-appeals | `GET` | `/admin/projects/:id/level-history` | `AdminAppealsController` | `ProjectAppealsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ProjectLevelChangeLogResponse[]` | implemented | admin 查看任意项目等级变更历史；响应含 `changedByUser?: { id, name, phone? } \| null` |
 
 ## 3.1 项目申诉最终等级有效口径
 
@@ -178,7 +178,7 @@
   - `POST /project-owner/projects/:id/materials/submit`
   - `DELETE /project-owner/projects/:id/materials/:materialId`
 - 锁定不影响读取：项目详情、材料列表、材料下载 URL、confirmed 合议、申诉和申诉附件读取仍可用。
-- 锁定不影响申诉附件规则：project-owner submitted 状态申诉的附件上传 / 删除仍按 `ProjectAppealsService` 原规则执行。
+- 锁定不影响申诉附件补充上传：project-owner submitted 状态申诉仍可继续上传附件；已上传申诉附件作为申诉材料留痕不可删除。
 - admin 命名空间材料治理和 review-manager / expert 材料只读查看不使用该锁定错误。
 
 ## 3.4 合议确认人摘要口径
@@ -203,6 +203,21 @@
 - `POST /project-owner/projects/:id/materials` 和 `POST /project-owner/projects/:id/appeals/:appealId/attachments` 在保存用户可见 `originalFilename`、生成 `safeFilename/objectKey` 和多文件失败明细前使用归一化结果。
 - 前端继续展示后端返回的 `originalFilename`，不在 React 组件中做编码猜测或解码 hack。
 - 历史已入库乱码文件名本次不批量修复，不新增迁移脚本，不重命名 OSS object，不修改 OSS 配置、schema、权限或申诉 / 材料规则。
+
+## 3.7 申诉附件留痕与删除接口口径
+
+- 申诉创建前本地待上传文件仍可由前端移除；申诉提交成功后，已上传附件立即成为申诉材料留痕。
+- project-owner 只能在申诉 `submitted` 状态继续补充上传附件；新补充上传成功后的附件同样不可删除。
+- 申诉进入 `processing/accepted/rejected/canceled` 等非 `submitted` 状态后，project-owner 不可继续上传附件；review_manager / admin 仍只读查看和下载附件。
+- `DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` 保留路由但不再软删除，统一返回 `409 Conflict`，`code=PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`，`message=申诉附件提交后将作为申诉材料留痕，不能删除。申诉处理前可继续补充上传材料。`
+- 本口径不修改申诉处理规则、申诉次数规则、申诉状态流转、附件上传规则、下载 URL、OSS 配置、schema 或迁移。
+
+## 3.8 等级变更历史用户摘要口径
+
+- `GET /project-owner/projects/:id/level-history` 与 `GET /admin/projects/:id/level-history` 的每条记录保留 `changedByUserId`，并补充 `changedByUser?: { id, name, phone? } | null`。
+- `changedByUserId` 可解析时只返回用户最小摘要 `id/name/phone`，不返回密码、角色权限、改密状态、session/token 等敏感字段。
+- 用户不存在或不可解析时 `changedByUser=null`，接口不失败。
+- 本口径只调整响应展示契约，不修改 `ProjectLevelChangeLog` schema、等级变更日志生成规则、申诉处理规则、合议、项目材料锁定或专家分配锁定。
 
 ## 4. 列表返回结构口径
 

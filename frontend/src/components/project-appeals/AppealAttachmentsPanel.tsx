@@ -19,7 +19,9 @@ import {
 
 type AppealAttachmentsPanelProps = {
   attachments: ProjectAppealAttachment[];
+  canDelete?: boolean;
   canMutate?: boolean;
+  canUpload?: boolean;
   emptyText?: string;
   error?: string | null;
   loading?: boolean;
@@ -31,11 +33,14 @@ type AppealAttachmentsPanelProps = {
   ) => Promise<ProjectAppealAttachmentUploadResult>;
   readonlyReason?: string;
   title?: string;
+  uploadDescription?: string;
 };
 
 export function AppealAttachmentsPanel({
   attachments,
+  canDelete,
   canMutate = false,
+  canUpload,
   emptyText = '暂无补充材料。',
   error,
   loading = false,
@@ -44,6 +49,7 @@ export function AppealAttachmentsPanel({
   onUpload,
   readonlyReason = '当前申诉状态下附件只读。',
   title = '申诉附件',
+  uploadDescription = '仅 submitted 状态申诉允许补充附件；备注是本次上传批次备注。',
 }: AppealAttachmentsPanelProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteTarget, setDeleteTarget] =
@@ -58,6 +64,8 @@ export function AppealAttachmentsPanel({
   const [uploadResult, setUploadResult] =
     useState<ProjectAppealAttachmentUploadResult | null>(null);
   const [uploading, setUploading] = useState(false);
+  const uploadEnabled = (canUpload ?? canMutate) && Boolean(onUpload);
+  const deleteEnabled = (canDelete ?? canMutate) && Boolean(onDelete);
 
   async function handleDownload(attachment: ProjectAppealAttachment) {
     setDownloadingId(attachment.id);
@@ -158,14 +166,14 @@ export function AppealAttachmentsPanel({
         <ErrorAlert message={downloadError} />
         <ErrorAlert message={deleteError} />
 
-        {canMutate && onUpload ? (
+        {uploadEnabled ? (
           <div className="mb-5 rounded-xl border border-cyan-100 bg-cyan-50/60 p-4">
             <div className="mb-3">
               <div className="text-sm font-black text-slate-950">
                 补充上传附件
               </div>
               <div className="mt-1 text-xs font-semibold text-cyan-700">
-                仅 submitted 状态申诉允许补充附件；备注是本次上传批次备注。
+                {uploadDescription}
               </div>
             </div>
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(240px,0.45fr)]">
@@ -250,7 +258,7 @@ export function AppealAttachmentsPanel({
                     >
                       {downloadingId === attachment.id ? '获取中...' : '下载'}
                     </Button>
-                    {canMutate && onDelete ? (
+                    {deleteEnabled ? (
                       <Button
                         onClick={() => setDeleteTarget(attachment)}
                         size="sm"

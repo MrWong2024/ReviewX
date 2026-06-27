@@ -20,7 +20,7 @@
 - 门户参考数据：已实现 `/portal/reference-data/*` 只读接口，允许 `project_owner/expert/review_manager/client/admin` 登录读取展示型最小摘要；用户摘要仅允许 `review_manager/expert/project_owner`，禁止查询 admin 用户。
 - 专家评分与合议：已实现已分配专家评分任务、草稿 / 提交、本人 draft 草稿删除、提交评分评审时间窗口校验、评审负责人查看 / 退回、评分汇总、`rule_based` 合议草稿和人工确认合议；首次确认会写 `ConsensusReview` 与 `Project.finalLevel/originalLevel`，已 confirmed 合议再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖最终结论。
 - 合议响应已补确认人摘要：`ConsensusReviewResponse`、`ProjectOwnerConsensusResponse` 和申诉详情里的关联合议摘要可返回 `confirmedByUser?: { id, name, phone? } | null`；只读查询 `users.name/phone`，不返回密码、完整角色权限、改密状态、session/token；确认人用户不可解析时为 `null` 且接口不失败。
-- 项目申诉：已实现项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传 / 列表 / 下载 URL / 软删除、评审负责人 / 管理员查看和处理申诉、申诉导致等级变化时写等级变更日志。
+- 项目申诉：已实现项目负责人查看 confirmed 合议结果、提交申诉、申诉附件上传 / 列表 / 下载 URL，已上传申诉附件留痕不可删除，评审负责人 / 管理员查看和处理申诉、申诉导致等级变化时写等级变更日志。
 - 申诉创建前提：必须已有 confirmed 合议，必须存在有效最终等级，同一项目最多 3 次申诉，存在 `submitted/processing` 未处理申诉时禁止再次提交。
 - 申诉有效最终等级后端口径为 `project.finalLevel ?? confirmedConsensus.finalLevel`；历史数据中 `Project.finalLevel` 缺失但 confirmed 合议有 `finalLevel` 时允许创建申诉并懒回填 `projects.finalLevel/originalLevel`，懒回填不写等级变更日志。
 - 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`；development / test 默认 fake，production 默认 oss。
@@ -216,7 +216,7 @@ backend/
 - 当前项目材料状态为 `draft/submitted/active`，其中新上传默认 `draft`，`submitted` 对评审负责人/专家可见，`active` 仅为 legacy 兼容并按草稿处理；schema 可读取旧 `deleted`，但业务不再新写 `deleted`
 - 当前 project-owner 项目列表和详情响应由 `ProjectMaterialsService` 内联 `reviewManager?: { id, name, phone? } | null` 评审负责人摘要；只查询 `users.name/phone`，不返回 `roles/passwordHash/mustChangePassword/session/token` 等敏感字段；项目设置了 `reviewManagerId` 但用户不存在时响应 `reviewManager=null`，由前端显示“评审负责人信息暂不可用”，不得把短 ObjectId 暴露给普通项目负责人
 - 当前 project-owner 项目列表和详情响应包含 `ownerContentLocked`；锁定条件为存在 `ConsensusReview.status=confirmed`、项目 `finalLevel` 有有效值或项目 `originalLevel` 有有效值
-- 当前项目负责人内容锁定后，`PATCH /project-owner/projects/:id/follow-up-needs`、`POST /project-owner/projects/:id/materials`、`POST /project-owner/projects/:id/materials/submit`、`DELETE /project-owner/projects/:id/materials/:materialId` 返回 `409 PROJECT_OWNER_CONTENT_LOCKED` 和固定中文提示；项目详情、材料列表、材料下载 URL、评审结果、申诉和 submitted 申诉附件上传 / 删除不因该锁定失败；admin 材料治理、review-manager / expert 材料只读查看不使用该锁定
+- 当前项目负责人内容锁定后，`PATCH /project-owner/projects/:id/follow-up-needs`、`POST /project-owner/projects/:id/materials`、`POST /project-owner/projects/:id/materials/submit`、`DELETE /project-owner/projects/:id/materials/:materialId` 返回 `409 PROJECT_OWNER_CONTENT_LOCKED` 和固定中文提示；项目详情、材料列表、材料下载 URL、评审结果、申诉和 submitted 申诉附件补充上传不因该锁定失败；已上传申诉附件不可删除；admin 材料治理、review-manager / expert 材料只读查看不使用该锁定
 - 当前已创建 `project_material_deletion_logs` 集合，用于保存项目材料删除审计，字段包括项目/材料/材料类型/上传人/删除人/删除角色/删除原因、原材料文件快照、删除前状态、提交留痕快照、storage 删除结果和 `deletedAt`
 - 当前 `project_material_deletion_logs` 索引：`projectId + deletedAt`、`materialId`、`deletedByUserId + deletedAt`、`deletedByRole + deletedAt`
 - 当前项目材料删除为物理删除：项目负责人只能删除 `draft/legacy active`，`submitted` 返回 `409`，项目负责人内容锁定后返回 `409 PROJECT_OWNER_CONTENT_LOCKED`；admin 删除必须提供 reason，可删除 `draft/submitted/legacy active`，不受 project-owner 内容锁影响；删除时先调用 `storageService.deleteObject(objectKey)`，成功后写 deletion log 并删除 `project_materials` 主记录；storage 删除失败时不删 DB、不写成功日志
@@ -240,10 +240,11 @@ backend/
 - 当前项目负责人创建申诉的最终等级有效口径为 `effectiveFinalLevel = project.finalLevel ?? confirmedConsensus.finalLevel`，空字符串按缺失处理；`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时允许创建申诉，`levelBeforeAppeal` 使用有效最终等级，并懒回填 `projects.finalLevel` 与缺失的 `projects.originalLevel`
 - 当前已创建 `project_appeal_attachments` 集合，用于保存申诉补充材料文件引用和元数据，字段包括 `appealId`、`projectId`、`uploadedByUserId`、`originalFilename`、`safeFilename`、`objectKey`、`bucket`、`storageDriver`、`mimeType`、`extension`、`sizeBytes`、`sha256`、`remark`、`status`、`deletedAt`、`deletedByUserId` 和 timestamps
 - 当前 `project_appeal_attachments` 索引：`appealId + status`、`projectId + status`、`uploadedByUserId + createdAt`、`objectKey` unique、`createdAt`
-- 当前申诉附件删除为软删除，`status=deleted` 并记录 `deletedAt/deletedByUserId`，不物理删除 OSS object；申诉附件不使用 `material_type` 字典
+- 当前申诉附件上传成功后作为申诉材料留痕，project-owner 不允许删除；`DELETE /project-owner/projects/:id/appeals/:appealId/attachments/:attachmentId` 保留路由但返回 `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED`，不再写 `status=deleted/deletedAt/deletedByUserId`，不物理删除 OSS object；申诉附件不使用 `material_type` 字典
 - 当前已创建 `project_level_change_logs` 集合，用于记录项目最终等级变更历史，字段包括 `projectId`、`appealId`、`consensusReviewId`、`fromLevel`、`toLevel`、`reason`、`changedByUserId`、`changedAt`、`source` 和 timestamps
 - 当前 `project_level_change_logs` 索引：`projectId + changedAt`、`appealId`、`changedByUserId + changedAt`、`source + changedAt`
 - 当前申诉处理导致等级变更时只更新 `Project.finalLevel` 并写 `ProjectLevelChangeLog(source=appeal_handling)`；不修改 `ConsensusReview.finalLevel`；`Project.originalLevel` 保留首次合议确认等级，若历史数据为空则申诉处理时写入调整前等级
+- 当前 project-owner / admin `level-history` 响应保留 `changedByUserId` 并补充 `changedByUser?: { id, name, phone? } | null` 操作人摘要；用户不可解析时为 `null` 且接口不失败；不修改等级变更日志生成规则或 schema
 - 当前申诉处理也对历史数据做最终等级兜底：优先 `Project.finalLevel`，再读取申诉关联 confirmed 合议或当前项目 confirmed 合议的 `finalLevel`，最后兜底 `appeal.levelBeforeAppeal`；兜底成功且 `Project.finalLevel` 缺失时懒回填 `projects.finalLevel/originalLevel`，懒回填不写 `ProjectLevelChangeLog`
 - 当前第五阶段历史合议确认不会自动回填 `ProjectLevelChangeLog`
 - 当前已创建 `project_import_jobs` 集合，用于记录 Excel 导入任务、字段映射快照、统计计数和任务状态
@@ -310,7 +311,7 @@ backend/
 - 已包含 `test/project-materials.e2e-spec.ts`，用于验证项目负责人项目列表、`followUpNeeds` 更新、fake storage 上传、材料类型校验、非法/空文件、材料列表、下载 URL、提交、物理删除、admin 删除 reason 和 deletion log、评审负责人/专家只能查看 submitted、multipart 中文文件名 mojibake 修复、project-owner 项目响应评审负责人摘要、confirmed 合议 / `finalLevel` 后 project-owner 写操作锁定且读取 / 下载仍可用，以及既有接口轻量回归
 - 已包含 `test/expert-reviews.e2e-spec.ts`，用于验证专家评分权限、任务列表、快照缺失、草稿保存、draft 草稿删除并回到 `not_started`、submitted/returned 删除返回 `409` 且记录保留、无评分记录删除返回 `404`、未分配或 removed 专家不可删除、评审开始前可删除草稿但提交仍返回 `409 REVIEW_NOT_STARTED`、评审时间已过或缺失时允许提交、改进建议条件必填、submitted 后禁止修改、退回和重新提交、评审负责人/管理员查看、评分汇总，以及专家任务列表/详情内联 admin + review_manager 多角色评审负责人摘要和负责人用户缺失时 `reviewManager=null`
 - 已包含 `test/consensus-reviews.e2e-spec.ts`，用于验证合议草稿生成、无 submitted 评分阻断、force 覆盖 draft、confirmed 后禁止覆盖草稿、draft 首次确认、已 confirmed 再次 confirm 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖合议 / 项目等级 / 确认人 / 确认时间、管理员兜底查看、Project 等级写入、确认响应含 `confirmedByUser.name/phone`，以及确认人用户不可解析时 `confirmedByUser=null` 且接口不失败
-- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/中文文件名归一化/下载 URL/软删除、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕以及 `ConsensusReview.finalLevel` 不被覆盖
+- 已包含 `test/project-appeals.e2e-spec.ts`，用于验证项目负责人 confirmed 合议查看、未确认合议/有效最终等级缺失不可申诉、`Project.finalLevel` 缺失但 confirmed 合议 `finalLevel` 存在时可申诉并懒回填、最多 3 次申诉、未处理申诉互斥、申诉附件 fake storage 上传/非法文件/中文文件名归一化/下载 URL、删除接口返回 409 且附件仍 active、submitted 状态仍可补充上传、评审负责人和管理员处理申诉、处理历史申诉时最终等级兜底、等级变更留痕和 `changedByUser` 摘要，以及 `ConsensusReview.finalLevel` 不被覆盖
 - 已包含 `test/admin-users.e2e-spec.ts`，用于验证 `/admin/users` 401/403、创建用户、默认手机号密码、多角色、单位/学科校验、分页/搜索/过滤、详情和响应不返回 `passwordHash`、更新用户、单独状态接口、禁止停用自己、禁止移除自己的 admin 角色、至少保留一个启用 admin、重置密码和重置后登录
 - 已包含 `src/modules/portal-reference-data/services/portal-reference-data.service.spec.ts`，用于验证门户参考数据默认 active 过滤、字典/树形字典/批次/单位/评审方案最小摘要、用户 role 必填、禁止 admin role、排除 admin 用户和敏感字段不返回
 - 已包含 `test/portal-reference-data.e2e-spec.ts`，用于验证 `/portal/reference-data/*` 401/403、project_owner 读取 `material_type/project_status/discipline/batches/organizations/review-schemes/users?role=review_manager`、`users?role=admin` 返回 `400`、`users?role=review_manager` 仍排除含 admin 角色的多角色用户、admin 复用门户接口以及 POST/PATCH/DELETE 不存在

@@ -283,6 +283,9 @@ export function ProjectOwnerReviewResultPage({
 
           <LevelHistoryPanel
             error={historyError}
+            getAppealHref={(itemAppealId) =>
+              `/project-owner/projects/${projectId}/appeals/${itemAppealId}`
+            }
             history={history}
             levelLabelByValue={lookupMaps.reviewLevelLabelByValue}
           />
