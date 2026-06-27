@@ -238,12 +238,6 @@ export function ProjectOwnerProjectsPage() {
           >
             查看详情
           </Link>
-          <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700"
-            href={`/project-owner/projects/${item.id}#materials`}
-          >
-            管理材料
-          </Link>
         </div>
       ),
       title: '操作',
