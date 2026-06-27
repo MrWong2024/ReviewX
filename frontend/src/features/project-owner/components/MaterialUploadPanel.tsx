@@ -123,11 +123,6 @@ export function MaterialUploadPanel({
       </div>
 
       <ErrorAlert message={error} />
-      {locked ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
-          {lockedMessage}
-        </div>
-      ) : null}
       {notice ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
           {notice}
@@ -156,65 +151,65 @@ export function MaterialUploadPanel({
 
       {locked ? null : (
         <>
-      <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.7fr)_minmax(260px,1fr)]">
-        <Select
-          disabled={Boolean(disabledReason) || uploading}
-          id="project-owner-material-type"
-          label="材料类型"
-          onChange={(event) => setMaterialTypeId(event.target.value)}
-          value={materialTypeId}
-        >
-          <option value="">请选择</option>
-          {materialTypes.map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.name}
-            </option>
-          ))}
-        </Select>
-        <Input
-          accept={ALLOWED_PROJECT_MATERIAL_EXTENSIONS.map(
-            (extension) => `.${extension}`,
-          ).join(',')}
-          disabled={Boolean(disabledReason) || uploading}
-          id="project-owner-material-files"
-          key={fileInputKey}
-          label="材料文件"
-          multiple
-          onChange={(event) => {
-            const selectedFiles = event.target.files
-              ? Array.from(event.target.files)
-              : [];
-            setFiles(selectedFiles);
-          }}
-          type="file"
-        />
-      </div>
+          <div className="grid gap-4 lg:grid-cols-[minmax(220px,0.7fr)_minmax(260px,1fr)]">
+            <Select
+              disabled={Boolean(disabledReason) || uploading}
+              id="project-owner-material-type"
+              label="材料类型"
+              onChange={(event) => setMaterialTypeId(event.target.value)}
+              value={materialTypeId}
+            >
+              <option value="">请选择</option>
+              {materialTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
+            </Select>
+            <Input
+              accept={ALLOWED_PROJECT_MATERIAL_EXTENSIONS.map(
+                (extension) => `.${extension}`,
+              ).join(',')}
+              disabled={Boolean(disabledReason) || uploading}
+              id="project-owner-material-files"
+              key={fileInputKey}
+              label="材料文件"
+              multiple
+              onChange={(event) => {
+                const selectedFiles = event.target.files
+                  ? Array.from(event.target.files)
+                  : [];
+                setFiles(selectedFiles);
+              }}
+              type="file"
+            />
+          </div>
 
-      <div className="mt-4">
-        <Textarea
-          disabled={Boolean(disabledReason) || uploading}
-          id="project-owner-material-remark"
-          label="备注"
-          maxLength={MATERIAL_REMARK_MAX_LENGTH + 100}
-          onChange={(event) => setRemark(event.target.value)}
-          placeholder="可填写材料说明，最多 1000 字。"
-          value={remark}
-        />
-      </div>
+          <div className="mt-4">
+            <Textarea
+              disabled={Boolean(disabledReason) || uploading}
+              id="project-owner-material-remark"
+              label="备注"
+              maxLength={MATERIAL_REMARK_MAX_LENGTH + 100}
+              onChange={(event) => setRemark(event.target.value)}
+              placeholder="可填写材料说明，最多 1000 字。"
+              value={remark}
+            />
+          </div>
 
-      <div className="mt-3 text-xs leading-5 text-slate-500">
-        已选择 {files.length} 个文件。允许扩展名：
-        {ALLOWED_PROJECT_MATERIAL_EXTENSIONS.join('、')}。
-      </div>
-      <div className="mt-4 flex justify-end">
-        <Button
-          disabled={Boolean(disabledReason) || uploading}
-          onClick={handleUpload}
-          variant="primary"
-        >
-          {uploading ? '上传中...' : '上传材料'}
-        </Button>
-      </div>
+          <div className="mt-3 text-xs leading-5 text-slate-500">
+            已选择 {files.length} 个文件。允许扩展名：
+            {ALLOWED_PROJECT_MATERIAL_EXTENSIONS.join('、')}。
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              disabled={Boolean(disabledReason) || uploading}
+              onClick={handleUpload}
+              variant="primary"
+            >
+              {uploading ? '上传中...' : '上传材料'}
+            </Button>
+          </div>
         </>
       )}
     </section>

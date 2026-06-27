@@ -77,22 +77,24 @@ export function FollowUpNeedsPanel({
               可填写项目后续资金、试点、成果转化或协同支持需求，需点击保存后提交。
             </p>
           </div>
-          <div
-            className={[
-              'text-xs font-bold',
-              tooLong ? 'text-red-600' : 'text-slate-500',
-            ].join(' ')}
-          >
-            {value.length} / {FOLLOW_UP_NEEDS_MAX_LENGTH}
+          <div className="flex items-center gap-2">
+            {locked ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                已锁定
+              </span>
+            ) : null}
+            <div
+              className={[
+                'text-xs font-bold',
+                tooLong ? 'text-red-600' : 'text-slate-500',
+              ].join(' ')}
+            >
+              {value.length} / {FOLLOW_UP_NEEDS_MAX_LENGTH}
+            </div>
           </div>
         </div>
 
         <ErrorAlert message={error} />
-        {locked ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-800 shadow-sm">
-            {lockedMessage}
-          </div>
-        ) : null}
         {notice ? (
           <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 shadow-sm">
             {notice}
