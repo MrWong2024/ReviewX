@@ -96,22 +96,19 @@ export const envValidationSchema = Joi.object({
     .valid('lax', 'strict', 'none')
     .default('lax'),
   LLM_PROVIDER: llmProviderSchema,
-  BAILIAN_API_KEY: Joi.when('LLM_PROVIDER', {
-    is: 'bailian',
-    then: Joi.string().trim().min(1).required(),
-    otherwise: Joi.string().trim().allow('').default(''),
-  }),
+  BAILIAN_API_KEY: Joi.string().trim().allow('').default(''),
   BAILIAN_BASE_URL: Joi.string()
     .trim()
+    .allow('')
     .uri({ scheme: ['http', 'https'] })
     .default('https://dashscope.aliyuncs.com/compatible-mode/v1'),
-  BAILIAN_MODEL: Joi.when('LLM_PROVIDER', {
-    is: 'bailian',
-    then: Joi.string().trim().min(1).required(),
-    otherwise: Joi.string().trim().allow('').default(''),
-  }),
+  BAILIAN_MODEL: Joi.string().trim().allow('').default(''),
   BAILIAN_TIMEOUT_MS: Joi.number().integer().min(1).default(90000),
   BAILIAN_MAX_RETRIES: Joi.number().integer().min(0).default(1),
+  CONSENSUS_DRAFT_COOLDOWN_SECONDS: Joi.number()
+    .integer()
+    .min(0)
+    .default(60),
 })
   .custom(validateSessionCookieCombination)
   .unknown(true)

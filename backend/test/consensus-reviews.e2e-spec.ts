@@ -11,6 +11,8 @@ import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import {
   CONSENSUS_ALREADY_CONFIRMED_CODE,
   CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
+  CONSENSUS_DRAFT_COOLDOWN_CODE,
+  CONSENSUS_DRAFT_COOLDOWN_MESSAGE,
 } from '../src/modules/consensus-reviews/constants/consensus-review.constants';
 import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
@@ -23,8 +25,13 @@ import { User } from '../src/modules/users/schemas/user.schema';
 
 process.env.NODE_ENV = 'test';
 process.env.STORAGE_DRIVER = 'fake';
+process.env.LLM_PROVIDER = 'stub';
+process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS = '60';
+delete process.env.BAILIAN_API_KEY;
 
 jest.setTimeout(30000);
+
+const originalFetch = globalThis.fetch;
 
 describe('Consensus review APIs (e2e)', () => {
   let app: INestApplication;
@@ -89,16 +96,26 @@ describe('Consensus review APIs (e2e)', () => {
   });
 
   beforeEach(async () => {
+    resetLlmEnv();
+    globalThis.fetch = originalFetch;
     await clearCollections();
   });
 
   afterAll(async () => {
+    globalThis.fetch = originalFetch;
     await clearCollections();
     await connection.close();
     await app.close();
   });
 
-  it('generates rule-based drafts and blocks overwrite without force', async () => {
+  it('falls back to rule-based drafts without Bailian API key and blocks overwrite without force', async () => {
+    process.env.LLM_PROVIDER = 'bailian';
+    process.env.BAILIAN_MODEL = 'qwen-test';
+    process.env.BAILIAN_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS = '0';
+    delete process.env.BAILIAN_API_KEY;
+    const fetchMock = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>();
+    globalThis.fetch = fetchMock;
     const data = await seedData();
     const managerCookie = await login(data.reviewManager.phone);
     const otherManagerCookie = await login(data.otherReviewManager.phone);
@@ -127,6 +144,7 @@ describe('Consensus review APIs (e2e)', () => {
     expect(getString(getJsonBody(draftResponse), 'draftOpinion')).toContain(
       '重大问题提示',
     );
+    expect(fetchMock).not.toHaveBeenCalled();
 
     await request(httpServer)
       .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
@@ -138,6 +156,79 @@ describe('Consensus review APIs (e2e)', () => {
       .query({ force: 'true' })
       .set('Cookie', managerCookie)
       .expect(201);
+  });
+
+  it('generates AI draft with mocked Bailian-compatible chat response', async () => {
+    process.env.LLM_PROVIDER = 'bailian';
+    process.env.BAILIAN_API_KEY = 'test-bailian-key';
+    process.env.BAILIAN_BASE_URL =
+      'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    process.env.BAILIAN_MODEL = 'qwen-test';
+    process.env.BAILIAN_MAX_RETRIES = '0';
+    process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS = '0';
+    const fetchMock = jest.fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>();
+    fetchMock.mockResolvedValue(
+      new globalThis.Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  draftOpinion: 'AI 汇总意见：项目基础较好，需补充验证。',
+                  draftScore: 81,
+                }),
+              },
+            },
+          ],
+        }),
+        {
+          headers: { 'content-type': 'application/json' },
+          status: 200,
+        },
+      ),
+    );
+    globalThis.fetch = fetchMock;
+    const data = await seedData();
+    await seedSubmittedReview(data);
+    const managerCookie = await login(data.reviewManager.phone);
+
+    const draftResponse = await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
+      .set('Cookie', managerCookie)
+      .expect(201);
+
+    expect(getJsonBody(draftResponse)).toMatchObject({
+      status: 'draft',
+      draftSource: 'ai',
+      draftOpinion: 'AI 汇总意见：项目基础较好，需补充验证。',
+      draftScore: 81,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cooldown error with remaining seconds for forced regeneration', async () => {
+    const data = await seedData();
+    await seedSubmittedReview(data);
+    const managerCookie = await login(data.reviewManager.phone);
+
+    await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
+      .set('Cookie', managerCookie)
+      .expect(201);
+
+    await request(httpServer)
+      .post(`/review-manager/projects/${data.project.id}/consensus/draft`)
+      .query({ force: 'true' })
+      .set('Cookie', managerCookie)
+      .expect(429)
+      .expect((response) => {
+        const body = getJsonBody(response);
+        expect(body).toMatchObject({
+          code: CONSENSUS_DRAFT_COOLDOWN_CODE,
+          message: CONSENSUS_DRAFT_COOLDOWN_MESSAGE,
+        });
+        expect(getNumber(body, 'remainingSeconds')).toBeGreaterThan(0);
+      });
   });
 
   it('confirms draft consensus, blocks confirmed overwrite, and exposes admin fallback view', async () => {
@@ -462,6 +553,16 @@ describe('Consensus review APIs (e2e)', () => {
   }
 });
 
+function resetLlmEnv(): void {
+  process.env.LLM_PROVIDER = 'stub';
+  process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS = '60';
+  delete process.env.BAILIAN_API_KEY;
+  delete process.env.BAILIAN_BASE_URL;
+  delete process.env.BAILIAN_MODEL;
+  delete process.env.BAILIAN_TIMEOUT_MS;
+  delete process.env.BAILIAN_MAX_RETRIES;
+}
+
 function getSessionCookie(response: Response): string {
   const setCookie: unknown = response.headers['set-cookie'];
 
@@ -490,6 +591,16 @@ function getString(record: Record<string, unknown>, key: string): string {
 
   if (typeof value !== 'string') {
     throw new Error(`${key} must be a string`);
+  }
+
+  return value;
+}
+
+function getNumber(record: Record<string, unknown>, key: string): number {
+  const value = record[key];
+
+  if (typeof value !== 'number') {
+    throw new Error(`${key} must be a number`);
   }
 
   return value;

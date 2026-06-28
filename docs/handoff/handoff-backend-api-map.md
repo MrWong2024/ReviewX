@@ -108,7 +108,7 @@
 | expert-reviews | `GET` | `/admin/projects/:id/expert-reviews` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ReviewManagerExpertReviewListItem[]` | implemented | admin 可查看任意项目专家评分状态 |
 | expert-reviews | `GET` | `/admin/projects/:id/expert-reviews/:expertUserId` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id/expertUserId` | `ExpertReviewResponse` 或 `not_started` 结构 | implemented | admin 可查看任意项目某专家评分详情 |
 | expert-reviews | `GET` | `/admin/projects/:id/review-summary` | `AdminExpertReviewsController` | `ExpertReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ReviewSummaryResponse` | implemented | admin 可查看任意项目评分汇总 |
-| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/draft` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | query `force` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；基于 submitted 专家评分生成 `rule_based` 草稿；无 submitted 返回 `409`；已有 draft 默认 `409`，`force=true` 可覆盖；confirmed 后不可覆盖；响应含 `confirmedByUser?: { id, name, phone? } | null` |
+| consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/draft` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | query `force` | `ConsensusReviewResponse`；冷却时 `429 CONSENSUS_DRAFT_COOLDOWN` | implemented | 必须是当前评审负责人负责项目；基于 submitted 专家评分优先调用百炼 OpenAI-compatible Chat 生成 AI 草稿，失败 fallback 到 `rule_based`；无 submitted 返回 `409`；已有 draft 默认 `409`，`force=true` 可覆盖但受同项目冷却限制；confirmed 后不可覆盖且优先返回 confirmed 冲突；响应含 `confirmedByUser?: { id, name, phone? } | null` |
 | consensus-reviews | `GET` | `/review-manager/projects/:id/consensus` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | path `id` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；未生成返回 `404`；confirmed 记录响应补充 `confirmedByUser` 摘要，确认人用户不可解析时为 `null` |
 | consensus-reviews | `POST` | `/review-manager/projects/:id/consensus/confirm` | `ReviewManagerConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(review_manager)` | `ConfirmConsensusReviewDto` | `ConsensusReviewResponse` | implemented | 必须是当前评审负责人负责项目；请求仅含 `finalOpinion/finalScore/finalLevel`；未确认记录可写 ConsensusReview 和 Project 等级字段；已有 confirmed 记录返回 `409 CONSENSUS_ALREADY_CONFIRMED` 且不覆盖最终结论、确认人、确认时间或项目等级；成功响应含确认人 `confirmedByUser` 摘要 |
 | consensus-reviews | `GET` | `/admin/projects/:id/consensus` | `AdminConsensusController` | `ConsensusReviewsService` | `SessionAuthGuard` + `RolesGuard(admin)` | path `id` | `ConsensusReviewResponse` | implemented | admin 可查看任意项目合议记录；响应含 `confirmedByUser` 摘要，不返回密码或权限字段 |
@@ -196,7 +196,25 @@
 - 错误码：`CONSENSUS_ALREADY_CONFIRMED`；错误消息：`最终合议结论已确认，不能在合议页重新覆盖。如需调整，请通过申诉处理或后续更正流程办理。`
 - 返回 409 时不更新 `consensus_reviews.finalOpinion/finalScore/finalLevel/confirmedByUserId/confirmedAt`，也不更新 `projects.finalLevel/originalLevel`。
 - draft 或无合议记录时的首次确认流程不变；确认成功仍写项目最终等级，`Project.originalLevel` 为空时同步写入。
-- 本小修未修改合议草稿生成规则、合议算法、申诉规则、等级变更日志规则、专家评分、材料锁定或专家分配锁定；后续如需录入错误更正，应另行设计专门更正流程。
+- confirmed 不可覆盖口径不改变申诉规则、等级变更日志规则、专家评分、材料锁定或专家分配锁定；后续如需录入错误更正，应另行设计专门更正流程。合议草稿 AI 生成与冷却口径见 3.5.1。
+
+## 3.5.1 AI 合议草稿与冷却口径
+
+- `POST /review-manager/projects/:id/consensus/draft` 路径不变，仍使用 review-manager 权限校验，仍要求至少存在 submitted 专家评分，仍禁止 confirmed 合议被覆盖。
+- 生成草稿优先调用百炼 OpenAI-compatible Chat Completions，配置来自 `LLM_PROVIDER`、`BAILIAN_API_KEY`、`BAILIAN_BASE_URL`、`BAILIAN_MODEL`、`BAILIAN_TIMEOUT_MS`、`BAILIAN_MAX_RETRIES`。
+- `LLM_PROVIDER` 非 `bailian`、百炼必需配置缺失、调用超时、HTTP 非 2xx、响应缺少 `choices[0].message.content`、AI 输出为空或不可解析时，后端 fallback 到既有 `rule_based` 规则汇总并保存 `draftSource=rule_based`，不向前端暴露 prompt、API key 或模型完整原始响应。
+- AI 成功时保存 `status=draft`、`draftSource=ai`、`draftOpinion`、合法 `draftScore`、`draftGeneratedAt`、`draftGeneratedByUserId` 和现有专家评分统计；`draftScore` 缺失、非法或超过评审方案总分时使用专家平均分。
+- AI 只生成草稿，不写 `finalOpinion/finalScore/finalLevel`，不确认最终合议，不修改 `Project.finalLevel`，不读取 OSS 材料内容，不做文件预览。
+- 同一 projectId 生成合议草稿默认冷却 60 秒，可通过 `CONSENSUS_DRAFT_COOLDOWN_SECONDS` 配置；冷却只限制生成草稿，不限制查看合议、使用草稿填入、确认最终合议或查看专家评分。
+- 冷却命中返回 `429 Too Many Requests`，典型响应：
+
+```json
+{
+  "message": "合议草稿刚刚生成，请稍后再试",
+  "code": "CONSENSUS_DRAFT_COOLDOWN",
+  "remainingSeconds": 42
+}
+```
 
 ## 3.6 上传文件名归一化口径
 

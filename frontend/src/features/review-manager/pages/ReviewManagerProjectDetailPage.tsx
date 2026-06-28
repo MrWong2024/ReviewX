@@ -37,11 +37,14 @@ import type {
 import {
   buildReviewManagerLookupMaps,
   createEmptyReviewManagerLookupMaps,
+  DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS,
   formatLookupName,
   formatNames,
   formatReviewManagerErrorMessage,
   formatScore,
+  getConsensusDraftCooldownRemainingSeconds,
   getReviewSchemeTotalScore,
+  isConsensusDraftCooldownError,
   isConfirmedConsensusError,
   isDraftAlreadyExistsError,
 } from '../utils';
@@ -59,6 +62,11 @@ export function ReviewManagerProjectDetailPage({
   );
   const [consensusError, setConsensusError] = useState<string | null>(null);
   const [consensusLoading, setConsensusLoading] = useState(true);
+  const [draftCooldownRemainingSeconds, setDraftCooldownRemainingSeconds] =
+    useState(0);
+  const [draftCooldownUntilMs, setDraftCooldownUntilMs] = useState<
+    number | null
+  >(null);
   const [expertReviewDetail, setExpertReviewDetail] =
     useState<ExpertReviewDetail | null>(null);
   const [expertReviewDetailError, setExpertReviewDetailError] = useState<
@@ -118,6 +126,74 @@ export function ReviewManagerProjectDetailPage({
   const consensusReturnDisabledMessage = consensusLoading
     ? '正在确认合议状态，暂不开放退回操作。'
     : '最终合议结论已确认，专家评分仅可查看。';
+
+  useEffect(() => {
+    setDraftCooldownRemainingSeconds(0);
+    setDraftCooldownUntilMs(null);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (consensus?.status === 'confirmed') {
+      setDraftCooldownRemainingSeconds(0);
+      setDraftCooldownUntilMs(null);
+      return;
+    }
+
+    if (!consensus?.draftGeneratedAt) {
+      return;
+    }
+
+    const draftGeneratedAtMs = new Date(consensus.draftGeneratedAt).getTime();
+
+    if (!Number.isFinite(draftGeneratedAtMs)) {
+      return;
+    }
+
+    const cooldownUntilMs =
+      draftGeneratedAtMs + DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS * 1000;
+
+    if (cooldownUntilMs > Date.now()) {
+      setDraftCooldownUntilMs((current) =>
+        current === null ? cooldownUntilMs : Math.max(current, cooldownUntilMs),
+      );
+    }
+  }, [consensus?.draftGeneratedAt, consensus?.status]);
+
+  useEffect(() => {
+    if (draftCooldownUntilMs === null) {
+      setDraftCooldownRemainingSeconds(0);
+      return;
+    }
+
+    const cooldownUntilMs = draftCooldownUntilMs;
+
+    function updateRemainingSeconds() {
+      const remainingSeconds = Math.max(
+        0,
+        Math.ceil((cooldownUntilMs - Date.now()) / 1000),
+      );
+      setDraftCooldownRemainingSeconds(remainingSeconds);
+
+      if (remainingSeconds === 0) {
+        setDraftCooldownUntilMs(null);
+      }
+    }
+
+    updateRemainingSeconds();
+    const intervalId = window.setInterval(updateRemainingSeconds, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [draftCooldownUntilMs]);
+
+  function startDraftCooldown(seconds: number) {
+    const normalizedSeconds =
+      Number.isFinite(seconds) && seconds > 0
+        ? Math.ceil(seconds)
+        : DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS;
+
+    setDraftCooldownRemainingSeconds(normalizedSeconds);
+    setDraftCooldownUntilMs(Date.now() + normalizedSeconds * 1000);
+  }
 
   async function loadProjectSummary() {
     setProjectSummaryLoading(true);
@@ -266,6 +342,7 @@ export function ReviewManagerProjectDetailPage({
 
     try {
       await generateProjectConsensusDraft(projectId);
+      startDraftCooldown(DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS);
       setNotice('合议草稿已生成。');
       await Promise.all([loadConsensus(), loadReviewSummary()]);
     } catch (error) {
@@ -277,12 +354,24 @@ export function ReviewManagerProjectDetailPage({
         if (confirmed) {
           try {
             await generateProjectConsensusDraft(projectId, { force: true });
+            startDraftCooldown(DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS);
             setNotice('合议草稿已覆盖生成。');
             await Promise.all([loadConsensus(), loadReviewSummary()]);
           } catch (forceError) {
+            if (isConsensusDraftCooldownError(forceError)) {
+              startDraftCooldown(
+                getConsensusDraftCooldownRemainingSeconds(forceError),
+              );
+              await loadConsensus();
+            }
+
             setConsensusError(formatReviewManagerErrorMessage(forceError));
           }
         }
+      } else if (isConsensusDraftCooldownError(error)) {
+        startDraftCooldown(getConsensusDraftCooldownRemainingSeconds(error));
+        setConsensusError(formatReviewManagerErrorMessage(error));
+        await loadConsensus();
       } else if (isConfirmedConsensusError(error)) {
         setConsensusError(
           '最终合议结论已确认。如项目负责人提出异议，请通过申诉流程处理；如需更正录入错误，应走后续专门更正流程。',
@@ -427,6 +516,7 @@ export function ReviewManagerProjectDetailPage({
             <ConsensusReviewPanel
               confirming={confirmingConsensus}
               consensus={consensus}
+              draftCooldownRemainingSeconds={draftCooldownRemainingSeconds}
               error={consensusError}
               generating={generatingDraft}
               loading={consensusLoading}

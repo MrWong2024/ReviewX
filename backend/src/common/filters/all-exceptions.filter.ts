@@ -11,6 +11,7 @@ type ErrorResponseBody = {
   code?: string;
   error?: string;
   message?: string | string[];
+  remainingSeconds?: number;
   reasons?: string[];
   reviewTime?: Date | string | null;
   statusCode?: number;
@@ -37,6 +38,10 @@ function toErrorResponseBody(value: unknown): ErrorResponseBody | null {
 
   if (typeof value.code === 'string') {
     responseBody.code = value.code;
+  }
+
+  if (typeof value.remainingSeconds === 'number') {
+    responseBody.remainingSeconds = value.remainingSeconds;
   }
 
   if (
@@ -77,6 +82,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let code: string | undefined;
     let message = 'Internal server error';
+    let remainingSeconds: number | undefined;
     let reasons: string[] | undefined;
     let reviewTime: Date | string | null | undefined;
 
@@ -99,6 +105,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
 
         code = parsedResponseBody?.code;
+        remainingSeconds = parsedResponseBody?.remainingSeconds;
         reasons = parsedResponseBody?.reasons;
         reviewTime = parsedResponseBody?.reviewTime;
       }
@@ -112,6 +119,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: String(httpAdapter.getRequestUrl(request)),
       message,
       ...(code ? { code } : {}),
+      ...(remainingSeconds !== undefined ? { remainingSeconds } : {}),
       ...(reasons ? { reasons } : {}),
       ...(reviewTime !== undefined ? { reviewTime } : {}),
     };

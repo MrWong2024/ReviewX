@@ -2,9 +2,13 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { TimestampFields, toObjectId } from '../../../common/utils/mongo-query';
@@ -19,12 +23,16 @@ import { GenerateConsensusDraftDto } from '../dto/generate-consensus-draft.dto';
 import {
   CONSENSUS_ALREADY_CONFIRMED_CODE,
   CONSENSUS_ALREADY_CONFIRMED_MESSAGE,
+  CONSENSUS_DRAFT_COOLDOWN_CODE,
+  CONSENSUS_DRAFT_COOLDOWN_MESSAGE,
+  DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS,
   REVIEW_LEVEL_DICT_TYPE,
   ConsensusDraftSource,
   ConsensusReviewStatus,
 } from '../constants/consensus-review.constants';
 import { ConsensusReview } from '../schemas/consensus-review.schema';
 import { buildRuleBasedConsensusOpinion } from '../utils/rule-based-consensus.util';
+import { ConsensusDraftLlmService } from './consensus-draft-llm.service';
 
 export type ConsensusReviewResponse = {
   id: string;
@@ -62,6 +70,8 @@ export type ConsensusUserSummary = {
 
 type ProjectLean = {
   _id: Types.ObjectId;
+  name: string;
+  projectNo: string;
   reviewManagerId?: Types.ObjectId | null;
   reviewSchemeSnapshot?: Record<string, unknown> | null;
   finalLevel?: string;
@@ -107,6 +117,8 @@ type UserSummaryLean = {
 
 @Injectable()
 export class ConsensusReviewsService {
+  private readonly logger = new Logger(ConsensusReviewsService.name);
+
   constructor(
     @InjectModel(ConsensusReview.name)
     private readonly consensusReviewModel: Model<ConsensusReview>,
@@ -117,6 +129,8 @@ export class ConsensusReviewsService {
     @InjectModel(User.name)
     private readonly userModel: Model<User>,
     private readonly expertReviewsService: ExpertReviewsService,
+    private readonly consensusDraftLlmService: ConsensusDraftLlmService,
+    private readonly configService: ConfigService,
   ) {}
 
   async generateDraft(
@@ -141,6 +155,8 @@ export class ConsensusReviewsService {
       throw new ConflictException('Consensus draft already exists');
     }
 
+    this.assertDraftCooldownElapsed(existing);
+
     const submittedReviews =
       await this.expertReviewsService.getSubmittedReviewsForConsensus(
         projectId,
@@ -154,11 +170,33 @@ export class ConsensusReviewsService {
       await this.expertReviewsService.calculateReviewSummaryByObjectId(
         project._id,
       );
-    const draftScore = reviewSummary.averageScore ?? 0;
-    const draftOpinion = buildRuleBasedConsensusOpinion({
+    const averageScore = reviewSummary.averageScore ?? 0;
+    const llmDraft = await this.consensusDraftLlmService.generateDraft({
+      project: {
+        name: project.name,
+        projectNo: project.projectNo,
+      },
+      reviewSchemeSnapshot: snapshot,
+      reviewSummary,
       submittedReviews,
-      averageScore: draftScore,
     });
+    const draftOpinion = llmDraft.ok
+      ? llmDraft.draftOpinion
+      : buildRuleBasedConsensusOpinion({
+          submittedReviews,
+          averageScore,
+        });
+    const draftScore = llmDraft.ok
+      ? this.resolveDraftScore(llmDraft.draftScore, averageScore, snapshot)
+      : this.resolveDraftScore(undefined, averageScore, snapshot);
+    const draftSource: ConsensusDraftSource = llmDraft.ok ? 'ai' : 'rule_based';
+
+    if (!llmDraft.ok) {
+      this.logger.warn(
+        `AI consensus draft generation failed or skipped: ${llmDraft.reason}; falling back to rule_based`,
+      );
+    }
+
     const expertReviewStats = {
       expertCount: reviewSummary.assignedExpertCount,
       submittedCount: reviewSummary.submittedExpertCount,
@@ -171,7 +209,7 @@ export class ConsensusReviewsService {
       reviewSchemeSnapshot: snapshot,
       draftGeneratedAt: new Date(),
       draftGeneratedByUserId: toObjectId(currentUser.user.id, 'userId'),
-      draftSource: 'rule_based' as const,
+      draftSource,
       draftOpinion,
       draftScore,
       status: 'draft' as const,
@@ -321,6 +359,75 @@ export class ConsensusReviewsService {
       .exec();
 
     return this.toResponse(saved);
+  }
+
+  private assertDraftCooldownElapsed(
+    existing: ConsensusReviewLean | null,
+  ): void {
+    if (!existing?.draftGeneratedAt) {
+      return;
+    }
+
+    const cooldownSeconds = this.getDraftCooldownSeconds();
+
+    if (cooldownSeconds <= 0) {
+      return;
+    }
+
+    const cooldownMs = cooldownSeconds * 1000;
+    const elapsedMs = Date.now() - existing.draftGeneratedAt.getTime();
+
+    if (elapsedMs >= cooldownMs) {
+      return;
+    }
+
+    const remainingSeconds = Math.max(
+      1,
+      Math.ceil((cooldownMs - elapsedMs) / 1000),
+    );
+
+    throw new HttpException(
+      {
+        message: CONSENSUS_DRAFT_COOLDOWN_MESSAGE,
+        code: CONSENSUS_DRAFT_COOLDOWN_CODE,
+        remainingSeconds,
+      },
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  private getDraftCooldownSeconds(): number {
+    const envValue = process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS;
+    const rawValue =
+      envValue !== undefined
+        ? Number(envValue)
+        : this.configService.get<number>('consensusDraft.cooldownSeconds');
+
+    if (
+      typeof rawValue !== 'number' ||
+      !Number.isFinite(rawValue) ||
+      rawValue < 0
+    ) {
+      return DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS;
+    }
+
+    return Math.trunc(rawValue);
+  }
+
+  private resolveDraftScore(
+    candidateScore: number | undefined,
+    averageScore: number,
+    snapshot: ReviewSchemeSnapshot,
+  ): number {
+    if (isValidDraftScore(candidateScore, snapshot.totalScore)) {
+      return candidateScore;
+    }
+
+    if (isValidDraftScore(averageScore, snapshot.totalScore)) {
+      return averageScore;
+    }
+
+    return Math.min(Math.max(averageScore, 0), snapshot.totalScore);
   }
 
   private async normalizeFinalLevel(finalLevel: string): Promise<string> {
@@ -504,7 +611,21 @@ export class ConsensusReviewsService {
     return this.getProjectSnapshot({
       _id: new Types.ObjectId(),
       isActive: true,
+      name: '',
+      projectNo: '',
       reviewSchemeSnapshot,
     });
   }
+}
+
+function isValidDraftScore(
+  value: number | undefined,
+  totalScore: number,
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= totalScore
+  );
 }

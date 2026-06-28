@@ -11,6 +11,7 @@ const DEFAULT_BAILIAN_BASE_URL =
   'https://dashscope.aliyuncs.com/compatible-mode/v1';
 const DEFAULT_BAILIAN_TIMEOUT_MS = 90000;
 const DEFAULT_BAILIAN_MAX_RETRIES = 1;
+const DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS = 60;
 
 type AppEnvironment = 'development' | 'test' | 'production';
 export type SessionCookieSameSite = 'lax' | 'strict' | 'none';
@@ -24,6 +25,15 @@ function parseNumber(value: string | undefined, fallback: number): number {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function parseNonNegativeNumber(
+  value: string | undefined,
+  fallback: number,
+): number {
+  const parsed = parseNumber(value, fallback);
+
+  return parsed >= 0 ? parsed : fallback;
 }
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -170,6 +180,12 @@ export default () => {
           DEFAULT_BAILIAN_MAX_RETRIES,
         ),
       },
+    },
+    consensusDraft: {
+      cooldownSeconds: parseNonNegativeNumber(
+        process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS,
+        DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS,
+      ),
     },
   };
 };

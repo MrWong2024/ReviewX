@@ -14,6 +14,7 @@ import {
   ConsensusReview,
   ConsensusReviewSchema,
 } from './schemas/consensus-review.schema';
+import { ConsensusDraftLlmService } from './services/consensus-draft-llm.service';
 import { ConsensusReviewsService } from './services/consensus-reviews.service';
 
 @Module({
@@ -28,7 +29,7 @@ import { ConsensusReviewsService } from './services/consensus-reviews.service';
     ]),
   ],
   controllers: [ReviewManagerConsensusController, AdminConsensusController],
-  providers: [ConsensusReviewsService],
+  providers: [ConsensusDraftLlmService, ConsensusReviewsService],
   exports: [ConsensusReviewsService],
 })
 export class ConsensusReviewsModule {}

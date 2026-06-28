@@ -10,6 +10,7 @@ import type {
 
 export const RETURN_REASON_MAX_LENGTH = 1000;
 export const FINAL_OPINION_MAX_LENGTH = 10000;
+export const DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS = 60;
 
 export const EXPERT_REVIEW_STATUS_OPTIONS: Array<{
   label: string;
@@ -221,11 +222,11 @@ export function getReviewSchemeTotalScore(
 export function formatConsensusDraftSource(source: string): string {
   switch (source) {
     case 'rule_based':
-      return '规则生成';
+      return '规则汇总生成';
     case 'manual':
-      return '人工填写';
+      return '人工确认';
     case 'ai':
-      return 'AI 生成';
+      return 'AI 辅助生成';
     default:
       return source ? '未知来源' : '-';
   }
@@ -249,6 +250,29 @@ export function isConfirmedConsensusError(error: unknown): boolean {
       ) ||
       error.message.includes('Confirmed consensus review cannot be overwritten'))
   );
+}
+
+export function isConsensusDraftCooldownError(error: unknown): boolean {
+  return (
+    isApiError(error) &&
+    error.status === 429 &&
+    error.code === 'CONSENSUS_DRAFT_COOLDOWN'
+  );
+}
+
+export function getConsensusDraftCooldownRemainingSeconds(
+  error: unknown,
+): number {
+  if (
+    isApiError(error) &&
+    typeof error.remainingSeconds === 'number' &&
+    Number.isFinite(error.remainingSeconds) &&
+    error.remainingSeconds > 0
+  ) {
+    return Math.ceil(error.remainingSeconds);
+  }
+
+  return DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS;
 }
 
 export function formatReviewManagerErrorMessage(error: unknown): string {

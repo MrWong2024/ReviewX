@@ -29,6 +29,7 @@ import {
 type ConsensusReviewPanelProps = {
   confirming: boolean;
   consensus: ConsensusReviewResponse | null;
+  draftCooldownRemainingSeconds: number;
   error?: string | null;
   generating: boolean;
   loading: boolean;
@@ -48,6 +49,7 @@ type ConfirmFormState = {
 export function ConsensusReviewPanel({
   confirming,
   consensus,
+  draftCooldownRemainingSeconds,
   error,
   generating,
   loading,
@@ -71,6 +73,7 @@ export function ConsensusReviewPanel({
     consensus?.reviewSchemeSnapshot.totalScore ?? reviewSchemeTotalScore ?? null;
   const isConfirmed = consensus?.status === 'confirmed';
   const canGenerateDraft = consensus?.status !== 'confirmed';
+  const isDraftCoolingDown = draftCooldownRemainingSeconds > 0;
 
   const levelOptions = useMemo(() => {
     const options =
@@ -212,16 +215,19 @@ export function ConsensusReviewPanel({
               合议草稿与最终确认
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              草稿根据已提交的专家评分规则汇总生成，最终结论由评审负责人人工确认。
+              草稿优先由 AI 基于已提交专家评分生成，最终结论由评审负责人人工确认。
             </p>
           </div>
           {canGenerateDraft ? (
             <Button
-              disabled={generating || loading}
+              disabled={generating || loading || isDraftCoolingDown}
               onClick={() => void handleGenerateDraftClick()}
               variant="primary"
             >
-              {generating ? '正在生成...' : '生成合议草稿'}
+              {getGenerateDraftButtonText(
+                generating,
+                draftCooldownRemainingSeconds,
+              )}
             </Button>
           ) : (
             <Badge tone="success">已确认合议</Badge>
@@ -481,6 +487,21 @@ function formatConsensusRecordStatus(
     default:
       return '未知状态';
   }
+}
+
+function getGenerateDraftButtonText(
+  generating: boolean,
+  draftCooldownRemainingSeconds: number,
+): string {
+  if (generating) {
+    return '正在生成...';
+  }
+
+  if (draftCooldownRemainingSeconds > 0) {
+    return `请稍后再生成（${draftCooldownRemainingSeconds}秒）`;
+  }
+
+  return '生成合议草稿';
 }
 
 function createFormState(

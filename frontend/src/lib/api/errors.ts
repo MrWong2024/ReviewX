@@ -2,11 +2,13 @@ export type ApiErrorPayload = {
   code?: string;
   details?: unknown;
   message?: string | string[];
+  remainingSeconds?: number;
 };
 
 export class ApiError extends Error {
   code?: string;
   details?: unknown;
+  remainingSeconds?: number;
   status: number;
 
   constructor(status: number, payload?: ApiErrorPayload | string) {
@@ -19,6 +21,7 @@ export class ApiError extends Error {
     if (typeof payload === 'object' && payload !== null) {
       this.code = payload.code;
       this.details = payload.details;
+      this.remainingSeconds = payload.remainingSeconds;
     }
   }
 }
