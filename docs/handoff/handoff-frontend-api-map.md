@@ -17,6 +17,8 @@
 | 前端函数 | 后端接口 | 文件 | 状态 |
 | --- | --- | --- | --- |
 | `login` | `POST /auth/login` | `frontend/src/features/auth/api.ts` | implemented |
+| `sendSmsLoginCode` | `POST /auth/sms-login/code` | `frontend/src/features/auth/api.ts` | implemented |
+| `smsLogin` | `POST /auth/sms-login` | `frontend/src/features/auth/api.ts` | implemented |
 | `getCurrentUser` | `GET /auth/me` | `frontend/src/features/auth/api.ts` | implemented |
 | `changeOwnPassword` | `PATCH /auth/me/password` | `frontend/src/features/auth/api.ts` | implemented |
 | `logout` | `POST /auth/logout` | `frontend/src/features/auth/api.ts` | implemented |
@@ -302,6 +304,6 @@
 
 ## 5. 当前未对接的后端接口
 
-- 忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
+- 忘记密码 / 短信验证码找回密码、用户批量导入、权限矩阵配置相关接口
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`

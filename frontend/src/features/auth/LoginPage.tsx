@@ -7,15 +7,27 @@ import { Input } from '@/src/components/ui/Input';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { getErrorMessage } from '@/src/lib/api/errors';
+import { cx } from '@/src/lib/styles';
 import { useAuth } from './AuthProvider';
+import { sendSmsLoginCode } from './api';
+
+type LoginMode = 'password' | 'sms';
 
 export function LoginPage() {
   const router = useRouter();
-  const { loading, login, user } = useAuth();
+  const { loading, login, smsLogin, user } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const [loginMode, setLoginMode] = useState<LoginMode>('password');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [smsCooldownSeconds, setSmsCooldownSeconds] = useState(0);
+  const [smsExpiresInSeconds, setSmsExpiresInSeconds] = useState<number | null>(
+    null,
+  );
+  const [smsMessage, setSmsMessage] = useState<string | null>(null);
+  const [smsSending, setSmsSending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
 
   useEffect(() => {
     if (!loading && user) {
@@ -23,13 +35,73 @@ export function LoginPage() {
     }
   }, [loading, router, user]);
 
+  useEffect(() => {
+    if (smsCooldownSeconds <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setSmsCooldownSeconds((current) => Math.max(current - 1, 0));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [smsCooldownSeconds]);
+
+  function handleLoginModeChange(nextMode: LoginMode) {
+    if (nextMode === loginMode) {
+      return;
+    }
+
+    setError(null);
+    setLoginMode(nextMode);
+
+    if (nextMode === 'password') {
+      setVerifyCode('');
+      return;
+    }
+
+    setPassword('');
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedPhone) {
+      setError('请输入手机号。');
+      return;
+    }
+
+    if (loginMode === 'password' && !password) {
+      setError('请输入密码。');
+      return;
+    }
+
+    const trimmedVerifyCode = verifyCode.trim();
+
+    if (loginMode === 'sms' && !trimmedVerifyCode) {
+      setError('请输入短信验证码。');
+      return;
+    }
+
+    if (loginMode === 'sms' && !/^\d{6}$/.test(trimmedVerifyCode)) {
+      setError('请输入6位数字验证码。');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      await login({ password, phone });
+      if (loginMode === 'password') {
+        await login({ password, phone });
+      } else {
+        await smsLogin({ phone, verifyCode: trimmedVerifyCode });
+      }
+
       router.replace('/workspace');
     } catch (submitError) {
       setError(getErrorMessage(submitError));
@@ -37,6 +109,40 @@ export function LoginPage() {
       setSubmitting(false);
     }
   }
+
+  async function handleSendSmsCode() {
+    const trimmedPhone = phone.trim();
+
+    setError(null);
+    setSmsMessage(null);
+
+    if (!trimmedPhone) {
+      setError('请输入手机号。');
+      return;
+    }
+
+    setSmsSending(true);
+
+    try {
+      const response = await sendSmsLoginCode({ phone });
+      setSmsMessage(response.message);
+      setSmsExpiresInSeconds(response.expiresInSeconds);
+      setSmsCooldownSeconds(response.cooldownSeconds);
+    } catch (sendError) {
+      setError(getErrorMessage(sendError));
+    } finally {
+      setSmsSending(false);
+    }
+  }
+
+  const smsExpiresInMinutes =
+    smsExpiresInSeconds === null ? null : Math.ceil(smsExpiresInSeconds / 60);
+  const smsSendButtonText =
+    smsCooldownSeconds > 0
+      ? `重新发送（${smsCooldownSeconds}秒）`
+      : smsMessage
+        ? '重新获取验证码'
+        : '获取验证码';
 
   if (loading || user) {
     return (
@@ -81,11 +187,55 @@ export function LoginPage() {
             <div className="eyebrow">安全登录</div>
             <h2 className="m-0 text-2xl font-black text-slate-950">进入平台</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              使用手机号和密码登录，进入后可根据账号角色访问对应工作台。
+              使用手机号登录平台，可选择密码登录或短信验证码登录。
             </p>
           </div>
+          <div className="mb-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1 text-sm font-bold text-slate-600">
+            <button
+              aria-pressed={loginMode === 'password'}
+              className={cx(
+                'rounded-lg px-3 py-2 transition',
+                loginMode === 'password'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'hover:bg-white/70 hover:text-slate-950',
+              )}
+              onClick={() => handleLoginModeChange('password')}
+              type="button"
+            >
+              密码登录
+            </button>
+            <button
+              aria-pressed={loginMode === 'sms'}
+              className={cx(
+                'rounded-lg px-3 py-2 transition',
+                loginMode === 'sms'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'hover:bg-white/70 hover:text-slate-950',
+              )}
+              onClick={() => handleLoginModeChange('sms')}
+              type="button"
+            >
+              验证码登录
+            </button>
+          </div>
+          <p className="mb-4 text-sm leading-6 text-slate-500">
+            {loginMode === 'password'
+              ? '适用于已设置登录密码的用户。'
+              : '适用于已登记手机号用户。向系统登记手机号发送验证码，验证码 5 分钟内有效。'}
+          </p>
           <ErrorAlert message={error} />
-          <form className="form-stack" onSubmit={handleSubmit}>
+          {loginMode === 'sms' && smsMessage ? (
+            <div
+              className="mb-4 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-medium leading-6 text-cyan-800 shadow-sm"
+              role="status"
+            >
+              <div>{smsMessage}</div>
+              {smsExpiresInMinutes !== null ? (
+                <div>验证码 {smsExpiresInMinutes} 分钟内有效。</div>
+              ) : null}
+            </div>
+          ) : null}
+          <form className="form-stack" noValidate onSubmit={handleSubmit}>
             <Input
               autoComplete="username"
               id="phone"
@@ -95,23 +245,56 @@ export function LoginPage() {
               required
               value={phone}
             />
-            <Input
-              autoComplete="current-password"
-              id="password"
-              label="密码"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="请输入密码"
-              required
-              type="password"
-              value={password}
-            />
+            {loginMode === 'password' ? (
+              <Input
+                autoComplete="current-password"
+                id="password"
+                label="密码"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="请输入密码"
+                required
+                type="password"
+                value={password}
+              />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_152px]">
+                <Input
+                  autoComplete="one-time-code"
+                  id="verifyCode"
+                  inputMode="numeric"
+                  label="短信验证码"
+                  maxLength={6}
+                  onChange={(event) =>
+                    setVerifyCode(
+                      event.target.value.replace(/\D/g, '').slice(0, 6),
+                    )
+                  }
+                  placeholder="请输入6位验证码"
+                  required
+                  value={verifyCode}
+                />
+                <Button
+                  className="w-full self-end whitespace-nowrap"
+                  disabled={smsSending || smsCooldownSeconds > 0}
+                  onClick={handleSendSmsCode}
+                  type="button"
+                  variant="secondary"
+                >
+                  {smsSending ? '发送中...' : smsSendButtonText}
+                </Button>
+              </div>
+            )}
             <Button
               className="mt-1 w-full"
               disabled={submitting}
               type="submit"
               variant="primary"
             >
-              {submitting ? '登录中...' : '登录科评星'}
+              {submitting
+                ? '登录中...'
+                : loginMode === 'password'
+                  ? '登录科评星'
+                  : '验证码登录'}
             </Button>
           </form>
         </section>

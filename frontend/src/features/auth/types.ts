@@ -28,6 +28,22 @@ export type LoginInput = {
   phone: string;
 };
 
+export type SendSmsLoginCodeInput = {
+  phone: string;
+};
+
+export type SendSmsLoginCodeResponse = {
+  success: true;
+  message: string;
+  cooldownSeconds: number;
+  expiresInSeconds: number;
+};
+
+export type SmsLoginInput = {
+  phone: string;
+  verifyCode: string;
+};
+
 export type ChangePasswordInput = {
   currentPassword: string;
   newPassword: string;

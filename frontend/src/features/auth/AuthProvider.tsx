@@ -11,11 +11,12 @@ import {
 } from 'react';
 import { ApiError } from '@/src/lib/api/errors';
 import { clearSelectedRole } from './roleStorage';
-import type { CurrentUser, LoginInput } from './types';
+import type { CurrentUser, LoginInput, SmsLoginInput } from './types';
 import {
   getCurrentUser,
   login as loginRequest,
   logout as logoutRequest,
+  smsLogin as smsLoginRequest,
 } from './api';
 
 type AuthContextValue = {
@@ -24,6 +25,7 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   refresh: () => Promise<CurrentUser | null>;
   setUser: (user: CurrentUser | null) => void;
+  smsLogin: (input: SmsLoginInput) => Promise<CurrentUser>;
   user: CurrentUser | null;
 };
 
@@ -64,6 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return nextUser;
   }, []);
 
+  const smsLogin = useCallback(async (input: SmsLoginInput) => {
+    const nextUser = await smsLoginRequest(input);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
@@ -80,9 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       refresh,
       setUser,
+      smsLogin,
       user,
     }),
-    [loading, login, logout, refresh, user],
+    [loading, login, logout, refresh, smsLogin, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
