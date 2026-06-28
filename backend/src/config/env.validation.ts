@@ -15,6 +15,11 @@ const mongoAutoIndexSchema = Joi.boolean()
   .falsy('0');
 
 const llmProviderSchema = Joi.string().valid('stub', 'bailian').default('stub');
+const smsAuthProviderSchema = Joi.when('NODE_ENV', {
+  is: 'production',
+  then: Joi.string().valid('stub', 'aliyun').default('aliyun'),
+  otherwise: Joi.string().valid('stub', 'aliyun').default('stub'),
+});
 const booleanSchema = Joi.boolean()
   .truthy('true')
   .truthy('1')
@@ -109,6 +114,30 @@ export const envValidationSchema = Joi.object({
     .integer()
     .min(0)
     .default(60),
+  SMS_AUTH_PROVIDER: smsAuthProviderSchema,
+  ALIYUN_SMS_ACCESS_KEY_ID: Joi.string().trim().allow('').default(''),
+  ALIYUN_SMS_ACCESS_KEY_SECRET: Joi.string().trim().allow('').default(''),
+  ALIYUN_SMS_REGION_ID: Joi.string().trim().min(1).default('cn-shenzhen'),
+  ALIYUN_SMS_ENDPOINT: Joi.string()
+    .trim()
+    .min(1)
+    .default('dypnsapi.aliyuncs.com'),
+  ALIYUN_SMS_COUNTRY_CODE: Joi.string().trim().valid('86').default('86'),
+  ALIYUN_SMS_SIGN_NAME: Joi.string()
+    .trim()
+    .min(1)
+    .default('速通互联验证码'),
+  ALIYUN_SMS_TEMPLATE_CODE: Joi.string().trim().min(1).default('100001'),
+  ALIYUN_SMS_TEMPLATE_PARAM: Joi.string()
+    .trim()
+    .min(1)
+    .default('{"code":"##code##","min":"5"}'),
+  ALIYUN_SMS_CODE_LENGTH: Joi.number().integer().min(4).max(8).default(6),
+  ALIYUN_SMS_VALID_TIME_SECONDS: Joi.number().integer().min(1).default(300),
+  ALIYUN_SMS_DUPLICATE_POLICY: Joi.number().integer().valid(1, 2).default(1),
+  ALIYUN_SMS_INTERVAL_SECONDS: Joi.number().integer().min(0).default(60),
+  ALIYUN_SMS_CODE_TYPE: Joi.number().integer().min(1).max(7).default(1),
+  ALIYUN_SMS_CASE_AUTH_POLICY: Joi.number().integer().valid(1, 2).default(1),
 })
   .custom(validateSessionCookieCombination)
   .unknown(true)

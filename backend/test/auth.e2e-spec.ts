@@ -1,5 +1,6 @@
 import type { Server } from 'node:http';
 import { INestApplication } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
 import { compare, hash } from 'bcryptjs';
@@ -7,6 +8,10 @@ import { Connection, Model, Types } from 'mongoose';
 import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import {
+  AliyunSmsAuthService,
+  SmsAuthProviderError,
+} from '../src/modules/auth/services/aliyun-sms-auth.service';
 import { Session } from '../src/modules/sessions/schemas/session.schema';
 import { User } from '../src/modules/users/schemas/user.schema';
 
@@ -24,6 +29,11 @@ type StoredPasswordLean = {
   _id: Types.ObjectId;
   passwordHash: string;
   mustChangePassword?: boolean;
+};
+
+type LastLoginAtLean = {
+  _id: Types.ObjectId;
+  lastLoginAt?: Date | null;
 };
 
 type CreateTestUserOptions = {
@@ -187,6 +197,170 @@ describe('AuthController (e2e)', () => {
       .expect(401);
 
     expect(getJsonBody(response).message).toBe('Unauthorized');
+  });
+
+  it('returns a generic SMS code response for missing users without creating a session', async () => {
+    const response = await request(httpServer)
+      .post('/auth/sms-login/code')
+      .send({
+        phone: '+8613800000000',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
+  it('returns a generic SMS code response for disabled users without creating a session', async () => {
+    await createUser({ status: 'disabled' });
+
+    const response = await request(httpServer)
+      .post('/auth/sms-login/code')
+      .send({
+        phone: '+8613800000000',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
+  it('returns a generic SMS code response for active users in stub mode', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/sms-login/code')
+      .send({
+        phone: ' +8613800000000 ',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
+  it('rejects SMS login for missing users without leaking account existence', async () => {
+    const response = await request(httpServer)
+      .post('/auth/sms-login')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('Unauthorized');
+  });
+
+  it('rejects SMS login for disabled users without leaking account existence', async () => {
+    await createUser({ status: 'disabled' });
+
+    const response = await request(httpServer)
+      .post('/auth/sms-login')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('Unauthorized');
+  });
+
+  it('rejects SMS login when the phone format is invalid', async () => {
+    const response = await request(httpServer)
+      .post('/auth/sms-login')
+      .send({
+        phone: 'not-a-phone',
+        verifyCode: '000000',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe('手机号格式不正确');
+  });
+
+  it('rejects SMS login when the stub verify code is wrong', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/sms-login')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '111111',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('验证码错误或已过期');
+    await expectSessionCount(0);
+  });
+
+  it('logs in with the stub SMS code, sets the session cookie, updates lastLoginAt, and keeps /auth/me working', async () => {
+    const user = await createUser();
+    const beforeLogin = new Date();
+
+    const loginResponse = await request(httpServer)
+      .post('/auth/sms-login')
+      .send({
+        phone: ' +8613800000000 ',
+        verifyCode: '000000',
+      })
+      .expect(200);
+
+    const loginBody = getJsonBody(loginResponse);
+    expect(loginBody).toMatchObject({
+      id: user._id.toString(),
+      phone: '+8613800000000',
+      name: 'Test User',
+      status: 'active',
+    });
+    expectNoSensitiveFields(loginBody);
+
+    const sessionCookie = getSessionCookie(loginResponse);
+    expect(sessionCookie).toContain('reviewx_session=');
+    expect(sessionCookie).toContain('HttpOnly');
+    expect(sessionCookie).toContain('SameSite=Lax');
+
+    const storedUser = await userModel
+      .findById(user._id)
+      .lean<LastLoginAtLean | null>()
+      .exec();
+    expect(storedUser?.lastLoginAt).toBeInstanceOf(Date);
+    expect(storedUser?.lastLoginAt?.getTime()).toBeGreaterThanOrEqual(
+      beforeLogin.getTime(),
+    );
+
+    const storedSession = await sessionModel
+      .findOne({ userId: user._id })
+      .lean<SessionTokenLean | null>()
+      .exec();
+    expect(storedSession?.token).toBeTruthy();
+
+    const meResponse = await request(httpServer)
+      .get('/auth/me')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .expect(200);
+    expect(getJsonBody(meResponse)).toMatchObject({
+      id: user._id.toString(),
+      phone: '+8613800000000',
+      name: 'Test User',
+    });
+    expectNoSensitiveFields(getJsonBody(meResponse));
   });
 
   it('rejects unauthenticated own password change requests', async () => {
@@ -381,6 +555,112 @@ describe('AuthController (e2e)', () => {
 
     return getSessionCookie(response);
   }
+
+  async function expectSessionCount(count: number): Promise<void> {
+    await expect(sessionModel.countDocuments({}).exec()).resolves.toBe(count);
+  }
+});
+
+describe('AliyunSmsAuthService (RPC parsing)', () => {
+  let fetchSpy: jest.SpiedFunction<typeof fetch> | undefined;
+
+  afterEach(() => {
+    fetchSpy?.mockRestore();
+    fetchSpy = undefined;
+  });
+
+  it('accepts a successful SendSmsVerifyCode response', async () => {
+    const service = createAliyunSmsAuthService();
+    mockJsonFetch({ Success: true, Code: 'OK' });
+
+    await expect(
+      service.sendSmsVerifyCode('+8613800000000'),
+    ).resolves.toEqual({ success: true });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('accepts CheckSmsVerifyCode only when VerifyResult is PASS', async () => {
+    const service = createAliyunSmsAuthService();
+    mockJsonFetch({
+      Success: true,
+      Code: 'OK',
+      Model: { VerifyResult: 'PASS' },
+    });
+
+    await expect(
+      service.checkSmsVerifyCode('+8613800000000', '123456'),
+    ).resolves.toEqual({ verified: true });
+  });
+
+  it('treats non-PASS CheckSmsVerifyCode results as verification failure', async () => {
+    const service = createAliyunSmsAuthService();
+    mockJsonFetch({
+      Success: true,
+      Code: 'OK',
+      Model: { VerifyResult: 'UNKNOWN' },
+    });
+
+    await expect(
+      service.checkSmsVerifyCode('+8613800000000', '123456'),
+    ).resolves.toEqual({ verified: false });
+  });
+
+  it('throws a provider error for Aliyun HTTP failures', async () => {
+    const service = createAliyunSmsAuthService();
+    mockJsonFetch({ Success: true, Code: 'OK' }, 503);
+
+    await expect(
+      service.sendSmsVerifyCode('+8613800000000'),
+    ).rejects.toBeInstanceOf(SmsAuthProviderError);
+  });
+
+  it('throws a provider error when SendSmsVerifyCode returns Code other than OK', async () => {
+    const service = createAliyunSmsAuthService();
+    mockJsonFetch({ Success: false, Code: 'InvalidParameter' });
+
+    await expect(
+      service.sendSmsVerifyCode('+8613800000000'),
+    ).rejects.toBeInstanceOf(SmsAuthProviderError);
+  });
+
+  function mockJsonFetch(payload: unknown, status = 200): void {
+    fetchSpy = jest.spyOn(globalThis, 'fetch');
+    fetchSpy.mockResolvedValue(
+      new globalThis.Response(JSON.stringify(payload), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  }
+
+  function createAliyunSmsAuthService(): AliyunSmsAuthService {
+    return new AliyunSmsAuthService(
+      new ConfigService({
+        app: {
+          env: 'development',
+        },
+        smsAuth: {
+          provider: 'aliyun',
+          aliyun: {
+            accessKeyId: 'test-access-key-id',
+            accessKeySecret: 'test-access-key-secret',
+            regionId: 'cn-shenzhen',
+            endpoint: 'dypnsapi.aliyuncs.com',
+            countryCode: '86',
+            signName: '速通互联验证码',
+            templateCode: '100001',
+            templateParam: '{"code":"##code##","min":"5"}',
+            codeLength: 6,
+            validTimeSeconds: 300,
+            duplicatePolicy: 1,
+            intervalSeconds: 60,
+            codeType: 1,
+            caseAuthPolicy: 1,
+          },
+        },
+      }),
+    );
+  }
 });
 
 function getSessionCookie(response: Response): string {
@@ -407,6 +687,16 @@ function getJsonBody(response: Response): Record<string, unknown> {
 }
 
 function expectNoSensitiveFields(value: Record<string, unknown>): void {
+  expect(value.passwordHash).toBeUndefined();
+  expect(value.token).toBeUndefined();
+  expect(value.sessionToken).toBeUndefined();
+}
+
+function expectNoSmsSensitiveFields(value: Record<string, unknown>): void {
+  expect(value.verifyCode).toBeUndefined();
+  expect(value.code).toBeUndefined();
+  expect(value.requestId).toBeUndefined();
+  expect(value.RequestId).toBeUndefined();
   expect(value.passwordHash).toBeUndefined();
   expect(value.token).toBeUndefined();
   expect(value.sessionToken).toBeUndefined();

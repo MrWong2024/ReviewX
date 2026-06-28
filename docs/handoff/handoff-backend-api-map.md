@@ -17,6 +17,8 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | app | `GET` | `/health` | `AppController` | `AppService` | 公共接口 | 无 | `{ status: 'ok', service: 'reviewx-backend' }` | implemented | 用于确认后端骨架已启动且可响应 |
 | auth | `POST` | `/auth/login` | `AuthController` | `AuthService` | 公共接口 | `LoginDto` | `PublicUser` | implemented | 成功返回 `200 OK` 并设置 HttpOnly Cookie；响应 body 不包含 `passwordHash` 或 session token |
+| auth | `POST` | `/auth/sms-login/code` | `AuthController` | `AuthService` | 公共接口 | `SendSmsLoginCodeDto` | `{ success: true, message, cooldownSeconds, expiresInSeconds }` | implemented | 发送短信登录验证码；用户不存在、禁用或手机号格式无法转换时返回同一通用成功响应且不调用阿里云；active 用户调用阿里云 `SendSmsVerifyCode`；不返回验证码或阿里云 RequestId |
+| auth | `POST` | `/auth/sms-login` | `AuthController` | `AuthService` | 公共接口 | `SmsLoginDto` | `PublicUser` | implemented | 短信验证码登录；只允许已有 active 用户；调用阿里云 `CheckSmsVerifyCode` 且 `Success=true/Code=OK/VerifyResult=PASS` 才创建 session；成功返回 `200 OK` 并设置同名 HttpOnly Cookie；不返回 `passwordHash/token/sessionToken` |
 | auth | `POST` | `/auth/logout` | `AuthController` | `AuthService` | 幂等接口；读取 Cookie 中 session token | 无 | `{ success: true }` | implemented | 成功返回 `200 OK`；撤销当前 session 并清除 Cookie；不泄露 session 是否存在 |
 | auth | `GET` | `/auth/me` | `AuthController` | `AuthService` | `SessionAuthGuard` | 无 | `PublicUser` | implemented | 通过 HttpOnly Cookie 校验当前 session；未登录返回 `401` |
 | auth | `PATCH` | `/auth/me/password` | `AuthController` | `AuthService` | `SessionAuthGuard`；不需要具体角色 | `ChangeOwnPasswordDto` | `PublicUser` | implemented | 当前登录用户修改本人密码；校验当前密码、新密码确认一致且不能与当前密码相同；成功写入新 `passwordHash`、`mustChangePassword=false`；当前 session 保持有效；响应不返回 `passwordHash/token/sessionToken` |
@@ -251,6 +253,17 @@
 - 合议 `confirmed` 计入 `consensus_confirmed`；`draft/reopened` 计入 `consensus_draft`；申诉 pending 为 `submitted/processing`，handled 为 `accepted/rejected/canceled`。
 - `hasMeetingUrl` 按 `meetingUrl.trim()` 是否非空判断；projects 返回 `meetingUrl/reviewTime/reviewLocation` 供前端后续展示评审现场监管入口。
 - 进度阶段可多选命中，`progressStage` 过滤表示项目命中该阶段；`primaryStage` 按 `appeal_pending > final_level_set > consensus_confirmed > consensus_draft > expert_reviews_completed > expert_reviews_started > materials_submitted > experts_assigned > scheduled > review_assigned > imported` 取最高阶段。
+
+## 3.10 短信验证码登录后端口径
+
+- `POST /auth/sms-login/code` 和 `POST /auth/sms-login` 均为公共接口，前端登录页尚未接入。
+- 密码登录 `POST /auth/login` 保持原 DTO、响应结构、Cookie 口径和错误语义不变。
+- 发送验证码时按 `phone.trim()` 查询用户；用户不存在、`status=disabled` 或 `isActive=false` 时返回通用成功响应，不调用阿里云，不暴露手机号是否存在。
+- active 用户发送验证码时调用阿里云号码认证服务 `SendSmsVerifyCode`；`ALIYUN_SMS_TEMPLATE_PARAM` 保留 `##code##`，验证码由阿里云生成，后端不保存明文验证码。
+- 短信登录时只允许已有 active 用户；验证码校验调用 `CheckSmsVerifyCode`，仅 `Success === true`、`Code === 'OK'`、`Model.VerifyResult === 'PASS'` 同时满足才视为通过。
+- 短信登录成功后复用现有 `sessions` 集合、旧 session 回收、`lastLoginAt` 更新和 HttpOnly Cookie 下发机制；响应只返回 `PublicUser`。
+- 当前只支持国内手机号：`+86` 前缀、`86` 前缀或无前缀的 11 位国内手机号会统一转为 `CountryCode=86`、11 位 `PhoneNumber`；发送接口格式无法转换时仍返回通用成功，登录接口返回 `400 手机号格式不正确`。
+- 自动化测试使用 `SMS_AUTH_PROVIDER=stub` 口径，只接受 `000000`，不调用真实阿里云 API；production 默认建议 `aliyun`，显式使用 `stub` 不应用于正式环境。
 
 ## 4. 列表返回结构口径
 

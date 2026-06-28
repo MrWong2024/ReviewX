@@ -19,8 +19,11 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { SendSmsLoginCodeDto } from './dto/send-sms-login-code.dto';
+import { SmsLoginDto } from './dto/sms-login.dto';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
+import type { SmsLoginCodeResponse } from './types/sms-auth.types';
 
 type LogoutResponse = {
   success: true;
@@ -43,6 +46,37 @@ export class AuthController {
     const result = await this.authService.login({
       phone: dto.phone,
       password: dto.password,
+      userAgent: request.get('user-agent'),
+      ip: request.ip,
+    });
+
+    response.cookie(
+      this.getSessionCookieName(),
+      result.sessionToken,
+      this.getSessionCookieOptions(),
+    );
+
+    return result.user;
+  }
+
+  @Post('sms-login/code')
+  @HttpCode(HttpStatus.OK)
+  sendSmsLoginCode(
+    @Body() dto: SendSmsLoginCodeDto,
+  ): Promise<SmsLoginCodeResponse> {
+    return this.authService.sendSmsLoginCode(dto.phone);
+  }
+
+  @Post('sms-login')
+  @HttpCode(HttpStatus.OK)
+  async smsLogin(
+    @Body() dto: SmsLoginDto,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<PublicUser> {
+    const result = await this.authService.loginWithSmsCode({
+      phone: dto.phone,
+      verifyCode: dto.verifyCode,
       userAgent: request.get('user-agent'),
       ip: request.ip,
     });

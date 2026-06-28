@@ -12,8 +12,22 @@ const DEFAULT_BAILIAN_BASE_URL =
 const DEFAULT_BAILIAN_TIMEOUT_MS = 90000;
 const DEFAULT_BAILIAN_MAX_RETRIES = 1;
 const DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS = 60;
+const DEFAULT_SMS_AUTH_PROVIDER = 'stub';
+const DEFAULT_ALIYUN_SMS_REGION_ID = 'cn-shenzhen';
+const DEFAULT_ALIYUN_SMS_ENDPOINT = 'dypnsapi.aliyuncs.com';
+const DEFAULT_ALIYUN_SMS_COUNTRY_CODE = '86';
+const DEFAULT_ALIYUN_SMS_SIGN_NAME = '速通互联验证码';
+const DEFAULT_ALIYUN_SMS_TEMPLATE_CODE = '100001';
+const DEFAULT_ALIYUN_SMS_TEMPLATE_PARAM = '{"code":"##code##","min":"5"}';
+const DEFAULT_ALIYUN_SMS_CODE_LENGTH = 6;
+const DEFAULT_ALIYUN_SMS_VALID_TIME_SECONDS = 300;
+const DEFAULT_ALIYUN_SMS_DUPLICATE_POLICY = 1;
+const DEFAULT_ALIYUN_SMS_INTERVAL_SECONDS = 60;
+const DEFAULT_ALIYUN_SMS_CODE_TYPE = 1;
+const DEFAULT_ALIYUN_SMS_CASE_AUTH_POLICY = 1;
 
 type AppEnvironment = 'development' | 'test' | 'production';
+type SmsAuthProvider = 'stub' | 'aliyun';
 export type SessionCookieSameSite = 'lax' | 'strict' | 'none';
 
 const SESSION_COOKIE_SAME_SITE_VALUES = ['lax', 'strict', 'none'] as const;
@@ -60,6 +74,21 @@ function parseCookieSameSite(value: string | undefined): SessionCookieSameSite {
   }
 
   return DEFAULT_SESSION_COOKIE_SAME_SITE;
+}
+
+function parseSmsAuthProvider(
+  value: string | undefined,
+  env: AppEnvironment,
+): SmsAuthProvider {
+  if (value === 'stub' || value === 'aliyun') {
+    return value;
+  }
+
+  if (env === 'production') {
+    return 'aliyun';
+  }
+
+  return DEFAULT_SMS_AUTH_PROVIDER;
 }
 
 function resolveAppEnvironment(): AppEnvironment {
@@ -186,6 +215,52 @@ export default () => {
         process.env.CONSENSUS_DRAFT_COOLDOWN_SECONDS,
         DEFAULT_CONSENSUS_DRAFT_COOLDOWN_SECONDS,
       ),
+    },
+    smsAuth: {
+      provider: parseSmsAuthProvider(process.env.SMS_AUTH_PROVIDER, env),
+      aliyun: {
+        accessKeyId: process.env.ALIYUN_SMS_ACCESS_KEY_ID ?? '',
+        accessKeySecret: process.env.ALIYUN_SMS_ACCESS_KEY_SECRET ?? '',
+        regionId:
+          process.env.ALIYUN_SMS_REGION_ID ?? DEFAULT_ALIYUN_SMS_REGION_ID,
+        endpoint:
+          process.env.ALIYUN_SMS_ENDPOINT ?? DEFAULT_ALIYUN_SMS_ENDPOINT,
+        countryCode:
+          process.env.ALIYUN_SMS_COUNTRY_CODE ??
+          DEFAULT_ALIYUN_SMS_COUNTRY_CODE,
+        signName:
+          process.env.ALIYUN_SMS_SIGN_NAME ?? DEFAULT_ALIYUN_SMS_SIGN_NAME,
+        templateCode:
+          process.env.ALIYUN_SMS_TEMPLATE_CODE ??
+          DEFAULT_ALIYUN_SMS_TEMPLATE_CODE,
+        templateParam:
+          process.env.ALIYUN_SMS_TEMPLATE_PARAM ??
+          DEFAULT_ALIYUN_SMS_TEMPLATE_PARAM,
+        codeLength: parseNumber(
+          process.env.ALIYUN_SMS_CODE_LENGTH,
+          DEFAULT_ALIYUN_SMS_CODE_LENGTH,
+        ),
+        validTimeSeconds: parseNumber(
+          process.env.ALIYUN_SMS_VALID_TIME_SECONDS,
+          DEFAULT_ALIYUN_SMS_VALID_TIME_SECONDS,
+        ),
+        duplicatePolicy: parseNumber(
+          process.env.ALIYUN_SMS_DUPLICATE_POLICY,
+          DEFAULT_ALIYUN_SMS_DUPLICATE_POLICY,
+        ),
+        intervalSeconds: parseNonNegativeNumber(
+          process.env.ALIYUN_SMS_INTERVAL_SECONDS,
+          DEFAULT_ALIYUN_SMS_INTERVAL_SECONDS,
+        ),
+        codeType: parseNumber(
+          process.env.ALIYUN_SMS_CODE_TYPE,
+          DEFAULT_ALIYUN_SMS_CODE_TYPE,
+        ),
+        caseAuthPolicy: parseNumber(
+          process.env.ALIYUN_SMS_CASE_AUTH_POLICY,
+          DEFAULT_ALIYUN_SMS_CASE_AUTH_POLICY,
+        ),
+      },
     },
   };
 };

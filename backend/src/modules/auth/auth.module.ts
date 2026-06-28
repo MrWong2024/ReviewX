@@ -4,11 +4,12 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { SessionAuthGuard } from './guards/session-auth.guard';
+import { AliyunSmsAuthService } from './services/aliyun-sms-auth.service';
 
 @Module({
   imports: [UsersModule, SessionsModule],
   controllers: [AuthController],
-  providers: [AuthService, SessionAuthGuard],
+  providers: [AuthService, SessionAuthGuard, AliyunSmsAuthService],
   exports: [AuthService],
 })
 export class AuthModule {}
