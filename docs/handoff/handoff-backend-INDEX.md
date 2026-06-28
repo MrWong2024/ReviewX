@@ -18,7 +18,7 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - 当前已实现专家评分与合议评审后端能力：专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿和人工确认合议
 - 当前已实现项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交最多 3 次申诉、申诉附件 fake/oss storage、评审负责人/管理员处理申诉、申诉导致等级调整时写 ProjectLevelChangeLog
 - 当前行政区划 treeType 已统一为 `administrative_division`；`Organization.regionId` 字段名保持不变，但必须引用该类型树节点，历史 `region` 不再作为行政区划口径
-- 当前仍未实现 frontend 页面、真实 AI 接入、甲方看板、腾讯会议集成、病毒扫描、在线预览转码、前端直传、分片上传或断点续传
+- 当前已实现甲方看板后端统计 API，并已由前端 `/client` 基础版接入；仍未实现真实 AI 接入、腾讯会议集成、病毒扫描、在线预览转码、前端直传、分片上传或断点续传
 - 当前 handoff 以真实代码、基础架构文档和后续 handoff 更新为准
 
 ## 4. 必读基础文档
@@ -39,6 +39,7 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - `handoff-backend-service-map.md`：Service 职责地图
 - `handoff-backend-config-matrix.md`：配置项与环境变量矩阵
 - `handoff-backend-decisions.md`：后端关键决策记录
+- `handoff-demo-readiness.md`：演示版构建、启动、账号、数据和风险预检
 
 ## 6. 后续同步规则
 

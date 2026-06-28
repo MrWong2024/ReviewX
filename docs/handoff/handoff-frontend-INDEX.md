@@ -17,18 +17,19 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - 当前阶段使用 HttpOnly Cookie Session，不使用 token
 - 前端 fetch 默认 `credentials: 'include'`
 - 已实现登录、`GET /auth/me` 会话保持、退出登录
-- 已实现多角色工作台入口，admin、project_owner、expert、review_manager 可进入真实工作台，client 仍显示“后续建设”
+- 已实现多角色工作台入口，admin、client、project_owner、expert、review_manager 可进入真实工作台，client 指向 `/client` 甲方监管看板
 - 已实现管理员后台布局、顶部栏、侧边栏和前端体验型权限守卫
 - 已实现批次、普通字典、树形字典、单位、评审方案基础管理
-- 已实现管理员项目只读列表
+- 已实现管理员项目评审组织列表、单项目评审组织详情、专家分配和项目材料查看 / 删除
 - 已实现管理员用户管理页面 `/admin/users`，支持用户列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码
 - 已实现项目负责人、评审负责人和管理员三类申诉闭环前端页面，接口命名空间严格隔离
+- 已实现甲方监管看板基础版，真实接入 `/client/dashboard/overview` 与 `/client/dashboard/projects`，当前仅展示 `meetingUrl` 外链
 - 已启用 Tailwind CSS 4，并完成第一阶段 UI 基线升级
 - 视觉方向为政务可信、科技评审、AI 协同、轻未来感
 - 已修复普通字典自定义 dictType 保存、树形字典缩进展示、单位行政区划树形选择、评审方案评分项输入失焦
 - 行政区划 treeType 已统一为 `administrative_division`；单位页只读取该类型，历史 `region` 不再作为前端兼容口径
 - 已统一表单控件基础尺寸和 Button `sm/md/lg` size 体系；表格/树节点行内操作使用紧凑按钮
-- 当前未实现用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置、甲方看板、腾讯会议或真实 AI
+- 当前未实现用户自助改密、忘记密码、短信验证码、用户批量导入、专家库批量导入、权限矩阵配置、文件预览、腾讯会议 API / 直播 / 推流 / 回看或真实 AI
 
 ## 4. 必读基础文档
 
@@ -46,6 +47,7 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - `handoff-frontend-api-map.md`：前端 API 对接地图
 - `handoff-frontend-component-map.md`：前端组件地图
 - `handoff-frontend-testing-playbook.md`：前端验证手册
+- `handoff-demo-readiness.md`：演示版构建、启动、账号、数据和风险预检
 
 ## 6. 后续同步规则
 

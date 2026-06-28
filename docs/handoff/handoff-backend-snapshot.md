@@ -25,7 +25,7 @@
 - 申诉有效最终等级后端口径为 `project.finalLevel ?? confirmedConsensus.finalLevel`；历史数据中 `Project.finalLevel` 缺失但 confirmed 合议有 `finalLevel` 时允许创建申诉并懒回填 `projects.finalLevel/originalLevel`，懒回填不写等级变更日志。
 - 当前已实现 Storage 抽象层，`STORAGE_DRIVER=fake` 使用本地 fake storage，`STORAGE_DRIVER=oss` 使用 `ali-oss`；development / test 默认 fake，production 默认 oss。
 - 当前已实现甲方看板后端统计 API：`GET /client/dashboard/overview` 和 `GET /client/dashboard/projects`，仅 `client` 角色可访问，按全部 `isActive=true` 项目做只读统计与钻取，不做甲方细粒度数据隔离。
-- 当前仍未实现甲方看板前端、真实 AI 汇总、腾讯会议 API / 直播 / 推流 / 回看、文件预览 / 在线转换、用户自助改密、忘记密码 / 短信验证码、用户 / 专家批量导入和细粒度权限矩阵。
+- 当前后端已支撑甲方看板统计 API，甲方看板前端基础版已在 `frontend` 实现；仍未实现真实 AI 汇总、腾讯会议 API / 直播 / 推流 / 回看、文件预览 / 在线转换、用户自助改密、忘记密码 / 短信验证码、用户 / 专家批量导入和细粒度权限矩阵。
 - 接口细节见 `handoff-backend-api-map.md`，DTO 字段和枚举见 `handoff-backend-dto-cheatsheet.md`，Service 职责边界见 `handoff-backend-service-map.md`，配置项见 `handoff-backend-config-matrix.md`。
 ## 3. 技术基线
 
@@ -276,15 +276,15 @@ backend/
 - `STORAGE_DRIVER=fake` 不访问真实阿里云 OSS，上传返回结构化 fake objectKey，签名 URL 形如 `https://fake-storage.local/{objectKey}?expires=...`
 - `STORAGE_DRIVER=oss` 使用 `ali-oss`；上传和删除使用 `OSS_INTERNAL_ENDPOINT`，生成浏览器可访问签名 URL 使用 `OSS_PUBLIC_ENDPOINT`
 - `OSS_INTERNAL_ENDPOINT` 用于后端部署在阿里云同地域 ECS 时访问 OSS，优先走内网；本地开发机器通常不能访问 internal endpoint
-- `OSS_PUBLIC_ENDPOINT` 用于生成浏览器可访问的签名下载/预览 URL
-- OSS Bucket 建议私有读写；后端当前通过材料下载 URL 接口生成短期签名 URL 供下载/预览
+- `OSS_PUBLIC_ENDPOINT` 用于生成浏览器可访问的签名下载 URL
+- OSS Bucket 建议私有读写；后端当前通过材料下载 URL 接口生成短期签名 URL 供下载
 - 不得提交真实 `OSS_ACCESS_KEY_ID` / `OSS_ACCESS_KEY_SECRET`，不得使用阿里云主账号 AccessKey，应使用最小权限 RAM 用户或后续可替换为 RAM Role
 - E2E 测试不得依赖真实阿里云 OSS；test 环境默认 `STORAGE_DRIVER=fake`，自动化测试使用 fake storage
 - 当前已实现项目材料上传、列表、短期下载 URL、提交、物理删除和删除审计；材料类型使用普通字典 `dictType=material_type`，上传接口不自动创建材料类型字典
 - 当前项目材料上传在 `ProjectMaterialsService.validateFile()` 中先规范化上传文件名，再基于规范化后的文件名生成 `safeFilename`、扩展名和 objectKey；多文件上传 failures 中的 `originalFilename` 也使用规范化后的文件名。新上传材料默认 `draft`；历史已入库乱码材料不迁移、不重命名 objectKey 或存储对象，建议删除后重新上传
 - 当前文件安全限制包括禁止空文件、单次最多 20 个文件、单文件最大 500MB、仅允许常见材料扩展名并拒绝明显危险扩展名；当前不做病毒扫描、内容解析、OCR 或在线预览转码
 - 当前申诉附件复用项目材料文件安全限制，单次最多 20 个文件、单文件最大 500MB、禁止空文件和危险扩展名；上传时先规范化文件名，保存 `originalFilename`、生成 `safeFilename/objectKey` 和多文件 failures 前均使用归一化结果；objectKey 形如 `{prefix}/projects/{projectId}/appeals/{appealId}/{yyyy}/{uuid}-{safeFilename}`；自动化测试使用 fake storage；历史已入库乱码附件不迁移、不重命名 objectKey 或存储对象
-- 当前仍未实现真实 AI 合议、甲方看板前端、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
+- 当前仍未实现真实 AI 合议、腾讯会议 API 集成、直播、推流、回看、前端直传 OSS、分片上传或断点续传
 
 ### 4.6 外部服务集成
 
@@ -334,7 +334,7 @@ backend/
 ### 4.9 已知问题
 
 - 当前 auth 第一阶段已实现，但仍无注册、找回密码、修改密码、phone one-time code、复杂业务权限矩阵、菜单权限或数据范围权限
-- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、门户端只读基础数据接口、专家评分、规则化合议评审、项目申诉和等级变更留痕、甲方看板后端统计 API；仍不包含甲方看板前端、真实 AI 接入或腾讯会议 API/直播/推流/回看集成
+- 当前已实现 Excel 项目导入与待确认机制、评审分配/安排/专家分配后端能力、Storage 抽象层、项目负责人填报、项目材料管理、门户端只读基础数据接口、专家评分、规则化合议评审、项目申诉和等级变更留痕、甲方看板后端统计 API；甲方看板前端基础版已由 `frontend` 接入；仍不包含真实 AI 接入或腾讯会议 API/直播/推流/回看集成
 - 当前未实现 `/admin/tree-dictionaries/tree` 树形 children 接口，树形字典列表只提供平铺数组，由调用方自行组树
 - 当前虽已预留 LLM / Bailian 配置，但尚未实现模型调用服务；合议草稿为 `rule_based`，不调用外部大模型
 - 后续业务模块仍需按架构文档逐步扩展，不得绕过当前 auth、角色和数据隔离口径
