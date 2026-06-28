@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '@/src/components/feedback/Badge';
 import { EmptyState } from '@/src/components/feedback/EmptyState';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
@@ -65,6 +65,8 @@ export function ConsensusReviewPanel({
     createFormState(consensus, reviewLevelOptions[0]?.code ?? 'A'),
   );
   const [formError, setFormError] = useState<string | null>(null);
+  const consensusFormKeyRef = useRef(getConsensusFormKey(consensus));
+  const draftGenerationRequestedRef = useRef(false);
   const resolvedTotalScore =
     consensus?.reviewSchemeSnapshot.totalScore ?? reviewSchemeTotalScore ?? null;
   const isConfirmed = consensus?.status === 'confirmed';
@@ -100,11 +102,42 @@ export function ConsensusReviewPanel({
   }, [form.finalLevel, reviewLevelOptions]);
 
   useEffect(() => {
-    setForm(
-      createFormState(consensus, reviewLevelOptions[0]?.code ?? 'A'),
-    );
+    const previousConsensusFormKey = consensusFormKeyRef.current;
+    const nextConsensusFormKey = getConsensusFormKey(consensus);
+
+    setForm((current) => {
+      const nextForm = createFormState(
+        consensus,
+        reviewLevelOptions[0]?.code ?? 'A',
+      );
+
+      if (
+        consensus?.status === 'draft' &&
+        (draftGenerationRequestedRef.current ||
+          previousConsensusFormKey === nextConsensusFormKey)
+      ) {
+        return {
+          ...nextForm,
+          finalOpinion: current.finalOpinion,
+          finalScore: current.finalScore,
+        };
+      }
+
+      return nextForm;
+    });
+    consensusFormKeyRef.current = nextConsensusFormKey;
     setFormError(null);
   }, [consensus, reviewLevelOptions]);
+
+  async function handleGenerateDraftClick() {
+    draftGenerationRequestedRef.current = true;
+
+    try {
+      await onGenerateDraft();
+    } finally {
+      draftGenerationRequestedRef.current = false;
+    }
+  }
 
   function fillFromDraft() {
     if (!consensus?.draftOpinion && consensus?.draftScore === undefined) {
@@ -185,7 +218,7 @@ export function ConsensusReviewPanel({
           {canGenerateDraft ? (
             <Button
               disabled={generating || loading}
-              onClick={() => void onGenerateDraft()}
+              onClick={() => void handleGenerateDraftClick()}
               variant="primary"
             >
               {generating ? '正在生成...' : '生成合议草稿'}
@@ -236,6 +269,9 @@ export function ConsensusReviewPanel({
                     <h3 className="m-0 text-base font-black text-slate-950">
                       人工确认合议
                     </h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      草稿仅供复核参考，最终意见、分数和等级需由评审负责人确认。
+                    </p>
                     <p className="mt-1 text-sm leading-6 text-slate-500">
                       最终分数范围：
                       {resolvedTotalScore === null
@@ -465,11 +501,8 @@ function createFormState(
   if (consensus?.status === 'draft') {
     return {
       finalLevel: consensus.finalLevel ?? defaultLevel,
-      finalOpinion: consensus.draftOpinion ?? '',
-      finalScore:
-        consensus.draftScore === undefined || consensus.draftScore === null
-          ? ''
-          : String(consensus.draftScore),
+      finalOpinion: '',
+      finalScore: '',
     };
   }
 
@@ -478,4 +511,10 @@ function createFormState(
     finalOpinion: '',
     finalScore: '',
   };
+}
+
+function getConsensusFormKey(
+  consensus: ConsensusReviewResponse | null,
+): string {
+  return consensus ? `${consensus.id}:${consensus.status}` : 'empty';
 }
