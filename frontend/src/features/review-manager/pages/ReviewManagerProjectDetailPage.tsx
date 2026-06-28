@@ -113,6 +113,11 @@ export function ReviewManagerProjectDetailPage({
     getReviewSchemeTotalScore(projectSummary?.reviewSchemeSnapshot) ??
     expertReviewDetail?.reviewSchemeSnapshot.totalScore ??
     null;
+  const consensusReturnDisabled =
+    consensusLoading || consensus?.status === 'confirmed';
+  const consensusReturnDisabledMessage = consensusLoading
+    ? '正在确认合议状态，暂不开放退回操作。'
+    : '最终合议结论已确认，专家评分仅可查看。';
 
   async function loadProjectSummary() {
     setProjectSummaryLoading(true);
@@ -219,6 +224,11 @@ export function ReviewManagerProjectDetailPage({
 
   async function handleReturnReview(returnReason: string) {
     if (!returnTarget) {
+      return;
+    }
+
+    if (consensus?.status === 'confirmed') {
+      setReturnError('最终合议结论已确认，专家评分仅可查看。');
       return;
     }
 
@@ -329,30 +339,34 @@ export function ReviewManagerProjectDetailPage({
           <p>查看专家评分、评分汇总和合议记录，并确认最终合议结论。</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3">
-          {reviewSummary ? (
+          {projectSummary && reviewSummary ? (
             <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700">
               已提交 {reviewSummary.submittedExpertCount} /{' '}
               {reviewSummary.assignedExpertCount}
             </span>
           ) : null}
-          <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
-            href={`/review-manager/projects/${projectId}`}
-          >
-            返回项目总览
-          </Link>
-          <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
-            href={`/review-manager/projects/${projectId}/review-organization`}
-          >
-            进入评审组织
-          </Link>
-          <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
-            href={`/review-manager/projects/${projectId}/appeals`}
-          >
-            查看申诉
-          </Link>
+          {projectSummary ? (
+            <>
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+                href={`/review-manager/projects/${projectId}`}
+              >
+                返回项目总览
+              </Link>
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+                href={`/review-manager/projects/${projectId}/review-organization`}
+              >
+                进入评审组织
+              </Link>
+              <Link
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+                href={`/review-manager/projects/${projectId}/appeals`}
+              >
+                查看申诉
+              </Link>
+            </>
+          ) : null}
           <Link
             className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white/[0.85] px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
             href="/review-manager/projects"
@@ -381,38 +395,49 @@ export function ReviewManagerProjectDetailPage({
           project={projectSummary}
         />
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
-          <ReviewManagerExpertReviewsPanel
-            error={expertReviewsError}
-            items={expertReviews}
-            loading={expertReviewsLoading}
-            lookupMaps={lookupMaps}
-            onReturnReview={(item) => {
-              setReturnError(null);
-              setReturnTarget(item);
-            }}
-            onSelectReview={(item) => void loadExpertReviewDetail(item)}
-            selectedExpertUserId={selectedExpertReview?.expert.id}
-          />
-          <ReviewSummaryPanel
-            error={reviewSummaryError}
-            loading={reviewSummaryLoading}
-            summary={reviewSummary}
-          />
-        </div>
+        {projectSummary ? (
+          <>
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.8fr)]">
+              <ReviewManagerExpertReviewsPanel
+                error={expertReviewsError}
+                items={expertReviews}
+                loading={expertReviewsLoading}
+                lookupMaps={lookupMaps}
+                onReturnReview={(item) => {
+                  if (consensusReturnDisabled) {
+                    setReturnError(consensusReturnDisabledMessage);
+                    return;
+                  }
 
-        <ConsensusReviewPanel
-          confirming={confirmingConsensus}
-          consensus={consensus}
-          error={consensusError}
-          generating={generatingDraft}
-          loading={consensusLoading}
-          lookupMaps={lookupMaps}
-          onConfirm={handleConfirmConsensus}
-          onGenerateDraft={handleGenerateDraft}
-          referenceData={referenceData}
-          reviewSchemeTotalScore={reviewSchemeTotalScore}
-        />
+                  setReturnError(null);
+                  setReturnTarget(item);
+                }}
+                onSelectReview={(item) => void loadExpertReviewDetail(item)}
+                returnDisabled={consensusReturnDisabled}
+                returnDisabledMessage={consensusReturnDisabledMessage}
+                selectedExpertUserId={selectedExpertReview?.expert.id}
+              />
+              <ReviewSummaryPanel
+                error={reviewSummaryError}
+                loading={reviewSummaryLoading}
+                summary={reviewSummary}
+              />
+            </div>
+
+            <ConsensusReviewPanel
+              confirming={confirmingConsensus}
+              consensus={consensus}
+              error={consensusError}
+              generating={generatingDraft}
+              loading={consensusLoading}
+              lookupMaps={lookupMaps}
+              onConfirm={handleConfirmConsensus}
+              onGenerateDraft={handleGenerateDraft}
+              referenceData={referenceData}
+              reviewSchemeTotalScore={reviewSchemeTotalScore}
+            />
+          </>
+        ) : null}
       </div>
 
       <ReviewManagerExpertReviewDetailModal

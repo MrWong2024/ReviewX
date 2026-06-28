@@ -179,7 +179,7 @@ export function ConsensusReviewPanel({
               合议草稿与最终确认
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              草稿由后端 rule_based 能力生成，最终结论由评审负责人人工确认。
+              草稿根据已提交的专家评分规则汇总生成，最终结论由评审负责人人工确认。
             </p>
           </div>
           {canGenerateDraft ? (
@@ -338,7 +338,7 @@ function ConsensusSnapshot({
             当前合议记录
           </h3>
           <p className="mt-1 text-sm text-slate-500">
-            状态：{consensus.status}
+            状态：{formatConsensusRecordStatus(consensus.status)}
           </p>
         </div>
         <Badge tone={statusTone}>
@@ -432,6 +432,19 @@ function formatConfirmedUser(consensus: ConsensusReviewResponse): string {
   }
 
   return consensus.confirmedByUserId ? '确认人信息暂不可用' : '-';
+}
+
+function formatConsensusRecordStatus(
+  status: ConsensusReviewResponse['status'],
+): string {
+  switch (status) {
+    case 'confirmed':
+      return '已确认';
+    case 'draft':
+      return '草稿';
+    default:
+      return '未知状态';
+  }
 }
 
 function createFormState(

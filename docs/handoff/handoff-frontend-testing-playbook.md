@@ -822,9 +822,9 @@ Workspace 和守卫：
 3. 项目摘要不应调用 `/admin/projects/:id`
 4. 项目摘要通过 `GET /review-manager/projects?page=1&pageSize=1000` 后按 `projectId` 匹配
 5. 摘要匹配成功时展示项目编号、名称、批次、类型、状态、承担单位、合作单位、项目负责人、评审方案、评审时间地点和评分方案总分
-6. 摘要未匹配时显示“项目摘要不可用或无权限”，专家评分、汇总和合议区域仍继续加载
+6. 摘要未匹配时显示“项目摘要不可用或无权限”，不展示评审组织 / 合议 / 申诉处理入口，也不展示专家评分、汇总和合议操作区域
 7. 各区域加载失败时只显示该区域错误，不拖死整页
-8. admin + review_manager 多角色用户手动输入非自己负责项目详情时，review-manager 专家分配、评分、汇总和合议接口应显示 403 或无权限错误，不得展示/操作非本人负责项目
+8. admin + review_manager 多角色用户手动输入非自己负责项目详情时，review-manager 专家分配、评分、汇总和合议接口应显示 403 或无权限错误；页面不得展示项目内操作入口、确认表单、退回按钮或内部 ObjectId
 
 专家分配：
 
@@ -846,7 +846,7 @@ Workspace 和守卫：
 1. 专家评分列表 Network 使用 `GET /review-manager/projects/:projectId/expert-reviews`
 2. 列表展示专家姓名、手机号、单位、状态、总分、提交时间和退回时间
 3. 状态显示为未开始、草稿、已提交、已退回
-4. 只有 submitted 状态显示“退回”按钮
+4. 只有 submitted 状态显示“退回”按钮；若当前合议已 confirmed，即使专家评分为 submitted，也只显示“查看详情”，不显示“退回”
 5. 点击“查看详情”调用 `GET /review-manager/projects/:projectId/expert-reviews/:expertUserId`
 6. 详情展示专家基本信息、评分方案、每个评分项的满分、得分、打分说明、评价描述、改进建议和重大问题 Badge
 7. “重大问题”不得作为三等分大列占据宽度；应在评分项标题行或得分旁以“重大问题 / 无重大问题”紧凑 Badge 展示
@@ -855,7 +855,7 @@ Workspace 和守卫：
 
 退回评分：
 
-1. 点击 submitted 专家的“退回”打开退回弹窗
+1. 在合议未 confirmed 的项目中，点击 submitted 专家的“退回”打开退回弹窗
 2. 退回原因为空或 trim 后为空时不能提交
 3. 退回原因超过 1000 字时不能提交
 4. 提交前出现二次确认
@@ -897,7 +897,7 @@ Workspace 和守卫：
 11. Network 请求 body 只包含 `finalOpinion/finalScore/finalLevel`，不得包含 `useDraftAsBase`
 12. 提交成功后重新加载 consensus 和项目摘要，显示 confirmed 结果
 13. 首次提交成功后重新加载 consensus 和项目摘要，页面进入 confirmed 只读状态
-14. 已 confirmed 后页面不显示“重新确认最终结论”按钮，不显示 finalOpinion textarea、finalScore input、finalLevel select，不显示“使用草稿填入”
+14. 已 confirmed 后页面不显示“重新确认最终结论”按钮，不显示 finalOpinion textarea、finalScore input、finalLevel select，不显示“使用草稿填入”，专家评分列表不显示“退回”按钮
 15. 已 confirmed 页面显示只读说明：“最终合议结论已确认。如项目负责人提出异议，请通过申诉流程处理；如需更正录入错误，应走后续专门更正流程。”
 16. 旧页面状态、并发或手工请求导致 `POST /consensus/confirm` 返回 `409 CONSENSUS_ALREADY_CONFIRMED` 时，页面展示后端业务 message 并重新拉取 consensus
 17. 已 confirmed 记录中的“确认人”应显示确认人姓名；后端返回手机号时显示“姓名（手机号）”

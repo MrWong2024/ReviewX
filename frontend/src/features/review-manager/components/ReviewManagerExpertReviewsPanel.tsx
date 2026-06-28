@@ -23,6 +23,8 @@ type ReviewManagerExpertReviewsPanelProps = {
   lookupMaps: ReviewManagerLookupMaps;
   onReturnReview: (item: ExpertReviewListItem) => void;
   onSelectReview: (item: ExpertReviewListItem) => void;
+  returnDisabled?: boolean;
+  returnDisabledMessage?: string;
   selectedExpertUserId?: string | null;
 };
 
@@ -33,6 +35,8 @@ export function ReviewManagerExpertReviewsPanel({
   lookupMaps,
   onReturnReview,
   onSelectReview,
+  returnDisabled = false,
+  returnDisabledMessage,
   selectedExpertUserId,
 }: ReviewManagerExpertReviewsPanelProps) {
   const columns: DataColumn<ExpertReviewListItem>[] = [
@@ -89,7 +93,7 @@ export function ReviewManagerExpertReviewsPanel({
           >
             查看详情
           </Button>
-          {canReturnExpertReview(item) ? (
+          {!returnDisabled && canReturnExpertReview(item) ? (
             <Button
               onClick={() => onReturnReview(item)}
               size="sm"
@@ -113,7 +117,9 @@ export function ReviewManagerExpertReviewsPanel({
               专家评分列表
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              查看已分配专家的评分状态，submitted 状态可退回修改。
+              {returnDisabled
+                ? (returnDisabledMessage ?? '专家评分当前仅可查看。')
+                : '查看已分配专家的评分状态，已提交评分可退回修改。'}
             </p>
           </div>
           <span className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-700">
