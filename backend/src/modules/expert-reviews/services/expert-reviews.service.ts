@@ -14,6 +14,7 @@ import {
   toObjectId,
 } from '../../../common/utils/mongo-query';
 import { AuthenticatedUser } from '../../auth/types/authenticated-user.type';
+import { ConsensusReview } from '../../consensus-reviews/schemas/consensus-review.schema';
 import { ProjectExpertAssignment } from '../../project-expert-assignments/schemas/project-expert-assignment.schema';
 import { ProjectMaterial } from '../../project-materials/schemas/project-material.schema';
 import { Project } from '../../projects/schemas/project.schema';
@@ -247,6 +248,8 @@ export class ExpertReviewsService {
     private readonly projectModel: Model<Project>,
     @InjectModel(ProjectExpertAssignment.name)
     private readonly assignmentModel: Model<ProjectExpertAssignment>,
+    @InjectModel(ConsensusReview.name)
+    private readonly consensusReviewModel: Model<ConsensusReview>,
     @InjectModel(ProjectMaterial.name)
     private readonly materialModel: Model<ProjectMaterial>,
     @InjectModel(User.name)
@@ -553,6 +556,8 @@ export class ExpertReviewsService {
       );
     }
 
+    await this.assertConsensusNotConfirmed(project._id);
+
     const updated = await this.expertReviewModel
       .findByIdAndUpdate(
         review._id,
@@ -574,6 +579,20 @@ export class ExpertReviewsService {
     }
 
     return this.toReviewResponse(updated);
+  }
+
+  private async assertConsensusNotConfirmed(
+    projectId: Types.ObjectId,
+  ): Promise<void> {
+    const confirmedConsensus = await this.consensusReviewModel
+      .exists({ projectId, status: 'confirmed' })
+      .exec();
+
+    if (confirmedConsensus) {
+      throw new ConflictException(
+        'Expert review cannot be returned after consensus is confirmed',
+      );
+    }
   }
 
   async getReviewSummary(

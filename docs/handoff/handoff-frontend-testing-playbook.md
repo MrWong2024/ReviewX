@@ -154,6 +154,18 @@ npm run build
 - frontend `npm run build`
 - 手工重点：project-owner 已上传申诉附件不显示删除按钮，直接 DELETE 返回 `409 PROJECT_APPEAL_ATTACHMENT_DELETE_NOT_ALLOWED` 且附件仍在；submitted 状态仍可补充上传；等级历史操作人显示姓名 / 姓名（手机号），不可解析时显示“操作人信息暂不可用”；不得显示操作人短 ID 或“关联申诉 短ID”，可构造链接时显示“查看关联申诉”。
 
+本次 ReviewX 第十阶段补丁一：未验证链路与演示数据联调已执行：
+
+- backend `npm run build`：通过
+- backend `npm run test:e2e`：通过（13 suites / 73 tests）
+- frontend `npm run typecheck`：通过
+- frontend `npm run lint`：通过
+- frontend `npm run build`：通过
+- `reviewx_dev` 真实 HTTP 写入联调：通过，覆盖申诉 submitted / accepted / rejected、申诉附件补充与不可删除、材料 draft / submitted / 锁定、专家评分 draft / submitted / returned / 重提、confirmed 后评分只读和 `/client` 刷新。
+- legacy `active`：本次通过 API 扫描前 1000 个项目未发现样本，未强行造数；后续如出现历史样本仍按草稿兼容口径回归。
+
+注意：confirmed 合议后，评审负责人退回 submitted 专家评分后端返回 `409`，评分保持 `submitted`；本次联调未接腾讯会议 API、真实 AI 或文件预览。
+
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 
 - `npm run lint`

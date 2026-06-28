@@ -8,6 +8,7 @@ import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
+import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import type { ExpertReviewStatus } from '../src/modules/expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
@@ -37,6 +38,7 @@ describe('Expert review APIs (e2e)', () => {
   let projectModel: Model<Project>;
   let assignmentModel: Model<ProjectExpertAssignment>;
   let expertReviewModel: Model<ExpertReview>;
+  let consensusReviewModel: Model<ConsensusReview>;
   let materialModel: Model<ProjectMaterial>;
   let models: Model<unknown>[];
 
@@ -61,6 +63,9 @@ describe('Expert review APIs (e2e)', () => {
     expertReviewModel = app.get<Model<ExpertReview>>(
       getModelToken(ExpertReview.name),
     );
+    consensusReviewModel = app.get<Model<ConsensusReview>>(
+      getModelToken(ConsensusReview.name),
+    );
     materialModel = app.get<Model<ProjectMaterial>>(
       getModelToken(ProjectMaterial.name),
     );
@@ -71,6 +76,7 @@ describe('Expert review APIs (e2e)', () => {
       projectModel,
       assignmentModel,
       expertReviewModel,
+      consensusReviewModel,
       materialModel,
     ];
 
@@ -424,6 +430,49 @@ describe('Expert review APIs (e2e)', () => {
     await expect(
       findReview(data.project.id, data.expert.id),
     ).resolves.toMatchObject({ status: 'returned' });
+  });
+
+  it('blocks returning submitted reviews after consensus is confirmed', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+    const managerCookie = await login(data.reviewManager.phone);
+
+    await request(httpServer)
+      .post(`/expert/review-tasks/${data.project.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send(createValidSubmitPayload())
+      .expect(201);
+
+    await consensusReviewModel.create({
+      projectId: new Types.ObjectId(data.project.id),
+      reviewSchemeSnapshot: createReviewSchemeSnapshot(),
+      finalOpinion: '最终合议已确认',
+      finalScore: 85,
+      finalLevel: 'A',
+      originalLevel: 'A',
+      confirmedByUserId: new Types.ObjectId(data.reviewManager.id),
+      confirmedAt: new Date(),
+      status: 'confirmed',
+      expertReviewStats: {
+        expertCount: 2,
+        submittedCount: 1,
+        averageScore: 85,
+        minScore: 85,
+        maxScore: 85,
+      },
+    });
+
+    await request(httpServer)
+      .post(
+        `/review-manager/projects/${data.project.id}/expert-reviews/${data.expert.id}/return`,
+      )
+      .set('Cookie', managerCookie)
+      .send({ returnReason: '合议后不应退回' })
+      .expect(409);
+
+    await expect(
+      findReview(data.project.id, data.expert.id),
+    ).resolves.toMatchObject({ status: 'submitted' });
   });
 
   it('returns 404 when deleting without an expert review record', async () => {
