@@ -166,20 +166,13 @@ npm run build
 
 注意：confirmed 合议后，评审负责人退回 submitted 专家评分后端返回 `409`，评分保持 `submitted`；本次联调未接腾讯会议 API、真实 AI 或文件预览。
 
-本次 ReviewX 第十一阶段：演示版收口与生产预检已执行：
+本次 ReviewX 第十一阶段演示级验证口径：
 
-- backend `npm run build`：通过
-- backend `npm run test:e2e`：通过（13 suites / 73 tests）
-- frontend `npm run typecheck`：通过
-- frontend `npm run lint`：通过
-- frontend `npm run build`：通过；构建路由包含 `/workspace`、`/admin`、`/project-owner`、`/expert`、`/review-manager`、`/client`
-- 本地服务预检：5001 已有 ReviewX 后端 `/health`，3001 前端页面可打开；直接执行 backend `npm run start` 时因标准端口已被占用返回 `EADDRINUSE`
-- `reviewx_dev` 只读预检：五类角色账号和多角色用户均可登录，`/auth/me` 正常；client dashboard API 200，非 client 调 client dashboard API 403；review_manager / expert / project_owner 列表总数与数据库归属范围一致
-- 前端路由 HTTP 打开检查：登录、工作台、五类角色首页、核心静态页和各角色动态详情页均返回 200
-- 核心 API 路径预检：admin 基础数据 / 项目 / 材料 / 申诉，project_owner 项目 / 材料 / confirmed 合议 / 申诉，expert 任务 / 材料，review_manager 项目 / 专家 / 评分 / 合议 / 申诉，client overview / projects / keyword / finalLevel / progressStage / hasPendingAppeal / hasMeetingUrl 均可响应
-- 演示数据说明：本阶段未新增演示账号、项目或附件；未落盘临时脚本；当前 `reviewx_dev` 无 pending 申诉和 legacy `active` 材料样本，专家评分退回后重提因重提会清空 returned 留痕，第十一阶段只读预检无法从当前持久数据反推该历史
-
-注意：本阶段仍未接腾讯会议 API、直播、推流、回看、真实 AI、文件预览、操作审计日志、用户自助改密 / 忘记密码 / 短信验证码、用户 / 专家批量导入或权限矩阵配置。详细预检口径见 `handoff-demo-readiness.md`。
+- 已覆盖 `/workspace`、`/admin`、`/project-owner`、`/expert`、`/review-manager`、`/client` 的演示级打开与核心路径检查。
+- client 看板 `overview`、`projects` 和 keyword / finalLevel / progressStage / hasPendingAppeal / hasMeetingUrl 等关键筛选已通过演示级验证；`hasPendingAppeal=true` API 可用，但演示库可能没有 pending 申诉样本。
+- review-manager 非负责项目访问返回 `403`；confirmed 合议只读；confirmed 后专家评分不可退回，后端以 `409` 兜底。
+- legacy `active` 材料当前无样本，仍为未验证，不标记为全量完成。
+- 本阶段未使用 Playwright / Puppeteer，浏览器自动化不作为演示版阻断项。
 
 本次 ReviewX 第四阶段补丁五：管理员项目材料查看与删除前端接入已执行并通过：
 

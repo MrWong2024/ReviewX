@@ -47,7 +47,6 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - `handoff-frontend-api-map.md`：前端 API 对接地图
 - `handoff-frontend-component-map.md`：前端组件地图
 - `handoff-frontend-testing-playbook.md`：前端验证手册
-- `handoff-demo-readiness.md`：演示版构建、启动、账号、数据和风险预检
 
 ## 6. 后续同步规则
 

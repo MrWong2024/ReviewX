@@ -14,7 +14,7 @@ ReviewX 科评星：科技项目评审协同与监管平台
 
 - `backend` 已初始化为 NestJS + Mongoose 后端，并已具备 Session Auth、users、sessions、auth、第一阶段管理端业务底座、第二阶段项目导入底座与第三阶段项目评审分配/安排后端能力
 - 当前已实现用户多角色、管理员角色守卫、`/admin/users` 管理员用户维护 API、批次、普通字典、树形字典、单位、评审方案、项目基础模型、`/admin/*` 管理 CRUD、`/admin/project-imports` Excel 导入与待确认机制、`/admin/project-import-field-mappings*` Excel 字段映射配置后端能力，以及 `/review-manager/*` 项目安排和专家分配接口
-- 当前已实现 Storage 抽象层、ProjectMaterial 模型、项目负责人填报与项目材料上传/列表/下载 URL/软删除接口，并已实现评审负责人、专家、管理员材料只读可见性
+- 当前已实现 Storage 抽象层、ProjectMaterial 模型、项目负责人填报与项目材料上传 / 列表 / 短期下载 URL / 草稿物理删除和删除审计接口，并已实现评审负责人、专家、管理员材料只读可见性
 - 当前已实现专家评分与合议评审后端能力：专家评分任务、草稿/提交、评审负责人查看/退回、评分汇总、规则化合议草稿和人工确认合议
 - 当前已实现项目申诉与等级变更留痕后端能力：项目负责人查看 confirmed 合议结果、提交最多 3 次申诉、申诉附件 fake/oss storage、评审负责人/管理员处理申诉、申诉导致等级调整时写 ProjectLevelChangeLog
 - 当前行政区划 treeType 已统一为 `administrative_division`；`Organization.regionId` 字段名保持不变，但必须引用该类型树节点，历史 `region` 不再作为行政区划口径
@@ -39,7 +39,6 @@ ReviewX 科评星：科技项目评审协同与监管平台
 - `handoff-backend-service-map.md`：Service 职责地图
 - `handoff-backend-config-matrix.md`：配置项与环境变量矩阵
 - `handoff-backend-decisions.md`：后端关键决策记录
-- `handoff-demo-readiness.md`：演示版构建、启动、账号、数据和风险预检
 
 ## 6. 后续同步规则
 
