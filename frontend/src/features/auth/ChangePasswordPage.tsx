@@ -100,9 +100,6 @@ export function ChangePasswordPage() {
               为保障账号安全，请输入当前密码并设置新密码。
             </p>
           </div>
-          <Button onClick={() => router.push('/workspace')} variant="secondary">
-            返回工作台
-          </Button>
         </header>
 
         <section className="panel">
