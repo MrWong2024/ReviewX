@@ -494,14 +494,14 @@ function getGenerateDraftButtonText(
   draftCooldownRemainingSeconds: number,
 ): string {
   if (generating) {
-    return '正在生成...';
+    return 'AI 正在生成...';
   }
 
   if (draftCooldownRemainingSeconds > 0) {
-    return `请稍后再生成（${draftCooldownRemainingSeconds}秒）`;
+    return `请稍后再生成 AI 草稿（${draftCooldownRemainingSeconds}秒）`;
   }
 
-  return '生成合议草稿';
+  return 'AI 辅助生成合议草稿';
 }
 
 function createFormState(
