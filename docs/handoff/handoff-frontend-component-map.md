@@ -4,11 +4,11 @@
 
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
-| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、返回工作台和退出登录 |
-| `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、返回工作台和退出登录 |
-| `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、返回工作台和退出登录 |
-| `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、侧边栏、review_manager 前端守卫和退出登录；侧边栏只保留评审负责人首页/负责项目，返回工作台仅保留在顶部右侧 |
-| `ClientShell` | `frontend/src/components/layout/ClientShell.tsx` | 甲方监管看板壳、顶部栏、侧边栏、client 前端守卫、返回工作台和退出登录；侧边栏只保留 `/client` 监管看板 |
+| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、修改密码、返回工作台和退出登录 |
+| `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、修改密码、返回工作台和退出登录 |
+| `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、修改密码、返回工作台和退出登录 |
+| `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、侧边栏、review_manager 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留评审负责人首页/负责项目，返回工作台仅保留在顶部右侧 |
+| `ClientShell` | `frontend/src/components/layout/ClientShell.tsx` | 甲方监管看板壳、顶部栏、侧边栏、client 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留 `/client` 监管看板 |
 
 ## 2. UI 组件
 
@@ -40,9 +40,10 @@
 
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
-| `AuthProvider` | `frontend/src/features/auth/AuthProvider.tsx` | 当前用户状态、登录、登出、刷新会话 |
+| `AuthProvider` | `frontend/src/features/auth/AuthProvider.tsx` | 当前用户状态、登录、登出、刷新会话和改密成功后更新当前用户 |
 | `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页 |
-| `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页；admin、client、project_owner、expert、review_manager 已开通角色可进入对应工作台，client 指向 `/client` |
+| `ChangePasswordPage` | `frontend/src/features/auth/ChangePasswordPage.tsx` | 当前用户自助修改本人密码页；要求登录，不要求具体角色；提交 `currentPassword/newPassword/confirmPassword`，成功后清空表单并刷新当前用户状态 |
+| `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页；admin、client、project_owner、expert、review_manager 已开通角色可进入对应工作台，client 指向 `/client`；顶部提供“修改密码”入口 |
 | `ClientDashboardPage` | `frontend/src/features/client/pages/ClientDashboardPage.tsx` | 甲方监管看板主页面，并发加载 overview、projects 和 portal reference-data；筛选提交重算 overview/projects，分页只重拉 projects，reference-data 失败降级 warning |
 | `ClientDashboardFilters` | `frontend/src/features/client/components/ClientDashboardFilters.tsx` | 甲方看板筛选区，支持 keyword、批次、项目类型、状态、受理处室、学科、评审负责人、评审方案、最终等级、命中进度阶段、会议入口和 pending 申诉 |
 | `ClientDashboardMetricCards` | `frontend/src/features/client/components/ClientDashboardMetricCards.tsx` | 甲方看板统计卡片，展示项目总览、资金拨付、专家提交率和申诉统计 |

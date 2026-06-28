@@ -18,6 +18,7 @@
 | --- | --- | --- | --- |
 | `login` | `POST /auth/login` | `frontend/src/features/auth/api.ts` | implemented |
 | `getCurrentUser` | `GET /auth/me` | `frontend/src/features/auth/api.ts` | implemented |
+| `changeOwnPassword` | `PATCH /auth/me/password` | `frontend/src/features/auth/api.ts` | implemented |
 | `logout` | `POST /auth/logout` | `frontend/src/features/auth/api.ts` | implemented |
 
 ## 3. Admin API
@@ -246,7 +247,7 @@
 
 - `401`：未登录，守卫跳转登录页
 - `403`：无权限，管理员守卫显示 403
-- `400`：展示后端 message 或默认输入错误提示
+- `400`：展示后端 message 或默认输入错误提示；自助修改密码时当前密码错误、确认不一致或新旧密码相同直接展示后端业务 message
 - `409`：展示后端 message 或默认冲突提示；项目负责人后续推进需求、材料上传、提交和删除遇到 `PROJECT_OWNER_CONTENT_LOCKED` 时固定展示“评审结果已确认，项目材料和后续推进需求已锁定。如需补充说明，请通过申诉提交补充材料。”，不显示 HTTP 状态码或技术字段；项目负责人删除 submitted 材料时固定展示“该材料已提交评审，项目负责人不能删除。如确需删除，请联系管理员。”；专家分配返回 `EXPERT_ASSIGNMENT_LOCKED` 时展示“专家名单已锁定，不能继续调整。”并结合 `reasons` 展示评审已开始 / 已产生评分 / 已生成合议 / 已形成最终等级等锁定原因；专家 submitted 后再次保存或提交时展示“评分已提交，不能修改。”；专家提交评分返回 `REVIEW_NOT_STARTED` 或“评审尚未开始”时展示“评审尚未开始，暂不能提交评分。”；专家删除非 draft 评分草稿时展示“只有未提交的评分草稿可以删除。”；评审负责人生成合议草稿遇到已有 draft 时二次确认后 `force=true` 重试，遇到 confirmed 不提供覆盖草稿入口；评审负责人确认合议遇到 `CONSENSUS_ALREADY_CONFIRMED` 时展示后端业务 message 并重新拉取 consensus
 - `500`：展示默认服务异常提示
 
@@ -301,6 +302,6 @@
 
 ## 5. 当前未对接的后端接口
 
-- 用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
+- 忘记密码、短信验证码、用户批量导入、权限矩阵配置相关接口
 - `/admin/projects/:id/expert-reviews*`
 - `/admin/projects/:id/consensus*`

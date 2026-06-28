@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 import { INestApplication } from '@nestjs/common';
 import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Test, TestingModule } from '@nestjs/testing';
-import { hash } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { Connection, Model, Types } from 'mongoose';
 import request, { Response } from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -18,6 +18,21 @@ type SessionTokenLean = {
   _id: Types.ObjectId;
   token: string;
   revokedAt?: Date | null;
+};
+
+type StoredPasswordLean = {
+  _id: Types.ObjectId;
+  passwordHash: string;
+  mustChangePassword?: boolean;
+};
+
+type CreateTestUserOptions = {
+  phone?: string;
+  password?: string;
+  name?: string;
+  status?: 'active' | 'disabled';
+  isActive?: boolean;
+  mustChangePassword?: boolean;
 };
 
 describe('AuthController (e2e)', () => {
@@ -161,7 +176,7 @@ describe('AuthController (e2e)', () => {
   });
 
   it('rejects disabled users without leaking the reason', async () => {
-    await createUser('disabled');
+    await createUser({ status: 'disabled' });
 
     const response = await request(httpServer)
       .post('/auth/login')
@@ -174,14 +189,197 @@ describe('AuthController (e2e)', () => {
     expect(getJsonBody(response).message).toBe('Unauthorized');
   });
 
-  async function createUser(status: 'active' | 'disabled' = 'active') {
-    return userModel.create({
+  it('rejects unauthenticated own password change requests', async () => {
+    await request(httpServer)
+      .patch('/auth/me/password')
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(401);
+  });
+
+  it('rejects own password change when current password is wrong', async () => {
+    await createUser();
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    const response = await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'wrong-password',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe('当前密码不正确');
+  });
+
+  it('rejects own password change when confirmation does not match', async () => {
+    await createUser();
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    const response = await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'new-password-1',
+        confirmPassword: 'different-password',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe('两次输入的新密码不一致');
+  });
+
+  it('rejects own password change when new password matches current password', async () => {
+    await createUser();
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    const response = await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'correct-password',
+        confirmPassword: 'correct-password',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe(
+      '新密码不能与当前密码相同',
+    );
+  });
+
+  it('rejects own password change when new password is shorter than 8 characters', async () => {
+    await createUser();
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    const response = await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'short',
+        confirmPassword: 'short',
+      })
+      .expect(400);
+
+    expect(String(getJsonBody(response).message)).toContain('newPassword');
+  });
+
+  it('changes own password, keeps the current session valid, and returns public user data', async () => {
+    const user = await createUser({ mustChangePassword: true });
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    const response = await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(200);
+
+    const body = getJsonBody(response);
+    expect(body).toMatchObject({
+      id: user._id.toString(),
       phone: '+8613800000000',
-      passwordHash: await hash('correct-password', 4),
       name: 'Test User',
-      roles: [],
-      status,
+      mustChangePassword: false,
     });
+    expectNoSensitiveFields(body);
+
+    const storedUser = await userModel
+      .findById(user._id)
+      .select('+passwordHash')
+      .lean<StoredPasswordLean | null>()
+      .exec();
+
+    if (!storedUser) {
+      throw new Error('Stored user not found');
+    }
+
+    expect(storedUser.mustChangePassword).toBe(false);
+    expect(storedUser.passwordHash).toBeTruthy();
+    expect(await compare('correct-password', storedUser.passwordHash)).toBe(
+      false,
+    );
+    expect(await compare('new-password-1', storedUser.passwordHash)).toBe(true);
+
+    await request(httpServer)
+      .post('/auth/login')
+      .send({
+        phone: '+8613800000000',
+        password: 'correct-password',
+      })
+      .expect(401);
+
+    const nextLoginResponse = await request(httpServer)
+      .post('/auth/login')
+      .send({
+        phone: '+8613800000000',
+        password: 'new-password-1',
+      })
+      .expect(200);
+    expectNoSensitiveFields(getJsonBody(nextLoginResponse));
+
+    const meResponse = await request(httpServer)
+      .get('/auth/me')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .expect(200);
+    expect(getJsonBody(meResponse)).toMatchObject({
+      id: user._id.toString(),
+      mustChangePassword: false,
+    });
+  });
+
+  it('rejects disabled users with an existing session when changing own password', async () => {
+    const user = await createUser();
+    const sessionCookie = await loginAndGetSessionCookie();
+
+    await userModel
+      .updateOne({ _id: user._id }, { $set: { isActive: false } })
+      .exec();
+
+    await request(httpServer)
+      .patch('/auth/me/password')
+      .set('Cookie', toRequestCookie(sessionCookie))
+      .send({
+        currentPassword: 'correct-password',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(401);
+  });
+
+  async function createUser(options: CreateTestUserOptions = {}) {
+    return userModel.create({
+      phone: options.phone ?? '+8613800000000',
+      passwordHash: await hash(options.password ?? 'correct-password', 4),
+      name: options.name ?? 'Test User',
+      roles: [],
+      status: options.status ?? 'active',
+      isActive: options.isActive ?? true,
+      mustChangePassword: options.mustChangePassword ?? false,
+    });
+  }
+
+  async function loginAndGetSessionCookie(
+    password = 'correct-password',
+  ): Promise<string> {
+    const response = await request(httpServer)
+      .post('/auth/login')
+      .send({
+        phone: '+8613800000000',
+        password,
+      })
+      .expect(200);
+
+    return getSessionCookie(response);
   }
 });
 
@@ -206,6 +404,12 @@ function toRequestCookie(setCookie: string): string {
 function getJsonBody(response: Response): Record<string, unknown> {
   const body: unknown = response.body;
   return isRecord(body) ? body : {};
+}
+
+function expectNoSensitiveFields(value: Record<string, unknown>): void {
+  expect(value.passwordHash).toBeUndefined();
+  expect(value.token).toBeUndefined();
+  expect(value.sessionToken).toBeUndefined();
 }
 
 function getHeaderValue(

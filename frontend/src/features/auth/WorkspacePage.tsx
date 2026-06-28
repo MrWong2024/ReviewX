@@ -75,9 +75,17 @@ export function WorkspacePage() {
             当前账号：{user.name}（{user.phone}）
           </p>
         </div>
-        <Button onClick={handleLogout} variant="secondary">
-          退出登录
-        </Button>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <Button
+            onClick={() => router.push('/account/change-password')}
+            variant="secondary"
+          >
+            修改密码
+          </Button>
+          <Button onClick={handleLogout} variant="secondary">
+            退出登录
+          </Button>
+        </div>
       </header>
 
       <section className="role-grid">

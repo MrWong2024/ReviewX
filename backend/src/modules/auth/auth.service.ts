@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { compare } from 'bcryptjs';
 import { SessionsService } from '../sessions/sessions.service';
 import { UsersService } from '../users/users.service';
+import { PublicUser } from '../users/types/public-user.type';
+import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { AuthenticatedUser } from './types/authenticated-user.type';
 import { LoginInput, LoginResult } from './types/login-result.type';
 
@@ -81,6 +83,18 @@ export class AuthService {
       user,
       session,
     };
+  }
+
+  async changeOwnPassword(
+    userId: string,
+    dto: ChangeOwnPasswordDto,
+  ): Promise<PublicUser> {
+    return this.usersService.changeOwnPassword({
+      userId,
+      currentPassword: dto.currentPassword,
+      newPassword: dto.newPassword,
+      confirmPassword: dto.confirmPassword,
+    });
   }
 
   async logout(token: string | undefined): Promise<void> {

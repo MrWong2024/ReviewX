@@ -1,5 +1,5 @@
 import { apiRequest } from '@/src/lib/api/client';
-import type { CurrentUser, LoginInput } from './types';
+import type { ChangePasswordInput, CurrentUser, LoginInput } from './types';
 
 export function login(input: LoginInput) {
   return apiRequest<CurrentUser>('/auth/login', {
@@ -14,6 +14,17 @@ export function login(input: LoginInput) {
 export function getCurrentUser() {
   return apiRequest<CurrentUser>('/auth/me', {
     method: 'GET',
+  });
+}
+
+export function changeOwnPassword(input: ChangePasswordInput) {
+  return apiRequest<CurrentUser>('/auth/me/password', {
+    body: {
+      confirmPassword: input.confirmPassword,
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    },
+    method: 'PATCH',
   });
 }
 

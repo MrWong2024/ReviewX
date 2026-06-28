@@ -3,9 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { hash } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { Model, Types } from 'mongoose';
 import { USER_ROLES } from '../../common/constants/user-roles';
 import { PaginatedResponse } from '../../common/dto/pagination-query.dto';
@@ -53,6 +54,10 @@ type AuthIdentityLean = {
   roles: UserRole[];
   isActive?: boolean;
   status: UserStatus;
+};
+
+type ChangeOwnPasswordUserLean = PublicUserLean & {
+  passwordHash: string;
 };
 
 export type AdminUserResponse = {
@@ -298,6 +303,68 @@ export class UsersService {
     }
 
     return this.toAdminUserResponse(user);
+  }
+
+  async changeOwnPassword(input: {
+    userId: string;
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<PublicUser> {
+    if (!Types.ObjectId.isValid(input.userId)) {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.userModel
+      .findById(input.userId)
+      .select('+passwordHash')
+      .lean<ChangeOwnPasswordUserLean | null>()
+      .exec();
+
+    if (!user || user.status !== 'active' || user.isActive === false) {
+      throw new UnauthorizedException();
+    }
+
+    const isCurrentPasswordValid = await compare(
+      input.currentPassword,
+      user.passwordHash,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new BadRequestException('当前密码不正确');
+    }
+
+    if (input.newPassword !== input.confirmPassword) {
+      throw new BadRequestException('两次输入的新密码不一致');
+    }
+
+    if (input.newPassword === input.currentPassword) {
+      throw new BadRequestException('新密码不能与当前密码相同');
+    }
+
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        user._id,
+        {
+          $set: {
+            passwordHash: await hash(input.newPassword, 12),
+            mustChangePassword: false,
+          },
+        },
+        { returnDocument: 'after' },
+      )
+      .lean<PublicUserLean | null>()
+      .exec();
+
+    if (
+      !updatedUser ||
+      updatedUser.status !== 'active' ||
+      updatedUser.isActive === false
+    ) {
+      throw new UnauthorizedException();
+    }
+
+    return this.toPublicUser(updatedUser);
   }
 
   async findById(id: string): Promise<PublicUser | null> {

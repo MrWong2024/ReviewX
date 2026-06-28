@@ -148,6 +148,12 @@ export function AdminShell({ children }: AdminShellProps) {
             <Badge tone="primary">{ROLE_LABELS.admin}</Badge>
             <Link
               className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-200 bg-white/[0.85] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
+              href="/account/change-password"
+            >
+              修改密码
+            </Link>
+            <Link
+              className="inline-flex min-h-8 items-center justify-center rounded-md border border-slate-200 bg-white/[0.85] px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50/70 hover:text-slate-950"
               href="/workspace"
             >
               返回工作台

@@ -43,7 +43,20 @@ npm run build
 - `/workspace` 根据 `/auth/me` 返回的 `roles` 展示可进入工作台。
 - 单角色用户只进入对应工作台，多角色用户可切换进入多个工作台。
 - admin、project-owner、expert、review-manager、client 入口均可用。
+- `/workspace` 和 admin / project-owner / expert / review-manager / client Shell 顶部均可进入“修改密码”。
 - 非对应角色访问对应工作台显示无权限态，不应加载业务数据。
+
+## 4.1 自助修改密码
+
+- `/account/change-password` 未登录访问应跳转 `/login`。
+- 任意已登录角色均可访问 `/account/change-password`，不要求具体业务角色。
+- 当前密码、新密码、确认新密码均必填；新密码至少 8 位；两次新密码必须一致；新密码不能与当前密码相同。
+- 当前密码错误时展示后端 message，不展示堆栈、ObjectId、token、Cookie 或其它技术细节。
+- 修改成功后显示“密码已修改，请使用新密码妥善保管账号。”，清空三个密码输入，并刷新当前用户状态。
+- 修改成功后不自动退出登录，当前页面或 `/auth/me` 仍应保持登录态。
+- 退出登录后旧密码不可登录，新密码可登录。
+- `/auth/me` 和改密成功响应不包含 `passwordHash`、token、sessionToken、Cookie 或 secret。
+- 密码输入必须使用 `type=password`；不得把密码写入 storage、URL 或 console。
 
 ## 5. Admin 验证口径
 
@@ -150,7 +163,7 @@ npm run build
 - AI 辅助生成合议草稿已接入；AI 配置管理页面、调用日志、流式输出、多模型管理和材料全文入 prompt 暂缓。
 - 文件预览 / 在线转换暂缓。
 - 审计日志暂缓。
-- 批量导入增强、权限矩阵配置、自助改密 / 短信验证码暂缓。
+- 批量导入增强、权限矩阵配置、忘记密码 / 短信验证码暂缓；自助改密已完成，不再作为暂缓项。
 
 ## 12. 何时需要扩展验证
 
@@ -159,4 +172,4 @@ npm run build
 - 修改评分、退回、合议草稿、合议确认或 confirmed 只读状态时，扩展 expert 和 review-manager 验证。
 - 修改申诉、等级历史、最终等级计算或附件留痕时，扩展 project-owner、review-manager 和 admin 申诉验证。
 - 修改 client 看板 overview、projects、筛选、分页或枚举展示时，扩展甲方看板验证。
-- 接入腾讯会议、AI 配置管理 / 调用日志 / 流式输出、文件预览 / 在线转换、审计日志、批量导入增强、权限矩阵或自助改密能力时，先更新本手册再执行对应专项验证。
+- 接入腾讯会议、AI 配置管理 / 调用日志 / 流式输出、文件预览 / 在线转换、审计日志、批量导入增强、权限矩阵、忘记密码或短信验证码能力时，先更新本手册再执行对应专项验证。

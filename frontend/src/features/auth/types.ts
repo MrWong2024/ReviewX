@@ -28,6 +28,12 @@ export type LoginInput = {
   phone: string;
 };
 
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: '管理员',
   client: '甲方',

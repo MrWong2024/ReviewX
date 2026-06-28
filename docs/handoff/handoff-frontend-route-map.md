@@ -7,6 +7,7 @@
 | `/` | `frontend/app/page.tsx` | 无 | implemented | 直接跳转 `/workspace` |
 | `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 品牌化登录页，手机号 + 密码登录 |
 | `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin、client、project_owner、expert 和 review_manager 可进入真实工作台，client 点击进入 `/client` |
+| `/account/change-password` | `frontend/app/account/change-password/page.tsx` | 需要登录；不要求具体角色 | implemented | 当前用户自助修改本人登录密码；校验当前密码、新密码确认一致和新旧密码不同；成功后不退出登录并返回工作台入口 |
 | `/client` | `frontend/app/client/page.tsx` | 需要登录 + client 角色 | implemented | 甲方监管看板基础版，真实调用 `/client/dashboard/overview` 与 `/client/dashboard/projects`；展示统计、分布、项目钻取、筛选、分页和 `meetingUrl` 外链入口 |
 | `/admin` | `frontend/app/admin/page.tsx` | 需要登录 + admin 角色 | implemented | 管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织 |
 | `/admin/users` | `frontend/app/admin/users/page.tsx` | 需要登录 + admin 角色 | implemented | 用户管理，支持列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码 |
@@ -43,7 +44,7 @@
 
 - layout 文件：`frontend/app/admin/layout.tsx`
 - 壳组件：`frontend/src/components/layout/AdminShell.tsx`
-- 顶部栏显示平台名、当前用户、当前角色 Badge 和退出登录
+- 顶部栏显示平台名、当前用户、当前角色 Badge、修改密码、返回工作台和退出登录
 - 侧边栏提供管理员功能菜单，包含用户管理、项目导入和字段映射入口，采用深海军蓝 / 靛蓝渐变、轻科技纹理、胶囊选中态
 - 守卫为 client component 守卫：
   - 未登录访问 `/admin/*`：跳转 `/login`
@@ -52,7 +53,7 @@
 ## 3. 项目负责人 layout
 
 - 壳组件：`frontend/src/components/layout/ProjectOwnerShell.tsx`
-- 顶部栏显示平台名、当前用户、项目负责人角色 Badge、返回工作台和退出登录
+- 顶部栏显示平台名、当前用户、项目负责人角色 Badge、修改密码、返回工作台和退出登录
 - 侧边栏提供“概览”和“我的项目”入口，视觉基线与 AdminShell 保持同一产品气质，但不复用管理员导航
 - 守卫为 client component 守卫：
   - 未登录访问 `/project-owner/*`：跳转 `/login`
@@ -61,7 +62,7 @@
 ## 4. 专家 layout
 
 - 壳组件：`frontend/src/components/layout/ExpertShell.tsx`
-- 顶部栏显示平台名、当前用户、专家角色 Badge、返回工作台和退出登录
+- 顶部栏显示平台名、当前用户、专家角色 Badge、修改密码、返回工作台和退出登录
 - 侧边栏提供“工作台首页”和“我的评审任务”入口，视觉基线与 AdminShell / ProjectOwnerShell 保持同一产品气质，但不复用管理员或项目负责人导航
 - 守卫为 client component 守卫：
   - 未登录访问 `/expert/*`：跳转 `/login`
@@ -70,7 +71,7 @@
 ## 5. 评审负责人 layout
 
 - 壳组件：`frontend/src/components/layout/ReviewManagerShell.tsx`
-- 顶部栏显示平台名、当前用户、评审负责人角色 Badge、返回工作台和退出登录
+- 顶部栏显示平台名、当前用户、评审负责人角色 Badge、修改密码、返回工作台和退出登录
 - 侧边栏提供“评审负责人首页”“负责项目”入口；“返回工作台”仅保留在顶部右侧，视觉基线与 AdminShell / ProjectOwnerShell / ExpertShell 保持同一产品气质，但不复用其他角色导航
 - 守卫为 client component 守卫：
   - 未登录访问 `/review-manager/*`：跳转 `/login`
@@ -79,7 +80,7 @@
 ## 6. 甲方 layout
 
 - 壳组件：`frontend/src/components/layout/ClientShell.tsx`
-- 顶部栏显示平台名、当前用户、甲方角色 Badge、返回工作台和退出登录
+- 顶部栏显示平台名、当前用户、甲方角色 Badge、修改密码、返回工作台和退出登录
 - 侧边栏只提供“监管看板”入口，视觉基线与 AdminShell / ProjectOwnerShell / ExpertShell / ReviewManagerShell 保持同一产品气质，但不复用其他角色导航
 - 守卫为 client component 守卫：
   - 未登录访问 `/client`：跳转 `/login`
@@ -87,6 +88,6 @@
 
 ## 7. 当前不包含的路由
 
-- 不包含用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置
+- 不包含忘记密码、短信验证码、用户批量导入、权限矩阵配置
 - 不包含跨项目申诉总看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面；当前甲方看板只展示 `meetingUrl` 外链
 - 不包含文件预览、材料恢复或删除日志查询页面；管理员项目材料查看 / 下载 / 带原因删除已接入项目评审组织详情页，项目负责人材料上传草稿、提交评审、下载和 draft/legacy active 物理删除闭环已通过 portal `material_type` 启用

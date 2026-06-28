@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res,
@@ -16,6 +17,7 @@ import type { RequestWithUser } from '../../common/types/request-with-user.type'
 import type { PublicUser } from '../users/types/public-user.type';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
@@ -76,6 +78,19 @@ export class AuthController {
     }
 
     return currentUser.user;
+  }
+
+  @UseGuards(SessionAuthGuard)
+  @Patch('me/password')
+  async changeOwnPassword(
+    @CurrentUser() currentUser: AuthenticatedUser | undefined,
+    @Body() dto: ChangeOwnPasswordDto,
+  ): Promise<PublicUser> {
+    if (!currentUser) {
+      throw new UnauthorizedException();
+    }
+
+    return this.authService.changeOwnPassword(currentUser.user.id, dto);
   }
 
   private getSessionCookieName(): string {
