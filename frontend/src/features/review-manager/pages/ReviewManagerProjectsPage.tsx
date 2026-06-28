@@ -42,6 +42,8 @@ const EMPTY_FILTERS: ProjectFilters = {
 };
 
 const PAGE_SIZE = 20;
+const PROJECT_ACTION_LINK_CLASS_NAME =
+  'inline-flex min-h-7 items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50 hover:text-slate-950';
 
 export function ReviewManagerProjectsPage() {
   const [error, setError] = useState<string | null>(null);
@@ -215,19 +217,19 @@ export function ReviewManagerProjectsPage() {
       render: (item) => (
         <div className="flex flex-wrap gap-2">
           <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:border-cyan-200 hover:bg-cyan-50"
+            className={PROJECT_ACTION_LINK_CLASS_NAME}
             href={`/review-manager/projects/${item.id}`}
           >
             项目总览
           </Link>
           <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+            className={PROJECT_ACTION_LINK_CLASS_NAME}
             href={`/review-manager/projects/${item.id}/review-organization`}
           >
             评审组织
           </Link>
           <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            className={PROJECT_ACTION_LINK_CLASS_NAME}
             href={`/review-manager/projects/${item.id}/consensus`}
           >
             合议处理

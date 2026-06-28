@@ -35,6 +35,9 @@ type ReviewManagerProjectOverviewPageProps = {
   projectId: string;
 };
 
+const WORKSPACE_ENTRY_LINK_CLASS_NAME =
+  'mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-cyan-200 hover:bg-cyan-50 hover:text-slate-950';
+
 export function ReviewManagerProjectOverviewPage({
   projectId,
 }: ReviewManagerProjectOverviewPageProps) {
@@ -308,7 +311,7 @@ function WorkspaceEntry({
           {description}
         </p>
         <Link
-          className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg bg-gradient-to-r from-indigo-600 to-cyan-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:text-white hover:shadow-md focus-visible:text-white active:text-white"
+          className={WORKSPACE_ENTRY_LINK_CLASS_NAME}
           href={href}
         >
           {label}
