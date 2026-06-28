@@ -227,7 +227,7 @@ export function formatConsensusDraftSource(source: string): string {
     case 'ai':
       return 'AI 生成';
     default:
-      return source || '-';
+      return source ? '未知来源' : '-';
   }
 }
 

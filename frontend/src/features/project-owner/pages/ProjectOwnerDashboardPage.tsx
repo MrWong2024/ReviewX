@@ -104,7 +104,7 @@ export function ProjectOwnerDashboardPage() {
                     最近项目
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    按后端默认排序展示第一页项目，精确筛选和分页请进入“我的项目”。
+                    按默认顺序展示第一页项目，精确筛选和分页请进入“我的项目”。
                   </p>
                 </div>
                 <Badge tone="primary">{items.length} 个项目</Badge>

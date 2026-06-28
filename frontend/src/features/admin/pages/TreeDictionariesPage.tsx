@@ -337,7 +337,7 @@ export function TreeDictionariesPage() {
                   编码：
                   <span className="code">{displayValue(item.code)}</span>
                 </span>
-                <span>排序：{item.sortOrder}</span>
+                <span>显示顺序：{item.sortOrder}</span>
                 {item.fullName ? <span>全称：{item.fullName}</span> : null}
               </div>
             )}
@@ -441,7 +441,7 @@ export function TreeDictionariesPage() {
           </div>
           <Input
             id="tree-sort"
-            label="排序"
+            label="显示顺序"
             min="0"
             onChange={(event) =>
               setForm({ ...form, sortOrder: event.target.value })

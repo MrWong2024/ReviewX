@@ -37,7 +37,7 @@ export function ReviewManagerHomePage() {
         />
         <WorkspaceHintCard
           label="合议确认"
-          text="生成 rule_based 草稿，人工确认最终意见、分数和等级。"
+          text="根据已提交的专家评分生成合议草稿，最终意见、分数和等级由评审负责人确认。"
         />
       </section>
 

@@ -55,8 +55,7 @@ export function ExpertReviewItemEditor({
             {index + 1}. {item.itemSnapshot.name}
           </div>
           <div className="mt-1 text-xs font-semibold text-slate-500">
-            满分 {formatScore(item.itemSnapshot.maxScore)} 分 · 排序{' '}
-            {item.itemSnapshot.sortOrder}
+            满分 {formatScore(item.itemSnapshot.maxScore)} 分
           </div>
         </div>
         <label className="inline-flex min-h-8 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700">

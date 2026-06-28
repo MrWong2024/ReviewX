@@ -359,7 +359,7 @@ export function ReviewSchemesPage() {
                   <div className="grid-2">
                     <Input
                       id={`score-sort-${index}`}
-                      label="排序"
+                      label="显示顺序"
                       min="0"
                       onChange={(event) =>
                         updateItem(index, { sortOrder: event.target.value })

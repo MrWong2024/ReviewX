@@ -81,7 +81,7 @@ export function LoginPage() {
             <div className="eyebrow">安全登录</div>
             <h2 className="m-0 text-2xl font-black text-slate-950">进入平台</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              使用手机号和密码登录，系统通过 HttpOnly Cookie 保持会话。
+              使用手机号和密码登录，进入后可根据账号角色访问对应工作台。
             </p>
           </div>
           <ErrorAlert message={error} />

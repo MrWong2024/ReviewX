@@ -178,7 +178,7 @@ export function DictionariesPage() {
       render: (item) => dictionaryTypeLabel(item.dictType),
       title: '字典类型',
     },
-    { key: 'sortOrder', render: (item) => item.sortOrder, title: '排序' },
+    { key: 'sortOrder', render: (item) => item.sortOrder, title: '显示顺序' },
     {
       key: 'isActive',
       render: (item) => (
@@ -311,7 +311,7 @@ export function DictionariesPage() {
           </div>
           <Input
             id="dictionary-sort"
-            label="排序"
+            label="显示顺序"
             min="0"
             onChange={(event) =>
               setForm({ ...form, sortOrder: event.target.value })
