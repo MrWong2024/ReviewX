@@ -8,6 +8,7 @@
 | `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、返回工作台和退出登录 |
 | `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、返回工作台和退出登录 |
 | `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、侧边栏、review_manager 前端守卫和退出登录；侧边栏只保留评审负责人首页/负责项目，返回工作台仅保留在顶部右侧 |
+| `ClientShell` | `frontend/src/components/layout/ClientShell.tsx` | 甲方监管看板壳、顶部栏、侧边栏、client 前端守卫、返回工作台和退出登录；侧边栏只保留 `/client` 监管看板 |
 
 ## 2. UI 组件
 
@@ -41,7 +42,12 @@
 | --- | --- | --- |
 | `AuthProvider` | `frontend/src/features/auth/AuthProvider.tsx` | 当前用户状态、登录、登出、刷新会话 |
 | `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页 |
-| `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页 |
+| `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页；admin、client、project_owner、expert、review_manager 已开通角色可进入对应工作台，client 指向 `/client` |
+| `ClientDashboardPage` | `frontend/src/features/client/pages/ClientDashboardPage.tsx` | 甲方监管看板主页面，并发加载 overview、projects 和 portal reference-data；筛选提交重算 overview/projects，分页只重拉 projects，reference-data 失败降级 warning |
+| `ClientDashboardFilters` | `frontend/src/features/client/components/ClientDashboardFilters.tsx` | 甲方看板筛选区，支持 keyword、批次、项目类型、状态、受理处室、学科、评审负责人、评审方案、最终等级、命中进度阶段、会议入口和 pending 申诉 |
+| `ClientDashboardMetricCards` | `frontend/src/features/client/components/ClientDashboardMetricCards.tsx` | 甲方看板统计卡片，展示项目总览、资金拨付、专家提交率和申诉统计 |
+| `ClientDashboardBreakdowns` | `frontend/src/features/client/components/ClientDashboardBreakdowns.tsx` | 甲方看板轻量 CSS 条形图分布，展示最终等级、进度阶段、项目类型、状态、受理处室和批次 |
+| `ClientDashboardProjectTable` | `frontend/src/features/client/components/ClientDashboardProjectTable.tsx` | 甲方项目钻取列表，展示项目基础信息、主阶段、有效最终等级、专家/材料/申诉统计、评审现场 `meetingUrl` 外链和 details 行内摘要 |
 | `BatchesPage` | `frontend/src/features/admin/pages/BatchesPage.tsx` | 批次管理 |
 | `DictionariesPage` | `frontend/src/features/admin/pages/DictionariesPage.tsx` | 普通字典管理，字典类型固定为项目状态 / 材料类型 / 评审等级，默认加载项目状态，新增跟随当前类型，编辑不可修改 dictType |
 | `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；新增 / 编辑弹窗父节点下拉默认仅列一级节点，可勾选显示全部层级，空父节点文案明确为作为一级节点，父节点 option 使用统一 `treeOptionLabel` 缩进；列表行内展示编码、排序和全称，不重复显示树类型 |
@@ -138,6 +144,9 @@
 | review-manager API | `frontend/src/features/review-manager/api.ts` | 评审负责人项目列表、项目摘要适配、评审安排、submitted 材料列表 / 下载 URL、专家分配、专家评分列表 / 详情 / 退回、评分汇总、合议草稿 / 确认，以及 `/portal/reference-data/*` 只读数据 API 封装；`GET /consensus` 404 转 `null` |
 | review-manager types | `frontend/src/features/review-manager/types.ts` | 评审负责人项目、评审安排 payload、材料、专家分配、专家评分、评分方案快照、评分汇总、合议记录、确认 payload、portal reference-data 摘要和 lookup map 类型；确认 payload 不含 `useDraftAsBase` |
 | review-manager utils | `frontend/src/features/review-manager/utils.ts` | 专家评分状态文案、退回 / 确认长度限制、score 格式化和解析、review_level 兜底、lookup map 构造、合议冲突识别和错误文案映射；识别 `CONSENSUS_ALREADY_CONFIRMED` 用于 confirmed 合议只读回退 |
+| client API | `frontend/src/features/client/api.ts` | 甲方看板 overview / projects 只读 API 封装，以及本角色局部 `/portal/reference-data/*` 名称映射聚合；不查询 admin 用户 |
+| client types | `frontend/src/features/client/types.ts` | 甲方看板过滤、overview、项目钻取、进度阶段、有效最终等级来源、portal reference-data 和 lookup map 类型；日期字段按 string/null 建模 |
+| client utils | `frontend/src/features/client/utils.ts` | 甲方看板日期、万元、百分比、短 ID、名称映射、人员兜底、进度阶段、等级来源、合议和申诉状态展示辅助 |
 | expert assignment lock helper | `frontend/src/lib/project-review/expert-assignment-lock.ts` | admin 与 review-manager 共用的专家名单锁定原因计算、文案格式化和 `EXPERT_ASSIGNMENT_LOCKED` 错误识别工具 |
 | project appeals types | `frontend/src/lib/project-appeals/types.ts` | 三端申诉前端共享类型，覆盖申诉、申诉详情、附件、等级变更历史、创建 / 上传 / 处理输入和下载 URL 响应；`ProjectLevelChangeLog` 支持 `changedByUser?: UserSummary | null` |
 | project appeals utils | `frontend/src/lib/project-appeals/utils.ts` | 申诉状态、处理权限、附件变更权限、等级展示、下载 URL 解析、错误文案、附件文件校验和 review_level 兜底工具 |

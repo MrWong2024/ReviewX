@@ -203,9 +203,27 @@
 - `/review-manager/projects/[projectId]/appeals` 和 `/review-manager/projects/[projectId]/appeals/[appealId]` 只调用 review-manager 命名空间的申诉接口；不调用 admin 或 project_owner 申诉接口。
 - 评审负责人当前无 `GET /review-manager/projects/:projectId/level-history`，前端不得伪造或调用该接口；等级变更历史只在 project-owner 和 admin 侧读取。
 - 评审负责人申诉处理支持 accepted / rejected；accepted 需提交 active `review_level.code`，rejected 不提交 `newFinalLevel`。
-- 本阶段不接入甲方看板、腾讯会议、文件预览、材料上传 / 删除或真实 AI。
+- 评审负责人页面不接入腾讯会议、文件预览、材料上传 / 删除或真实 AI，也不混入甲方看板能力。
 
-## 3.4 Admin Project Appeals API
+## 3.4 Client API
+
+文件：`frontend/src/features/client/api.ts`
+
+| 前端函数 | 后端接口 | 返回 / 请求口径 | 页面 |
+| --- | --- | --- | --- |
+| `listClientDashboardOverview` | `GET /client/dashboard/overview` | 真实接入后端甲方看板总览；支持 `batchId/projectTypeId/statusId/departmentId/disciplineId/reviewManagerId/reviewSchemeId/finalLevel/progressStage/hasMeetingUrl/hasPendingAppeal/keyword`；返回 `generatedAt/filters/projectTotals/funding/expertReviewTotals/appealTotals/breakdowns` | `/client` |
+| `listClientDashboardProjects` | `GET /client/dashboard/projects` | 真实接入后端甲方项目钻取分页；继承 overview 过滤条件并额外传 `page/pageSize`；返回 `PaginatedResponse<ClientDashboardProjectItem>`，前端不调用额外项目详情接口 | `/client` |
+| `loadClientReferenceData` | `GET /portal/reference-data/*` | 读取 `dictionaries?dictTypes=project_status,review_level`、`tree-dictionaries?treeTypes=project_type,discipline,department,administrative_division`、batches、organizations、review-schemes、`users?role=review_manager`、`users?role=project_owner`；不查询 admin 用户；加载失败只提示 warning，不阻断 dashboard 主体展示 | `/client` |
+
+甲方看板页面口径：
+
+- `/client` 只调用 client 命名空间的 dashboard 只读 API，不调用 admin / review-manager / expert / project-owner 业务接口。
+- progressStage 筛选表示项目命中过该阶段，前端文案为“命中进度阶段”，不误导为仅等于 `primaryStage`。
+- 项目列表只展示后端 list item 已返回的 `stages/consensus/latestAppeal/metrics/funding` 等摘要，不调用或伪造 client 项目详情接口。
+- 名称映射优先使用 portal reference-data：批次、项目类型、学科、受理处室、项目状态、单位、评审方案、评审负责人、项目负责人和评审等级；人员未命中时显示“人员信息暂不可用”，不展示用户 ObjectId 或短 ID。
+- `meetingUrl` 存在时显示“进入会议 / 直播”外链；当前不接腾讯会议 API、直播、推流、回看或会议状态同步。
+
+## 3.5 Admin Project Appeals API
 
 文件：`frontend/src/features/admin/api/project-appeals.ts`
 
@@ -257,6 +275,7 @@
 - 专家候选和分配不在前端自行实现学科匹配、单位回避或已评分专家替换判断；页面只展示后端返回候选、assigned 标记、`hasReviewRecord/reviewStatus` 和失败原因
 - 已分配专家评分状态展示为：`draft=草稿`、`submitted=已提交`、`returned=已退回`、空值=未开始；`hasReviewRecord=true` 时项目专家名单进入锁定态，追加 / 替换 / 移除均禁用
 - 评审安排只保存 `reviewTime/reviewLocation/meetingUrl`，不接腾讯会议 API、直播、推流或回看
+- 甲方看板通过 `/client/dashboard/*` 读取只读统计和项目钻取列表；`meetingUrl` 仅作为外链展示，不探测腾讯会议状态，不接直播 / 推流 / 回看
 - 管理员项目材料查看、下载和删除只调用 `/admin/projects/:id/materials`、`/admin/projects/:id/materials/:materialId/download-url`、`DELETE /admin/projects/:id/materials/:materialId`；删除必须提交 `reason`，不调用 project_owner / review_manager / expert 材料接口，不调用 `/admin/users` 只为补上传人名称。
 - 管理员材料删除成功后刷新列表；`400` reason 问题、`403` 权限、`404` 已删除和 `500`/storage 删除失败均在材料卡片或删除弹窗内展示，不在成功前从列表乐观移除。
 - 项目负责人列表和详情通过 `/portal/reference-data/*` 构造批次、普通字典、材料类型、树形字典、单位、评审方案和评审负责人名称映射；项目详情评审负责人显示优先级为 `project.reviewManager?.name`、`lookupMaps.userNameById.get(project.reviewManagerId)`、有 `reviewManagerId` 时“评审负责人信息暂不可用”、无 `reviewManagerId` 时“暂未设置评审负责人”，不再显示“未知评审负责人（短ID）”；其他基础数据未命中时仍可显示“未知项（短ID）”类兜底，不默认展示裸 ID

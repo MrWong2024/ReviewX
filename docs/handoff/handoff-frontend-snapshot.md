@@ -36,6 +36,7 @@
 frontend/
 ├─ app/
 │  ├─ admin/
+│  ├─ client/
 │  ├─ expert/
 │  ├─ login/
 │  ├─ project-owner/
@@ -46,7 +47,7 @@ frontend/
 │  └─ page.tsx
 ├─ src/
 │  ├─ components/        # layout、ui、feedback、project-appeals 等共享组件
-│  ├─ features/          # admin、auth、expert、project-owner、review-manager 领域实现
+│  ├─ features/          # admin、auth、client、expert、project-owner、review-manager 领域实现
 │  ├─ lib/               # api client、format、labels、tree、project-review、project-appeals 等工具
 │  └─ styles/
 ├─ .env.local.example
@@ -57,7 +58,7 @@ frontend/
 ```
 
 - `app/*` route 文件保持薄封装，业务页面主要沉淀在 `src/features/*`。
-- admin、project-owner、expert、review-manager 使用独立 Shell 和独立路由命名空间，不混写导航或权限。
+- admin、client、project-owner、expert、review-manager 使用独立 Shell 和独立路由命名空间，不混写导航或权限。
 - 逐路由页面文件、权限和说明见 `handoff-frontend-route-map.md`。
 
 ## 5. 认证与会话协作
@@ -77,7 +78,7 @@ frontend/
 ### 6.1 公共工作台 / 登录态
 
 - `/login`、`/workspace`、AuthProvider、统一 API Client、结构化 `ApiError`、退出登录和多角色入口已完成。
-- `/workspace` 当前放开 admin、project_owner、expert 和 review_manager；client 仍显示“后续建设”，甲方看板前端未实现。
+- `/workspace` 当前放开 admin、client、project_owner、expert 和 review_manager；client 已进入 `/client` 甲方监管看板。
 
 ### 6.2 管理员端
 
@@ -108,9 +109,16 @@ frontend/
 - 合议页 confirmed 状态只读展示最终结论，不显示确认表单、“使用草稿填入”或“重新确认最终结论”；旧状态或并发导致 confirm 返回 `CONSENSUS_ALREADY_CONFIRMED` 时展示后端业务 message 并重新拉取 consensus。
 - 合议页“确认人”显示优先使用后端 `confirmedByUser.name` 摘要，有手机号时显示“姓名（手机号）”；若只有 `confirmedByUserId` 但摘要不可用，显示“确认人信息暂不可用”；无 `confirmedByUserId` 显示“-”；业务页面不再显示确认人短 ObjectId。
 
+### 6.6 甲方端
+
+- 已接入 `ClientShell` 和 `/client` 甲方监管看板基础版。
+- `/client` 只允许 `client` 角色访问；未登录跳 `/login`，无 `client` 角色显示 403，导航只包含“监管看板”。
+- 看板真实调用 `GET /client/dashboard/overview` 和 `GET /client/dashboard/projects`，展示总览统计、资金拨付、专家提交率、申诉统计、项目类型 / 状态 / 等级 / 进度阶段 / 受理处室 / 批次分布、项目钻取列表、筛选和分页。
+- 名称映射复用 `/portal/reference-data/*` 读取批次、普通字典、树形字典、单位、评审方案、评审负责人和项目负责人；reference-data 加载失败时只提示 warning，主体 API 成功时继续用兜底名称展示。
+- 评审现场当前仅展示项目 `meetingUrl` 外链入口“进入会议 / 直播”，不接腾讯会议 API、直播、推流、回看或会议状态同步。
+
 ## 7. 当前未实现
 
-- 甲方看板前端尚未实现；对应后端统计 API 也仍未实现。
 - 腾讯会议直播、回看、推流或 API 集成未实现。
 - 真实 AI 接入、文件预览、复杂图表、E2E 自动化测试、Storybook、Docker/Nginx 部署配置和移动端专项适配未实现。
 - 用户自助改密、忘记密码 / 短信验证码、用户批量导入、专家库批量导入和权限矩阵配置未实现。
@@ -132,6 +140,7 @@ frontend/
 - 合议响应类型兼容 `confirmedByUser?: { id, name, phone? } | null`；等级历史响应兼容 `changedByUser?: { id, name, phone? } | null`；项目负责人评审结果页不得显示 `confirmedByUserId`、`changedByUserId`、操作人短 ID 或关联申诉短 ID。
 - confirmed 合议不可在评审负责人合议页重新覆盖；后续最终等级调整走申诉处理或未来专门更正流程，不在前端新增更正入口。
 - 评审安排仅保存 `reviewTime/reviewLocation/meetingUrl`，当前不接腾讯会议 API、直播、推流或回看。
+- 甲方看板的评审现场入口同样只展示后端返回的 `meetingUrl` 外链，不做腾讯会议状态探测、直播、推流或回看。
 - 项目材料和申诉附件文件名展示继续使用后端返回的 `originalFilename`；中文文件名 mojibake 修复由后端上传入口统一归一化，前端不使用 `Buffer`、`decodeURIComponent`、`escape/unescape` 或其他编码猜测兜底。
 - 文件下载只打开后端 `download-url` 返回 URL，不前端拼接 OSS objectKey。
 

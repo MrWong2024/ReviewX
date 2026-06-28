@@ -6,7 +6,8 @@
 | --- | --- | --- | --- | --- |
 | `/` | `frontend/app/page.tsx` | 无 | implemented | 直接跳转 `/workspace` |
 | `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 品牌化登录页，手机号 + 密码登录 |
-| `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin、project_owner、expert 和 review_manager 可进入真实工作台，client 仍显示后续建设 |
+| `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin、client、project_owner、expert 和 review_manager 可进入真实工作台，client 点击进入 `/client` |
+| `/client` | `frontend/app/client/page.tsx` | 需要登录 + client 角色 | implemented | 甲方监管看板基础版，真实调用 `/client/dashboard/overview` 与 `/client/dashboard/projects`；展示统计、分布、项目钻取、筛选、分页和 `meetingUrl` 外链入口 |
 | `/admin` | `frontend/app/admin/page.tsx` | 需要登录 + admin 角色 | implemented | 管理员后台概览，按主数据维护 / 项目评审组织 / 监管闭环组织 |
 | `/admin/users` | `frontend/app/admin/users/page.tsx` | 需要登录 + admin 角色 | implemented | 用户管理，支持列表、搜索、角色/状态筛选、分页、新增、编辑、启停和重置密码 |
 | `/admin/batches` | `frontend/app/admin/batches/page.tsx` | 需要登录 + admin 角色 | implemented | 批次管理 |
@@ -75,8 +76,17 @@
   - 未登录访问 `/review-manager/*`：跳转 `/login`
   - 已登录但无 review_manager 角色：显示 403 状态并提供返回工作台入口
 
-## 6. 当前不包含的路由
+## 6. 甲方 layout
+
+- 壳组件：`frontend/src/components/layout/ClientShell.tsx`
+- 顶部栏显示平台名、当前用户、甲方角色 Badge、返回工作台和退出登录
+- 侧边栏只提供“监管看板”入口，视觉基线与 AdminShell / ProjectOwnerShell / ExpertShell / ReviewManagerShell 保持同一产品气质，但不复用其他角色导航
+- 守卫为 client component 守卫：
+  - 未登录访问 `/client`：跳转 `/login`
+  - 已登录但无 client 角色：显示 403 状态并提供返回工作台入口
+
+## 7. 当前不包含的路由
 
 - 不包含用户自助改密、忘记密码、短信验证码、用户批量导入、权限矩阵配置
-- 不包含跨项目申诉总看板、甲方看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面
+- 不包含跨项目申诉总看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面；当前甲方看板只展示 `meetingUrl` 外链
 - 不包含文件预览、材料恢复或删除日志查询页面；管理员项目材料查看 / 下载 / 带原因删除已接入项目评审组织详情页，项目负责人材料上传草稿、提交评审、下载和 draft/legacy active 物理删除闭环已通过 portal `material_type` 启用

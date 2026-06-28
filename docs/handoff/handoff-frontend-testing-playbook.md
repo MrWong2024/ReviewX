@@ -251,6 +251,14 @@ npm run build
 
 注意：项目负责人申诉只调用 `/project-owner/projects/:id/appeals*`，评审负责人申诉只调用 `/review-manager/projects/:id/appeals*`，管理员申诉只调用 `/admin/projects/:id/appeals*`；评审负责人侧不调用不存在的 `level-history`，申诉附件下载只打开后端 `download-url` 返回 URL。
 
+本次 ReviewX 前端第九阶段：甲方看板基础版已执行并通过：
+
+- frontend `npm run typecheck`：通过
+- frontend `npm run lint`：通过
+- frontend `npm run build`：通过；构建路由包含 `/client`
+
+注意：甲方看板只调用 `/client/dashboard/overview`、`/client/dashboard/projects` 和 `/portal/reference-data/*`；当前仅展示 `meetingUrl` 外链入口，不接腾讯会议 API、直播、推流或回看。
+
 本次 ReviewX 小修：AdminShell 增加返回工作台入口已执行并通过：
 
 - `npm run lint`
@@ -322,15 +330,16 @@ npm run build
 
 1. admin、client、review_manager、expert、project_owner 角色卡片均显示中文
 2. 点击管理员入口进入 `/admin`
-3. 点击项目负责人入口进入 `/project-owner`
-4. 点击专家入口进入 `/expert`
-5. 点击评审负责人入口进入 `/review-manager`
-6. 已开通但未实现角色卡片显示“后续建设”（当前主要为 client）
+3. 点击甲方入口进入 `/client`
+4. 点击项目负责人入口进入 `/project-owner`
+5. 点击专家入口进入 `/expert`
+6. 点击评审负责人入口进入 `/review-manager`
 7. 未开通角色显示“未开通”
 8. 无 admin 角色访问 `/admin` 应显示 403 状态或回工作台
-9. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
-10. 无 expert 角色访问 `/expert` 应显示 403 状态或回工作台
-11. 无 review_manager 角色访问 `/review-manager` 应显示 403 状态或回工作台
+9. 无 client 角色访问 `/client` 应显示 403 状态或回工作台
+10. 无 project_owner 角色访问 `/project-owner` 应显示 403 状态或回工作台
+11. 无 expert 角色访问 `/expert` 应显示 403 状态或回工作台
+12. 无 review_manager 角色访问 `/review-manager` 应显示 403 状态或回工作台
 
 ## 5. 管理员后台人工验证
 
@@ -538,7 +547,7 @@ Workspace 入口：
 4. 点击进入 `/project-owner`
 5. admin 入口仍只对 admin 可进入
 6. expert 入口单独显示“进入专家工作台”
-7. client、review_manager 仍显示“后续建设”
+7. client 入口显示“进入甲方监管看板”，review_manager 入口按评审负责人工作台既有逻辑可进入
 
 项目列表：
 
@@ -766,7 +775,7 @@ submitted 和 returned：
 
 1. 评审负责人合议已在 `/review-manager` 接入，专家端仍不调用 review_manager 接口
 2. 不实现 admin 查看专家评分前端
-3. 不实现 AI 合议、甲方看板、腾讯会议 API 或文件预览
+3. 专家端不实现 AI 合议，不混入甲方看板、腾讯会议 API 或文件预览
 4. admin 项目材料查看 / 删除仍正常
 5. project_owner 材料上传 / 提交 / 删除草稿仍正常
 
@@ -982,6 +991,48 @@ Workspace 和守卫：
 4. review_manager 只能处理自己负责项目的申诉
 5. admin 仍通过 admin 命名空间处理项目申诉
 
+## 10.2 甲方看板人工验证
+
+前提：
+
+1. 后端运行在 `http://localhost:5001`
+2. 前端运行在 `http://localhost:3001`
+3. 准备具备 `client` 角色的账号，以及不具备 `client` 角色的普通账号
+4. 系统中存在项目、批次、项目类型、项目状态、受理处室、学科、单位、评审负责人、评审方案、专家分配、专家评分、合议和申诉测试数据
+
+最小闭环：
+
+1. 使用 client 角色账号登录，进入 `/workspace`
+2. client 卡片显示“可进入”，动作文案为“进入甲方监管看板”
+3. 点击进入 `/client`
+4. Network 使用 `GET /client/dashboard/overview` 加载总览统计
+5. Network 使用 `GET /client/dashboard/projects` 加载项目钻取列表
+6. Network 使用 `/portal/reference-data/*` 读取名称映射，且不查询 admin 用户
+7. 页面显示项目总数、已安排评审、已分配专家、专家评分完成、合议已确认、已定等级、处理中申诉项目等总览卡片
+8. 页面显示拨款总额、已拨款、拨付率和专家提交率
+9. 页面显示申诉总数、待处理申诉、已通过申诉和等级调整申诉
+10. 页面使用轻量条形图展示最终等级、进度阶段、项目类型、项目状态、受理处室和批次分布，不引入 chart 库
+11. 项目钻取列表展示项目编号 / 名称、批次、类型、状态、承担单位、项目负责人、受理处室、评审负责人、评审方案、主阶段、有效最终等级、专家评分提交数、材料数、申诉数、评审时间、地点和会议入口
+12. 展开项目行内详情，能看到 stages、consensus、latestAppeal、资金、学科、合作单位、原始等级和更新时间等摘要；不应额外调用项目详情 API
+13. keyword 能筛选项目编号 / 项目名称
+14. batchId / projectTypeId / statusId / departmentId / disciplineId / reviewManagerId / reviewSchemeId / finalLevel / progressStage / hasMeetingUrl / hasPendingAppeal 筛选能触发 overview 和 projects 请求，并在筛选变化后回到第 1 页
+15. progressStage 筛选文案应体现“命中进度阶段”，不得误导为只等于 `primaryStage`
+16. 分页上一页 / 下一页只重新拉取 projects，不要求 overview 重算
+17. `meetingUrl` 存在时显示“进入会议 / 直播”外链，`target="_blank"` 且 `rel="noreferrer"`；不存在时显示“未配置”
+18. reference-data 加载失败时显示“基础数据名称加载失败，部分名称将以兜底形式展示”类 warning；overview/projects 成功时主体仍可展示 raw / fallback 名称
+19. 无符合条件项目时显示“暂无符合条件的项目”
+20. 后端停止、401、403、400、500 等错误态应显示友好错误，不应白屏
+21. 无 client 角色账号访问 `/client` 显示 403
+22. 未登录访问 `/client` 跳转 `/login`
+23. admin / review-manager / expert / project-owner 原有入口仍可进入，不受 client 入口影响
+
+边界：
+
+1. 甲方看板只读，不提供写操作
+2. 不调用 admin / review-manager / expert / project-owner 业务接口作为甲方能力
+3. 不接腾讯会议 API、直播、推流、回看或会议状态同步
+4. 不做文件预览、材料下载、申诉处理、专家评分详情查看、Excel / PDF 导出或真实 AI 汇总
+
 ## 11. 用户管理人工验证
 
 - `/admin/users` 可访问，侧边栏“用户管理”入口正常显示并可选中
@@ -1071,7 +1122,6 @@ Workspace 和守卫：
 - 短信验证码
 - 用户批量导入
 - 权限矩阵配置
-- 甲方看板
 - 腾讯会议直播 / 推流 / 回看 / API 集成
 - 真实 AI
 - 前端 E2E 自动化

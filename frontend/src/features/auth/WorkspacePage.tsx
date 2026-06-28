@@ -49,6 +49,11 @@ export function WorkspacePage() {
 
     if (role === 'review_manager') {
       router.push('/review-manager');
+      return;
+    }
+
+    if (role === 'client') {
+      router.push('/client');
     }
   }
 
@@ -81,6 +86,7 @@ export function WorkspacePage() {
           const enabled =
             assigned &&
             (role === 'admin' ||
+              role === 'client' ||
               role === 'project_owner' ||
               role === 'expert' ||
               role === 'review_manager');
@@ -91,7 +97,9 @@ export function WorkspacePage() {
                 ? '进入项目负责人工作台'
                 : role === 'review_manager'
                   ? '进入评审负责人工作台'
-                  : '进入管理员后台';
+                  : role === 'client'
+                    ? '进入甲方监管看板'
+                    : '进入管理员后台';
           const statusLabel = !assigned
             ? '未开通'
             : enabled
