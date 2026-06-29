@@ -25,6 +25,9 @@ type SeedData = {
   owner: TestUser;
   noRoleUser: TestUser;
   reviewManager: TestUser;
+  adminReviewManager: TestUser;
+  adminExpert: TestUser;
+  adminProjectOwner: TestUser;
   materialTypeId: string;
   projectStatusId: string;
   disciplineId: string;
@@ -199,20 +202,78 @@ describe('Portal reference data APIs (e2e)', () => {
       .query({ role: 'review_manager' })
       .set('Cookie', ownerCookie)
       .expect(200);
-    expect(getItems(usersResponse)).toEqual([
-      expect.objectContaining({
-        id: data.reviewManager.id,
-        name: '评审负责人',
-        phone: data.reviewManager.phone,
-        roles: ['review_manager'],
-      }),
-    ]);
-    expect(getItems(usersResponse)).not.toEqual(
+    const users = getItems(usersResponse);
+    expect(users).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: '管理员兼负责人' }),
+        expect.objectContaining({
+          id: data.reviewManager.id,
+          name: '评审负责人',
+          phone: data.reviewManager.phone,
+          roles: ['review_manager'],
+        }),
+        expect.objectContaining({
+          id: data.adminReviewManager.id,
+          name: '管理员兼负责人',
+          phone: data.adminReviewManager.phone,
+          roles: ['admin', 'review_manager'],
+        }),
       ]),
     );
+    expect(users).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: data.admin.id })]),
+    );
     expectResponseHasNoForbiddenFields(usersResponse.body);
+  });
+
+  it('returns admin users when they also have the requested business role', async () => {
+    const data = await seedData();
+    const ownerCookie = await login(data.owner.phone);
+
+    const reviewManagersResponse = await request(httpServer)
+      .get('/portal/reference-data/users')
+      .query({ role: 'review_manager' })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(getItems(reviewManagersResponse)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: data.reviewManager.id }),
+        expect.objectContaining({ id: data.adminReviewManager.id }),
+      ]),
+    );
+    expect(getItems(reviewManagersResponse)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: data.admin.id })]),
+    );
+    expectResponseHasNoForbiddenFields(reviewManagersResponse.body);
+
+    const expertsResponse = await request(httpServer)
+      .get('/portal/reference-data/users')
+      .query({ role: 'expert' })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(getItems(expertsResponse)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: data.adminExpert.id }),
+      ]),
+    );
+    expect(getItems(expertsResponse)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: data.admin.id })]),
+    );
+    expectResponseHasNoForbiddenFields(expertsResponse.body);
+
+    const projectOwnersResponse = await request(httpServer)
+      .get('/portal/reference-data/users')
+      .query({ role: 'project_owner' })
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    expect(getItems(projectOwnersResponse)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: data.adminProjectOwner.id }),
+      ]),
+    );
+    expect(getItems(projectOwnersResponse)).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: data.admin.id })]),
+    );
+    expectResponseHasNoForbiddenFields(projectOwnersResponse.body);
   });
 
   it('rejects unsafe user summary queries', async () => {
@@ -288,10 +349,20 @@ describe('Portal reference data APIs (e2e)', () => {
       ['review_manager'],
       '评审负责人',
     );
-    await createUser(
+    const adminReviewManager = await createUser(
       '+8613910000006',
       ['admin', 'review_manager'],
       '管理员兼负责人',
+    );
+    const adminExpert = await createUser(
+      '+8613910000007',
+      ['admin', 'expert'],
+      '管理员兼专家',
+    );
+    const adminProjectOwner = await createUser(
+      '+8613910000008',
+      ['admin', 'project_owner'],
+      '管理员兼项目负责人',
     );
 
     const materialType = await dictionaryModel.create({
@@ -397,6 +468,9 @@ describe('Portal reference data APIs (e2e)', () => {
       owner,
       noRoleUser,
       reviewManager,
+      adminReviewManager,
+      adminExpert,
+      adminProjectOwner,
       materialTypeId: materialType._id.toString(),
       projectStatusId: projectStatus._id.toString(),
       disciplineId: discipline._id.toString(),
@@ -488,6 +562,7 @@ function expectResponseHasNoForbiddenFields(value: unknown): void {
   expect(value).not.toHaveProperty('token');
   expect(value).not.toHaveProperty('sessionToken');
   expect(value).not.toHaveProperty('session');
+  expect(value).not.toHaveProperty('secret');
 
   for (const childValue of Object.values(value)) {
     expectResponseHasNoForbiddenFields(childValue);

@@ -226,7 +226,7 @@ export class PortalReferenceDataService {
     const roles = this.resolvePortalUserRoles(query);
     const filter: Record<string, unknown> = {
       ...this.buildActiveFilter(query),
-      roles: { $in: roles, $nin: ['admin'] },
+      roles: { $in: roles },
       status: 'active',
     };
 
