@@ -9,7 +9,7 @@
 
 - `backend` 已初始化
 - 当前 users 和 sessions 模块新增内部 Input 和类型
-- 当前 auth 模块新增登录 DTO、自助改密 DTO 和认证返回类型
+- 当前 auth 模块新增登录 DTO、自助改密 DTO、短信验证码登录 / 找回密码 DTO 和认证返回类型
 - 当前未创建 UsersController 或 SessionsController；auth DTO 是 HTTP 契约
 
 ## 3. 当前 DTO / Input
@@ -21,6 +21,8 @@
 | `LoginDto` | auth | `POST /auth/login` 请求体 | `phone`、`password` | 均必填 | `phone/password: string` | `phone` trim、非空字符串；`password` 非空字符串 | 无 | `{ phone, password }` | `POST /auth/login` | 密码登录保持原契约；不包含 email、rememberMe 或 phone code 字段 |
 | `SendSmsLoginCodeDto` | auth | `POST /auth/sms-login/code` 请求体 | `phone` | 必填 | string | `phone` trim、非空字符串 | 无 | `{ phone }` | `POST /auth/sms-login/code` | 发送短信验证码；响应不包含验证码、阿里云 RequestId、session token 或账号存在性信息 |
 | `SmsLoginDto` | auth | `POST /auth/sms-login` 请求体 | `phone`、`verifyCode` | 均必填 | string | `phone` trim、非空字符串；`verifyCode` trim 且匹配 6 位数字 | 无 | `{ phone, verifyCode }` | `POST /auth/sms-login` | 仅用于已有 active 用户短信登录；验证码由阿里云生成和校验，后端不保存明文验证码 |
+| `SendPasswordResetCodeDto` | auth | `POST /auth/password-reset/code` 请求体 | `phone` | 必填 | string | `phone` trim、非空字符串 | 无 | `{ phone }` | `POST /auth/password-reset/code` | 发送找回密码短信验证码；响应不包含验证码、阿里云 RequestId、session token 或账号存在性信息 |
+| `ResetPasswordWithSmsDto` | auth | `POST /auth/password-reset` 请求体 | `phone`、`verifyCode`、`newPassword`、`confirmPassword` | 均必填 | string | `phone` trim、非空字符串；`verifyCode` trim 且匹配 6 位数字；`newPassword` 长度 8..128；`confirmPassword` 非空字符串；业务层校验确认一致且新密码不能与当前密码相同 | 无 | `{ phone, verifyCode, newPassword, confirmPassword }` | `POST /auth/password-reset` | 仅用于已有 active 用户通过短信验证码重置密码；成功不自动登录、不返回用户或 token，清理已有 sessions |
 | `ChangeOwnPasswordDto` | auth | `PATCH /auth/me/password` 请求体 | `currentPassword`、`newPassword`、`confirmPassword` | 均必填 | string | `currentPassword` 非空字符串；`newPassword` 长度 8..128；`confirmPassword` 非空字符串；业务层校验当前密码正确、确认一致且新密码不能与当前密码相同 | 无 | `{ currentPassword, newPassword, confirmPassword }` | `PATCH /auth/me/password` | 仅登录用户修改本人密码；成功返回 `PublicUser`，不返回 `passwordHash/token/sessionToken`，当前 session 保持有效 |
 | `QueryAdminUsersDto` | users | 管理员用户分页查询 | `page/pageSize/keyword/isActive/role/organizationId/disciplineId` | 全可选 | number / string / boolean / ObjectId | `page>=1`、`pageSize<=1000`；`keyword` trim；`isActive` 支持 `true/false` 字符串转换；`role` 必须是既有角色枚举；ID 必须是 ObjectId | `page=1`、`pageSize=100` | `{ role: "expert", keyword: "138" }` | `GET /admin/users` | 返回分页对象；当前只返回单位/学科 ID，不 populate 名称 |
 | `CreateAdminUserDto` | users | 管理员创建用户 | `name`、`phone`、`roles`、`password`、`organizationIds`、`disciplineIds`、`isActive`、`mustChangePassword` | `name/phone/roles` 必填；`password` 可选；数组和布尔可选 | string / string array / boolean | `name/phone` trim 且非空；`roles` 至少 1 个且必须是既有角色枚举；`password` 如传入最少 6 位；数组 ID 去重且必须是 ObjectId；业务层校验单位/学科启用和类型 | `password` 未传默认手机号；`isActive=true`；`mustChangePassword=true` | `{ name, phone, roles: ["expert"], organizationIds, disciplineIds }` | `POST /admin/users` | `phone` 唯一；`organizationIds` 必须引用启用 Organization；`disciplineIds` 必须引用启用 `treeType=discipline` 节点；响应不返回 `passwordHash` |
@@ -149,12 +151,15 @@
 | `AuthIdentity` | `id`、`phone`、`passwordHash`、`roles`、`isActive`、`status` | auth 内部身份类型 | 否 | 否 | 仅供认证流程内部使用 |
 | `SmsAuthProvider` | `stub`、`aliyun` | 短信认证 provider | 否 | 否 | `test` 环境强制 stub；production 默认建议 aliyun；stub 仅用于自动化测试和本地开发 |
 | `SmsLoginCodeResponse` | `success: true`、`message`、`cooldownSeconds`、`expiresInSeconds` | 发送短信验证码公开响应 | 是 | 否 | 用户不存在、禁用和 active 用户发送成功均返回同一结构；不包含验证码、RequestId、session token 或账号存在性信息 |
+| `PasswordResetCodeResponse` | `success: true`、`message`、`cooldownSeconds`、`expiresInSeconds` | 发送找回密码验证码公开响应 | 是 | 否 | 用户不存在、禁用和 active 用户发送成功均返回同一结构；不包含验证码、RequestId、session token 或账号存在性信息 |
+| `PasswordResetResponse` | `success: true`、`message` | 短信验证码重置密码成功响应 | 是 | 否 | 成功消息为“密码已重置，请使用新密码登录。”；不返回 `PublicUser/passwordHash/token/sessionToken`，不写 Set-Cookie |
 | `PublicSession` | `id`、`userId`、`expiresAt`、`revokedAt`、`lastSeenAt`、`userAgent`、`ip`、`createdAt`、`updatedAt` | 公开 session 返回类型 | 后续如暴露 API 再确认 | 否 | 不包含 `token` |
 | `CreatedSessionResult` | `token`、`session`、`expiresAt` | session 创建结果 | 否 | 否 | `createSession()` 专用返回，允许把 token 交给后续 auth 层 |
 | `AuthSessionRecord` | 当前等同 `PublicSession` | auth 内部 session 记录类型 | 否 | 否 | 预留给后续 Guard / auth 流程使用 |
 | `LoginResult` | `user`、`sessionToken`、`expiresAt` | AuthService 登录结果 | 否 | 否 | `sessionToken` 只交给 Controller 设置 HttpOnly Cookie，不进入响应 body |
 | `AuthenticatedUser` | `user`、`session` | Guard 挂载到 request 的认证上下文 | 否 | 否 | `GET /auth/me` 只返回其中的 `user` |
 | `SmsLoginInput` | `phone`、`verifyCode`、`userAgent?`、`ip?` | AuthService 短信登录内部输入 | 否 | 否 | 验证码通过后复用 `LoginResult`，`sessionToken` 只交给 Controller 写 Cookie |
+| `ResetPasswordWithSmsInput` | `phone`、`verifyCode`、`newPassword`、`confirmPassword` | AuthService 短信找回密码内部输入 | 否 | 否 | 验证码通过后只重置密码并清理 sessions，不创建 session、不返回 token |
 | `ProjectImportJobStatus` | `parsing`、`pending_confirmation`、`completed`、`failed`、`canceled` | 导入任务状态 | 是 | 是 | 当前同步解析；正常上传后通常进入 `pending_confirmation`，全部处理后进入 `completed` |
 | `ProjectImportRowStatus` | `importable`、`pending_confirmation`、`confirmed`、`skipped`、`failed` | 导入行状态 | 是 | 是 | 只有 `importable` 可确认入库；`confirmed` 不可重复确认或跳过 |
 | `ProjectImportIssueCode` | `required_field_missing`、`invalid_number`、`funding_inconsistent`、`project_type_not_found`、`project_type_ambiguous`、`status_not_found`、`status_ambiguous`、`owner_not_found`、`owner_ambiguous`、`lead_organization_not_found`、`lead_organization_ambiguous`、`cooperation_organization_not_found`、`cooperation_organization_ambiguous`、`discipline_not_found`、`discipline_ambiguous`、`department_not_found`、`department_ambiguous`、`duplicate_project_no_in_file`、`existing_project_matched`、`lead_organization_duplicated_in_cooperation`、`unknown_error` | 导入行结构化问题编码 | 是 | 是 | `existing_project_matched` 和 `lead_organization_duplicated_in_cooperation` 当前为非阻断提示；其他 issue 阻断确认 |
@@ -183,6 +188,8 @@
 | `POST /auth/login` | `PublicUser` | 不包含 `passwordHash`、session token 或 Cookie 内容 | session token 只通过 HttpOnly Cookie 下发 |
 | `POST /auth/sms-login/code` | `{ success: true, message, cooldownSeconds, expiresInSeconds }` | 不包含验证码、阿里云 RequestId、`passwordHash`、session token 或 Cookie 内容 | 用户不存在、禁用、手机号格式不可转换时仍返回通用成功响应；active 用户调用阿里云 `SendSmsVerifyCode` |
 | `POST /auth/sms-login` | `PublicUser` | 不包含 `passwordHash`、session token 或 Cookie 内容 | `CheckSmsVerifyCode` 通过后创建 session 并通过 HttpOnly Cookie 下发；验证码错误或过期返回 `401`，手机号格式不正确返回 `400` |
+| `POST /auth/password-reset/code` | `{ success: true, message, cooldownSeconds, expiresInSeconds }` | 不包含验证码、阿里云 RequestId、`passwordHash`、session token、Cookie 内容或账号存在性信息 | 用户不存在、禁用、手机号格式不可转换时仍返回通用成功响应；active 用户复用阿里云 `SendSmsVerifyCode` |
+| `POST /auth/password-reset` | `{ success: true, message }` | 不包含 `PublicUser`、`passwordHash`、session token 或 Cookie 内容 | `CheckSmsVerifyCode` 通过后重置密码，`mustChangePassword=false`，清理该用户已有 sessions；不自动登录、不写 Set-Cookie；用户不存在/禁用/验证码错误统一返回 `401 验证码错误或已过期` |
 | `POST /auth/logout` | `{ success: true }` | 不泄露 session 是否存在 | 幂等清理 Cookie |
 | `GET /auth/me` | `PublicUser` | 不包含 `passwordHash`、session token 或 Cookie 内容 | 未登录返回 `401` |
 | `PATCH /auth/me/password` | `PublicUser` | 不包含 `passwordHash`、明文密码、session token 或 Cookie 内容 | 要求登录，不要求具体角色；当前密码错误、确认不一致或新旧密码相同返回 `400`；成功后 `mustChangePassword=false` 且当前 session 保持有效 |

@@ -367,6 +367,59 @@ export class UsersService {
     return this.toPublicUser(updatedUser);
   }
 
+  async resetPasswordAfterVerifiedSms(input: {
+    userId: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<void> {
+    if (!Types.ObjectId.isValid(input.userId)) {
+      throw new UnauthorizedException('验证码错误或已过期');
+    }
+
+    if (input.newPassword !== input.confirmPassword) {
+      throw new BadRequestException('两次输入的新密码不一致');
+    }
+
+    const user = await this.userModel
+      .findById(input.userId)
+      .select('+passwordHash')
+      .lean<ChangeOwnPasswordUserLean | null>()
+      .exec();
+
+    if (!user || user.status !== 'active' || user.isActive === false) {
+      throw new UnauthorizedException('验证码错误或已过期');
+    }
+
+    const isSameAsCurrentPassword = await compare(
+      input.newPassword,
+      user.passwordHash,
+    );
+
+    if (isSameAsCurrentPassword) {
+      throw new BadRequestException('新密码不能与当前密码相同');
+    }
+
+    const result = await this.userModel
+      .updateOne(
+        {
+          _id: user._id,
+          status: 'active',
+          isActive: { $ne: false },
+        },
+        {
+          $set: {
+            passwordHash: await hash(input.newPassword, 12),
+            mustChangePassword: false,
+          },
+        },
+      )
+      .exec();
+
+    if (result.matchedCount === 0) {
+      throw new UnauthorizedException('验证码错误或已过期');
+    }
+  }
+
   async findById(id: string): Promise<PublicUser | null> {
     if (!Types.ObjectId.isValid(id)) {
       return null;

@@ -115,6 +115,16 @@ export class SessionsService {
     return result.modifiedCount;
   }
 
+  async revokeSessionsForUser(userId: SessionUserId): Promise<number> {
+    const result = await this.sessionModel
+      .deleteMany({
+        userId: this.toObjectId(userId),
+      })
+      .exec();
+
+    return result.deletedCount;
+  }
+
   async touchSession(
     token: string,
     date = new Date(),

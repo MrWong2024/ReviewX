@@ -257,6 +257,64 @@ describe('AuthController (e2e)', () => {
     await expectSessionCount(0);
   });
 
+  it('returns a generic password reset code response for missing users without creating a session', async () => {
+    const response = await request(httpServer)
+      .post('/auth/password-reset/code')
+      .send({
+        phone: '+8613800000000',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
+  it('returns a generic password reset code response for disabled users without creating a session', async () => {
+    await createUser({ status: 'disabled', isActive: false });
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset/code')
+      .send({
+        phone: '+8613800000000',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
+  it('returns a generic password reset code response for active users in stub mode', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset/code')
+      .send({
+        phone: ' +8613800000000 ',
+      })
+      .expect(200);
+
+    expect(getJsonBody(response)).toEqual({
+      success: true,
+      message: '如果手机号已在系统中登记，将收到验证码。',
+      cooldownSeconds: 60,
+      expiresInSeconds: 300,
+    });
+    expectNoSmsSensitiveFields(getJsonBody(response));
+    await expectSessionCount(0);
+  });
+
   it('rejects SMS login for missing users without leaking account existence', async () => {
     const response = await request(httpServer)
       .post('/auth/sms-login')
@@ -359,6 +417,199 @@ describe('AuthController (e2e)', () => {
       id: user._id.toString(),
       phone: '+8613800000000',
       name: 'Test User',
+    });
+    expectNoSensitiveFields(getJsonBody(meResponse));
+  });
+
+  it('rejects password reset for missing users without leaking account existence', async () => {
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('验证码错误或已过期');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset for disabled users without leaking account existence', async () => {
+    await createUser({ status: 'disabled', isActive: false });
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('验证码错误或已过期');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset when the verify code format is invalid', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '12345',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(400);
+
+    expect(String(getJsonBody(response).message)).toContain('verifyCode');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset when the stub verify code is wrong', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '111111',
+        newPassword: 'new-password-1',
+        confirmPassword: 'new-password-1',
+      })
+      .expect(401);
+
+    expect(getJsonBody(response).message).toBe('验证码错误或已过期');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset when confirmation does not match', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+        newPassword: 'new-password-1',
+        confirmPassword: 'different-password',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe('两次输入的新密码不一致');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset when new password is shorter than 8 characters', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+        newPassword: 'short',
+        confirmPassword: 'short',
+      })
+      .expect(400);
+
+    expect(String(getJsonBody(response).message)).toContain('newPassword');
+    await expectSessionCount(0);
+  });
+
+  it('rejects password reset when new password matches the current password', async () => {
+    await createUser();
+
+    const response = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: '+8613800000000',
+        verifyCode: '000000',
+        newPassword: 'correct-password',
+        confirmPassword: 'correct-password',
+      })
+      .expect(400);
+
+    expect(getJsonBody(response).message).toBe(
+      '新密码不能与当前密码相同',
+    );
+    await expectSessionCount(0);
+  });
+
+  it('resets password with the stub SMS code, does not log in, and revokes existing sessions', async () => {
+    const user = await createUser({ mustChangePassword: true });
+    const oldSessionCookie = await loginAndGetSessionCookie();
+    await expectSessionCount(1);
+
+    const resetResponse = await request(httpServer)
+      .post('/auth/password-reset')
+      .send({
+        phone: ' +8613800000000 ',
+        verifyCode: '000000',
+        newPassword: 'reset-password-1',
+        confirmPassword: 'reset-password-1',
+      })
+      .expect(200);
+
+    expect(getJsonBody(resetResponse)).toEqual({
+      success: true,
+      message: '密码已重置，请使用新密码登录。',
+    });
+    expect(getHeaderValue(resetResponse, 'set-cookie')).toBeUndefined();
+    await expectSessionCount(0);
+
+    const storedUser = await userModel
+      .findById(user._id)
+      .select('+passwordHash')
+      .lean<StoredPasswordLean | null>()
+      .exec();
+
+    if (!storedUser) {
+      throw new Error('Stored user not found');
+    }
+
+    expect(storedUser.mustChangePassword).toBe(false);
+    expect(await compare('correct-password', storedUser.passwordHash)).toBe(
+      false,
+    );
+    expect(await compare('reset-password-1', storedUser.passwordHash)).toBe(
+      true,
+    );
+
+    await request(httpServer)
+      .get('/auth/me')
+      .set('Cookie', toRequestCookie(oldSessionCookie))
+      .expect(401);
+
+    await request(httpServer)
+      .post('/auth/login')
+      .send({
+        phone: '+8613800000000',
+        password: 'correct-password',
+      })
+      .expect(401);
+
+    const nextLoginResponse = await request(httpServer)
+      .post('/auth/login')
+      .send({
+        phone: '+8613800000000',
+        password: 'reset-password-1',
+      })
+      .expect(200);
+    expectNoSensitiveFields(getJsonBody(nextLoginResponse));
+
+    const nextSessionCookie = getSessionCookie(nextLoginResponse);
+    const meResponse = await request(httpServer)
+      .get('/auth/me')
+      .set('Cookie', toRequestCookie(nextSessionCookie))
+      .expect(200);
+    expect(getJsonBody(meResponse)).toMatchObject({
+      id: user._id.toString(),
+      mustChangePassword: false,
     });
     expectNoSensitiveFields(getJsonBody(meResponse));
   });
@@ -697,6 +948,10 @@ function expectNoSmsSensitiveFields(value: Record<string, unknown>): void {
   expect(value.code).toBeUndefined();
   expect(value.requestId).toBeUndefined();
   expect(value.RequestId).toBeUndefined();
+  expect(value.phone).toBeUndefined();
+  expect(value.exists).toBeUndefined();
+  expect(value.phoneExists).toBeUndefined();
+  expect(value.userExists).toBeUndefined();
   expect(value.passwordHash).toBeUndefined();
   expect(value.token).toBeUndefined();
   expect(value.sessionToken).toBeUndefined();

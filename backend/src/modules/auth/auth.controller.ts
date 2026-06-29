@@ -19,11 +19,17 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { ChangeOwnPasswordDto } from './dto/change-own-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { ResetPasswordWithSmsDto } from './dto/reset-password-with-sms.dto';
+import { SendPasswordResetCodeDto } from './dto/send-password-reset-code.dto';
 import { SendSmsLoginCodeDto } from './dto/send-sms-login-code.dto';
 import { SmsLoginDto } from './dto/sms-login.dto';
 import { SessionAuthGuard } from './guards/session-auth.guard';
 import type { AuthenticatedUser } from './types/authenticated-user.type';
-import type { SmsLoginCodeResponse } from './types/sms-auth.types';
+import type {
+  PasswordResetCodeResponse,
+  PasswordResetResponse,
+  SmsLoginCodeResponse,
+} from './types/sms-auth.types';
 
 type LogoutResponse = {
   success: true;
@@ -67,6 +73,14 @@ export class AuthController {
     return this.authService.sendSmsLoginCode(dto.phone);
   }
 
+  @Post('password-reset/code')
+  @HttpCode(HttpStatus.OK)
+  sendPasswordResetCode(
+    @Body() dto: SendPasswordResetCodeDto,
+  ): Promise<PasswordResetCodeResponse> {
+    return this.authService.sendPasswordResetCode(dto.phone);
+  }
+
   @Post('sms-login')
   @HttpCode(HttpStatus.OK)
   async smsLogin(
@@ -88,6 +102,14 @@ export class AuthController {
     );
 
     return result.user;
+  }
+
+  @Post('password-reset')
+  @HttpCode(HttpStatus.OK)
+  resetPasswordWithSms(
+    @Body() dto: ResetPasswordWithSmsDto,
+  ): Promise<PasswordResetResponse> {
+    return this.authService.resetPasswordWithSms(dto);
   }
 
   @Post('logout')

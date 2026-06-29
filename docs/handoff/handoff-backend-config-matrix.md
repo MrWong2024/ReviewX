@@ -18,7 +18,7 @@
 - 当前已新增 session / Cookie 配置基线，用于 auth 第一阶段登录态
 - 当前 `dca16ae` 基线已安装 `ali-oss`
 - 当前已实现 Storage 抽象层并消费 Storage / OSS 环境变量；第五阶段专家评分与合议评审未新增环境变量；第六阶段项目申诉与等级变更留痕未新增环境变量；管理员用户维护 API 也未新增环境变量；Excel 字段映射配置后端化未新增环境变量；第四阶段补丁一门户端只读基础数据接口未新增环境变量；第四阶段补丁三项目材料草稿/提交与物理删除后端化未新增环境变量、第三方依赖或 OSS 配置
-- 当前已新增短信验证码登录后端配置，使用 `SMS_AUTH_PROVIDER` 和 `ALIYUN_SMS_*`；test 环境强制 stub，不调用真实阿里云短信 API；production 默认建议 aliyun
+- 当前已新增短信验证码登录和短信验证码找回密码后端配置，复用 `SMS_AUTH_PROVIDER` 和 `ALIYUN_SMS_*`；test 环境强制 stub，不调用真实阿里云短信 API；production 默认建议 aliyun
 
 ## 3. 当前配置项
 
@@ -91,7 +91,7 @@
 - production 数据库名口径为 `reviewx`，development 为 `reviewx_dev`，test 为 `reviewx_test`
 - development/test 已按当前本地账号设计区分应用账号与运维账号
 - 生产环境不依赖 `autoIndex` 自动建索引；需要显式执行 `npm run sync-indexes -- --env-file .env.production --confirm-production`
-- 当前无 Email 或 bcrypt 配置；SMS 已新增 `SMS_AUTH_PROVIDER` 与 `ALIYUN_SMS_*`，仅用于短信验证码登录后端，不用于注册或找回密码
+- 当前无 Email 或 bcrypt 配置；SMS 已新增 `SMS_AUTH_PROVIDER` 与 `ALIYUN_SMS_*`，用于短信验证码登录和短信验证码找回密码后端，不用于短信注册
 - 当前有 session / Cookie 配置，但不包含用户信息、角色或业务权限配置
 - 当前已接入合议草稿 LLM / Bailian 调用服务；`LLM_PROVIDER` 非 `bailian`、`BAILIAN_API_KEY/BASE_URL/MODEL` 缺失、超时、HTTP 非 2xx 或响应不可解析时 fallback 到 `rule_based`
 - Storage / OSS 使用既有环境变量：`STORAGE_DRIVER`、`OSS_REGION`、`OSS_BUCKET`、`OSS_INTERNAL_ENDPOINT`、`OSS_PUBLIC_ENDPOINT`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_OBJECT_PREFIX`；第四阶段未新增环境变量或第三方依赖
@@ -101,7 +101,7 @@
 - 第二阶段新增 `project_import_jobs`、`project_import_rows` 关键索引已纳入 `scripts/sync-indexes.ts`；第二阶段补丁一新增 `project_import_field_mappings` 集合，索引包括 `standardField` unique、`isActive`、`normalizedAliases`，并已纳入 `scripts/sync-indexes.ts`；第三阶段新增 `project_expert_assignments` 关键索引已纳入；第四阶段新增 `project_materials` 关键索引已纳入；第四阶段补丁三新增 `project_material_deletion_logs` 关键索引已纳入；第五阶段新增 `expert_reviews`、`consensus_reviews` 关键索引已纳入；第六阶段新增 `project_appeals`、`project_appeal_attachments`、`project_level_change_logs` 关键索引已纳入；管理员用户维护 API 本阶段未新增 users 查询索引；production 仍必须使用 `--confirm-production`
 - 第三阶段未新增环境变量、第三方依赖或腾讯会议相关配置；`meetingUrl` 仅作为 Project 字符串字段保存
 - 合议草稿 AI 小修新增 `CONSENSUS_DRAFT_COOLDOWN_SECONDS`，默认 60；复用既有 `LLM_PROVIDER/BAILIAN_*`，不新增第三方依赖，不安装 OpenAI SDK，测试环境不得调用真实百炼 API
-- 短信验证码登录后端新增 `SMS_AUTH_PROVIDER/ALIYUN_SMS_*`，不新增第三方依赖，不安装阿里云 SDK；使用 Node 内置 `fetch` 和 `crypto` 实现 RPC 签名；自动化测试使用 stub 和 mock fetch，不调用真实阿里云短信 API
+- 短信验证码登录和短信验证码找回密码后端复用 `SMS_AUTH_PROVIDER/ALIYUN_SMS_*`，不新增第三方依赖，不安装阿里云 SDK；使用 Node 内置 `fetch` 和 `crypto` 实现 RPC 签名；自动化测试使用 stub 和 mock fetch，不调用真实阿里云短信 API；验证码由阿里云生成和校验，后端不保存明文验证码
 - 第六阶段未新增环境变量、第三方依赖或 OSS 配置；申诉附件继续复用既有 `STORAGE_DRIVER` 与 `OSS_*`，E2E 使用 fake storage，不依赖真实 OSS
 - 管理员用户维护 API 未新增环境变量、第三方依赖、OSS 配置或 `sync-indexes.ts` 模型/索引注册；继续沿用 `users.phone` unique 索引和受控索引同步流程
 - Excel 字段映射配置后端化未新增环境变量、第三方依赖、OSS 配置或正式产品配置项；production 索引不得依赖 `autoIndex`，新增 `project_import_field_mappings` 索引需按既有 `sync-indexes` 受控流程同步

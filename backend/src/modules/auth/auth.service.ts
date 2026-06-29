@@ -21,6 +21,9 @@ import { LoginInput, LoginResult } from './types/login-result.type';
 import {
   SmsLoginCodeResponse,
   SmsLoginInput,
+  PasswordResetCodeResponse,
+  PasswordResetResponse,
+  ResetPasswordWithSmsInput,
 } from './types/sms-auth.types';
 
 type LoginSessionContext = {
@@ -28,8 +31,10 @@ type LoginSessionContext = {
   ip?: string;
 };
 
-const SMS_LOGIN_CODE_RESPONSE_MESSAGE =
+const SMS_CODE_RESPONSE_MESSAGE =
   '如果手机号已在系统中登记，将收到验证码。';
+const PASSWORD_RESET_SUCCESS_MESSAGE = '密码已重置，请使用新密码登录。';
+const SMS_VERIFY_FAILED_MESSAGE = '验证码错误或已过期';
 
 @Injectable()
 export class AuthService {
@@ -68,7 +73,31 @@ export class AuthService {
 
   async sendSmsLoginCode(phone: string): Promise<SmsLoginCodeResponse> {
     const smsAuthService = this.getSmsAuthService();
-    const response = this.buildSmsLoginCodeResponse();
+    const response = this.buildSmsCodeResponse();
+    const identity = await this.usersService.findAuthIdentityByPhone(phone);
+
+    if (!this.isActiveIdentity(identity)) {
+      return response;
+    }
+
+    if (!smsAuthService.normalizePhoneForAliyun(phone)) {
+      return response;
+    }
+
+    try {
+      await smsAuthService.sendSmsVerifyCode(phone);
+    } catch (error) {
+      this.throwSmsServiceException(error, '验证码发送失败，请稍后再试');
+    }
+
+    return response;
+  }
+
+  async sendPasswordResetCode(
+    phone: string,
+  ): Promise<PasswordResetCodeResponse> {
+    const smsAuthService = this.getSmsAuthService();
+    const response = this.buildSmsCodeResponse();
     const identity = await this.usersService.findAuthIdentityByPhone(phone);
 
     if (!this.isActiveIdentity(identity)) {
@@ -120,6 +149,56 @@ export class AuthService {
     }
 
     return this.createLoginSessionForIdentity(identity, input);
+  }
+
+  async resetPasswordWithSms(
+    input: ResetPasswordWithSmsInput,
+  ): Promise<PasswordResetResponse> {
+    if (input.newPassword !== input.confirmPassword) {
+      throw new BadRequestException('两次输入的新密码不一致');
+    }
+
+    const smsAuthService = this.getSmsAuthService();
+
+    if (!smsAuthService.normalizePhoneForAliyun(input.phone)) {
+      throw new BadRequestException('手机号格式不正确');
+    }
+
+    const identity = await this.usersService.findAuthIdentityByPhone(
+      input.phone,
+    );
+
+    if (!this.isActiveIdentity(identity)) {
+      throw new UnauthorizedException(SMS_VERIFY_FAILED_MESSAGE);
+    }
+
+    let verified = false;
+
+    try {
+      const result = await smsAuthService.checkSmsVerifyCode(
+        input.phone,
+        input.verifyCode,
+      );
+      verified = result.verified;
+    } catch (error) {
+      this.throwSmsServiceException(error, '验证码校验失败，请稍后再试');
+    }
+
+    if (!verified) {
+      throw new UnauthorizedException(SMS_VERIFY_FAILED_MESSAGE);
+    }
+
+    await this.usersService.resetPasswordAfterVerifiedSms({
+      userId: identity.id,
+      newPassword: input.newPassword,
+      confirmPassword: input.confirmPassword,
+    });
+    await this.sessionsService.revokeSessionsForUser(identity.id);
+
+    return {
+      success: true,
+      message: PASSWORD_RESET_SUCCESS_MESSAGE,
+    };
   }
 
   async getCurrentUserFromToken(token: string): Promise<AuthenticatedUser> {
@@ -193,12 +272,12 @@ export class AuthService {
     };
   }
 
-  private buildSmsLoginCodeResponse(): SmsLoginCodeResponse {
+  private buildSmsCodeResponse(): SmsLoginCodeResponse {
     const smsAuthService = this.getSmsAuthService();
 
     return {
       success: true,
-      message: SMS_LOGIN_CODE_RESPONSE_MESSAGE,
+      message: SMS_CODE_RESPONSE_MESSAGE,
       cooldownSeconds: smsAuthService.getCooldownSeconds(),
       expiresInSeconds: smsAuthService.getExpiresInSeconds(),
     };
