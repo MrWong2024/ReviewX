@@ -41,7 +41,8 @@
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
 | `AuthProvider` | `frontend/src/features/auth/AuthProvider.tsx` | 当前用户状态、密码登录、短信验证码登录、登出、刷新会话和改密成功后更新当前用户 |
-| `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页，支持密码登录 / 短信验证码登录切换、验证码发送提示和 60 秒倒计时 |
+| `LoginPage` | `frontend/src/features/auth/LoginPage.tsx` | 登录页，支持密码登录 / 短信验证码登录切换、验证码发送提示和 60 秒倒计时；密码登录模式提供“忘记密码？”入口 |
+| `ForgotPasswordPage` | `frontend/src/features/auth/ForgotPasswordPage.tsx` | 忘记密码 / 短信验证码找回密码页；手机号发送验证码、60 秒倒计时、新密码确认、重置成功提示返回登录；不自动登录 |
 | `ChangePasswordPage` | `frontend/src/features/auth/ChangePasswordPage.tsx` | 当前用户自助修改本人密码页；要求登录，不要求具体角色；提交 `currentPassword/newPassword/confirmPassword`，成功后清空表单并刷新当前用户状态 |
 | `WorkspacePage` | `frontend/src/features/auth/WorkspacePage.tsx` | 角色入口页；admin、client、project_owner、expert、review_manager 已开通角色可进入对应工作台，client 指向 `/client`；顶部提供“修改密码”入口 |
 | `ClientDashboardPage` | `frontend/src/features/client/pages/ClientDashboardPage.tsx` | 甲方监管看板主页面，并发加载 overview、projects 和 portal reference-data；筛选提交重算 overview/projects，分页只重拉 projects，reference-data 失败降级 warning |

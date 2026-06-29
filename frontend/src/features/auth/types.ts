@@ -39,9 +39,32 @@ export type SendSmsLoginCodeResponse = {
   expiresInSeconds: number;
 };
 
+export type SendPasswordResetCodeInput = {
+  phone: string;
+};
+
+export type SendPasswordResetCodeResponse = {
+  success: true;
+  message: string;
+  cooldownSeconds: number;
+  expiresInSeconds: number;
+};
+
 export type SmsLoginInput = {
   phone: string;
   verifyCode: string;
+};
+
+export type ResetPasswordWithSmsInput = {
+  phone: string;
+  verifyCode: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+export type ResetPasswordWithSmsResponse = {
+  success: true;
+  message: string;
 };
 
 export type ChangePasswordInput = {

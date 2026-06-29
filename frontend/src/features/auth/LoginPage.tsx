@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/src/components/ui/Button';
 import { Input } from '@/src/components/ui/Input';
@@ -246,16 +247,26 @@ export function LoginPage() {
               value={phone}
             />
             {loginMode === 'password' ? (
-              <Input
-                autoComplete="current-password"
-                id="password"
-                label="密码"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="请输入密码"
-                required
-                type="password"
-                value={password}
-              />
+              <div className="grid gap-2">
+                <Input
+                  autoComplete="current-password"
+                  id="password"
+                  label="密码"
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="请输入密码"
+                  required
+                  type="password"
+                  value={password}
+                />
+                <div className="flex justify-end">
+                  <Link
+                    className="text-sm font-semibold text-cyan-700 hover:text-cyan-900"
+                    href="/forgot-password"
+                  >
+                    忘记密码？
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_152px]">
                 <Input

@@ -269,7 +269,7 @@
 
 ## 3.11 短信验证码找回密码后端口径
 
-- `POST /auth/password-reset/code` 和 `POST /auth/password-reset` 均为公共接口；短信验证码找回密码后端已完成，前端忘记密码页待接入。
+- `POST /auth/password-reset/code` 和 `POST /auth/password-reset` 均为公共接口；短信验证码找回密码前后端已完成，前端 `/forgot-password` 已接入。
 - 发送找回密码验证码时按 `phone.trim()` 查询用户；用户不存在、`status=disabled` 或 `isActive=false` 时返回通用成功响应，不调用阿里云，不暴露手机号是否存在。
 - active 用户发送找回密码验证码时复用阿里云号码认证服务 `SendSmsVerifyCode`；不新增短信模板配置，`ALIYUN_SMS_TEMPLATE_PARAM` 继续保留 `##code##`，验证码由阿里云生成和校验，后端不保存明文验证码。
 - 重置密码时只允许已有 active 用户；手机号格式不正确返回 `400`，用户不存在、禁用、验证码错误或过期统一返回 `401 验证码错误或已过期`。

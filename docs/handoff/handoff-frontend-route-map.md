@@ -5,7 +5,8 @@
 | 路由 | 页面文件 | 权限 / 会话 | 状态 | 说明 |
 | --- | --- | --- | --- | --- |
 | `/` | `frontend/app/page.tsx` | 无 | implemented | 直接跳转 `/workspace` |
-| `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 品牌化登录页，手机号 + 密码登录 |
+| `/login` | `frontend/app/login/page.tsx` | 未登录可访问；已登录跳 `/workspace` | implemented | 品牌化登录页，手机号 + 密码登录 / 短信验证码登录，密码登录模式提供“忘记密码？”入口 |
+| `/forgot-password` | `frontend/app/forgot-password/page.tsx` | Public；未登录和已登录均可访问 | implemented | 忘记密码 / 短信验证码找回密码页；调用 `POST /auth/password-reset/code` 和 `POST /auth/password-reset`，重置成功后提示返回登录且不自动登录；已登录用户可前往 `/account/change-password` |
 | `/workspace` | `frontend/app/workspace/page.tsx` | 需要登录 | implemented | 现代化多角色入口；admin、client、project_owner、expert 和 review_manager 可进入真实工作台，client 点击进入 `/client` |
 | `/account/change-password` | `frontend/app/account/change-password/page.tsx` | 需要登录；不要求具体角色 | implemented | 当前用户自助修改本人登录密码；校验当前密码、新密码确认一致和新旧密码不同；成功后不退出登录并返回工作台入口 |
 | `/client` | `frontend/app/client/page.tsx` | 需要登录 + client 角色 | implemented | 甲方监管看板基础版，真实调用 `/client/dashboard/overview` 与 `/client/dashboard/projects`；展示统计、分布、项目钻取、筛选、分页和 `meetingUrl` 外链入口 |
@@ -88,6 +89,6 @@
 
 ## 7. 当前不包含的路由
 
-- 不包含忘记密码、短信验证码、用户批量导入、权限矩阵配置
+- 不包含短信注册、用户批量导入、权限矩阵配置
 - 不包含跨项目申诉总看板和腾讯会议直播 / 推流 / 回看 / API 集成相关页面；当前甲方看板只展示 `meetingUrl` 外链
 - 不包含文件预览、材料恢复或删除日志查询页面；管理员项目材料查看 / 下载 / 带原因删除已接入项目评审组织详情页，项目负责人材料上传草稿、提交评审、下载和 draft/legacy active 物理删除闭环已通过 portal `material_type` 启用

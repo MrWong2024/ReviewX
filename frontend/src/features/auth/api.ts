@@ -3,6 +3,10 @@ import type {
   ChangePasswordInput,
   CurrentUser,
   LoginInput,
+  ResetPasswordWithSmsInput,
+  ResetPasswordWithSmsResponse,
+  SendPasswordResetCodeInput,
+  SendPasswordResetCodeResponse,
   SendSmsLoginCodeInput,
   SendSmsLoginCodeResponse,
   SmsLoginInput,
@@ -27,11 +31,35 @@ export function sendSmsLoginCode(input: SendSmsLoginCodeInput) {
   });
 }
 
+export function sendPasswordResetCode(input: SendPasswordResetCodeInput) {
+  return apiRequest<SendPasswordResetCodeResponse>(
+    '/auth/password-reset/code',
+    {
+      body: {
+        phone: input.phone.trim(),
+      },
+      method: 'POST',
+    },
+  );
+}
+
 export function smsLogin(input: SmsLoginInput) {
   return apiRequest<CurrentUser>('/auth/sms-login', {
     body: {
       phone: input.phone.trim(),
       verifyCode: input.verifyCode.trim(),
+    },
+    method: 'POST',
+  });
+}
+
+export function resetPasswordWithSms(input: ResetPasswordWithSmsInput) {
+  return apiRequest<ResetPasswordWithSmsResponse>('/auth/password-reset', {
+    body: {
+      phone: input.phone.trim(),
+      verifyCode: input.verifyCode.trim(),
+      newPassword: input.newPassword,
+      confirmPassword: input.confirmPassword,
     },
     method: 'POST',
   });
