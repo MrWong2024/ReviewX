@@ -10,6 +10,7 @@ import { Button } from '@/src/components/ui/Button';
 import { DataTable, type DataColumn } from '@/src/components/ui/DataTable';
 import { Pagination } from '@/src/components/ui/Pagination';
 import { Select } from '@/src/components/ui/Select';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import { formatDateTime } from '@/src/lib/format/date';
 import { displayValue } from '@/src/lib/format/value';
 import {
@@ -48,6 +49,10 @@ const EMPTY_FILTERS: ExpertTaskFilters = {
 };
 
 const PAGE_SIZE = 20;
+const PROJECT_REVIEW_SCHEME_MISSING = 'PROJECT_REVIEW_SCHEME_MISSING';
+const REVIEW_SCHEME_MISSING_HINT = '项目尚未分配评审方案';
+const REVIEW_SCHEME_MISSING_MESSAGE =
+  '项目尚未分配评审方案，暂不能评分。';
 
 export function ExpertReviewTasksPage() {
   const [error, setError] = useState<string | null>(null);
@@ -112,14 +117,14 @@ export function ExpertReviewTasksPage() {
     } else {
       setItems([]);
       setTotal(0);
-      setError(`评审任务加载失败。${formatExpertErrorMessage(tasksResult.reason)}`);
+      setError(`评审任务加载失败。${formatExpertTaskPageError(tasksResult.reason)}`);
     }
 
     if (referenceResult.status === 'fulfilled') {
       setReferenceData(referenceResult.value);
       setReferenceDataError(null);
     } else {
-      setReferenceDataError(formatExpertErrorMessage(referenceResult.reason));
+      setReferenceDataError(formatExpertTaskPageError(referenceResult.reason));
     }
 
     setLoading(false);
@@ -226,16 +231,7 @@ export function ExpertReviewTasksPage() {
     },
     {
       key: 'actions',
-      render: (item) => (
-        <div className="table-actions">
-          <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
-            href={`/expert/review-tasks/${item.project.id}`}
-          >
-            {getExpertTaskActionLabel(item.status)}
-          </Link>
-        </div>
-      ),
+      render: (item) => <ExpertReviewTaskAction item={item} />,
       title: '操作',
     },
   ];
@@ -370,4 +366,46 @@ export function ExpertReviewTasksPage() {
 
 function formatReviewManagerOption(manager: { name: string; phone?: string }) {
   return manager.phone ? `${manager.name}（${manager.phone}）` : manager.name;
+}
+
+function ExpertReviewTaskAction({ item }: { item: ExpertReviewTask }) {
+  if (!item.project.reviewSchemeId) {
+    return (
+      <div className="table-actions">
+        <div className="flex max-w-40 flex-col items-start gap-1">
+          <Button disabled size="sm" title={REVIEW_SCHEME_MISSING_HINT}>
+            暂不能评分
+          </Button>
+          <span className="text-xs font-medium leading-5 text-slate-500">
+            {REVIEW_SCHEME_MISSING_HINT}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="table-actions">
+      <Link
+        className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+        href={`/expert/review-tasks/${item.project.id}`}
+      >
+        {getExpertTaskActionLabel(item.status)}
+      </Link>
+    </div>
+  );
+}
+
+function formatExpertTaskPageError(error: unknown): string {
+  if (isApiError(error)) {
+    if (error.code === PROJECT_REVIEW_SCHEME_MISSING) {
+      return REVIEW_SCHEME_MISSING_MESSAGE;
+    }
+
+    if (error.status === 409) {
+      return getErrorMessage(error);
+    }
+  }
+
+  return formatExpertErrorMessage(error);
 }

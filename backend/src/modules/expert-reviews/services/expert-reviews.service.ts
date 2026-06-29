@@ -24,6 +24,8 @@ import {
   EXPERT_REVIEW_DRAFT_NOT_DELETABLE,
   ExpertReviewStatus,
   ExpertReviewViewStatus,
+  PROJECT_REVIEW_SCHEME_INVALID,
+  PROJECT_REVIEW_SCHEME_MISSING,
 } from '../constants/expert-review.constants';
 import { QueryExpertReviewTasksDto } from '../dto/query-expert-review-tasks.dto';
 import { ReturnExpertReviewDto } from '../dto/return-expert-review.dto';
@@ -753,7 +755,10 @@ export class ExpertReviewsService {
 
   private getProjectSnapshot(project: ProjectLean): ReviewSchemeSnapshot {
     if (!project.reviewSchemeSnapshot) {
-      throw new ConflictException('Project review scheme snapshot is missing');
+      throw new ConflictException({
+        message: '项目尚未分配评审方案，暂不能评分。',
+        code: PROJECT_REVIEW_SCHEME_MISSING,
+      });
     }
 
     return this.normalizeSnapshot(project.reviewSchemeSnapshot);
@@ -782,7 +787,10 @@ export class ExpertReviewsService {
     const items = value.items;
 
     if (typeof totalScore !== 'number' || !Array.isArray(items)) {
-      throw new ConflictException('Project review scheme snapshot is invalid');
+      throw new ConflictException({
+        message: '项目评审方案配置异常，暂不能评分。请联系管理员处理。',
+        code: PROJECT_REVIEW_SCHEME_INVALID,
+      });
     }
 
     const snapshotItems = items
@@ -790,7 +798,10 @@ export class ExpertReviewsService {
       .sort((left, right) => left.sortOrder - right.sortOrder);
 
     if (snapshotItems.length === 0) {
-      throw new ConflictException('Project review scheme snapshot is invalid');
+      throw new ConflictException({
+        message: '项目评审方案配置异常，暂不能评分。请联系管理员处理。',
+        code: PROJECT_REVIEW_SCHEME_INVALID,
+      });
     }
 
     return {
@@ -803,7 +814,10 @@ export class ExpertReviewsService {
 
   private normalizeSnapshotItem(value: unknown): ReviewSchemeSnapshotItem {
     if (typeof value !== 'object' || value === null) {
-      throw new ConflictException('Project review scheme snapshot is invalid');
+      throw new ConflictException({
+        message: '项目评审方案配置异常，暂不能评分。请联系管理员处理。',
+        code: PROJECT_REVIEW_SCHEME_INVALID,
+      });
     }
 
     const record = value as Record<string, unknown>;
@@ -811,7 +825,10 @@ export class ExpertReviewsService {
     const maxScore = record.maxScore;
 
     if (typeof name !== 'string' || typeof maxScore !== 'number') {
-      throw new ConflictException('Project review scheme snapshot is invalid');
+      throw new ConflictException({
+        message: '项目评审方案配置异常，暂不能评分。请联系管理员处理。',
+        code: PROJECT_REVIEW_SCHEME_INVALID,
+      });
     }
 
     return {

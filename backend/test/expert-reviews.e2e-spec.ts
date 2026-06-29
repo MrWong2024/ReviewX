@@ -9,7 +9,10 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
-import type { ExpertReviewStatus } from '../src/modules/expert-reviews/constants/expert-review.constants';
+import {
+  PROJECT_REVIEW_SCHEME_MISSING,
+  type ExpertReviewStatus,
+} from '../src/modules/expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
 import { ProjectExpertAssignment } from '../src/modules/project-expert-assignments/schemas/project-expert-assignment.schema';
 import { ProjectMaterial } from '../src/modules/project-materials/schemas/project-material.schema';
@@ -194,10 +197,54 @@ describe('Expert review APIs (e2e)', () => {
       .send({ items: [] })
       .expect(403);
 
-    await request(httpServer)
+  });
+
+  it('returns a clear business error when review scheme snapshot is missing', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    const listResponse = await request(httpServer)
+      .get('/expert/review-tasks')
+      .query({
+        pageSize: 1000,
+        batchId: data.batchId,
+      })
+      .set('Cookie', expertCookie)
+      .expect(200);
+    const missingSnapshotListItem = getRecordArray(
+      getJsonBody(listResponse),
+      'items',
+    ).find(
+      (item) =>
+        getRecordValue(item, 'project').id === data.noSnapshotProject.id,
+    );
+    expect(missingSnapshotListItem).toMatchObject({
+      status: 'not_started',
+      project: {
+        id: data.noSnapshotProject.id,
+        reviewSchemeId: null,
+      },
+    });
+
+    const detailResponse = await request(httpServer)
       .get(`/expert/review-tasks/${data.noSnapshotProject.id}`)
       .set('Cookie', expertCookie)
       .expect(409);
+    expectMissingReviewSchemeResponse(detailResponse);
+
+    const draftResponse = await request(httpServer)
+      .put(`/expert/review-tasks/${data.noSnapshotProject.id}`)
+      .set('Cookie', expertCookie)
+      .send({ items: [] })
+      .expect(409);
+    expectMissingReviewSchemeResponse(draftResponse);
+
+    const submitResponse = await request(httpServer)
+      .post(`/expert/review-tasks/${data.noSnapshotProject.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send({ items: [] })
+      .expect(409);
+    expectMissingReviewSchemeResponse(submitResponse);
   });
 
   it('saves drafts, validates submission, blocks submitted edits, returns and resubmits', async () => {
@@ -277,17 +324,29 @@ describe('Expert review APIs (e2e)', () => {
         });
       });
 
-    await request(httpServer)
+    const submittedDraftResponse = await request(httpServer)
       .put(`/expert/review-tasks/${data.project.id}`)
       .set('Cookie', expertCookie)
       .send({ items: [{ name: '技术', score: 55 }] })
       .expect(409);
+    expect(getJsonBody(submittedDraftResponse)).toMatchObject({
+      message: 'Submitted expert review cannot be modified',
+    });
+    expect(getJsonBody(submittedDraftResponse).code).not.toBe(
+      PROJECT_REVIEW_SCHEME_MISSING,
+    );
 
-    await request(httpServer)
+    const submittedAgainResponse = await request(httpServer)
       .post(`/expert/review-tasks/${data.project.id}/submit`)
       .set('Cookie', expertCookie)
       .send({ items: [] })
       .expect(409);
+    expect(getJsonBody(submittedAgainResponse)).toMatchObject({
+      message: 'Expert review has already been submitted',
+    });
+    expect(getJsonBody(submittedAgainResponse).code).not.toBe(
+      PROJECT_REVIEW_SCHEME_MISSING,
+    );
 
     await request(httpServer)
       .post(
@@ -1019,6 +1078,13 @@ function getStringValue(record: Record<string, unknown>, key: string): string {
   const value = record[key];
 
   return typeof value === 'string' ? value : '';
+}
+
+function expectMissingReviewSchemeResponse(response: Response): void {
+  expect(getJsonBody(response)).toMatchObject({
+    code: PROJECT_REVIEW_SCHEME_MISSING,
+    message: '项目尚未分配评审方案，暂不能评分。',
+  });
 }
 
 function createValidSubmitPayload(): {

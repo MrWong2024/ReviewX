@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ErrorAlert } from '@/src/components/feedback/ErrorAlert';
 import { LoadingState } from '@/src/components/feedback/LoadingState';
 import { ExpertShell } from '@/src/components/layout/ExpertShell';
+import { getErrorMessage, isApiError } from '@/src/lib/api/errors';
 import {
   deleteExpertReviewDraft,
   getExpertReviewTask,
@@ -36,11 +37,23 @@ type ExpertReviewTaskDetailPageProps = {
   projectId: string;
 };
 
+type ExpertReviewTaskDetailError = {
+  hint?: string;
+  message: string;
+  title: string;
+};
+
+const PROJECT_REVIEW_SCHEME_MISSING = 'PROJECT_REVIEW_SCHEME_MISSING';
+const REVIEW_SCHEME_MISSING_MESSAGE =
+  '项目尚未分配评审方案，暂不能评分。';
+const REVIEW_SCHEME_MISSING_HINT =
+  '请等待评审负责人或管理员完成评审方案配置。';
+
 export function ExpertReviewTaskDetailPage({
   projectId,
 }: ExpertReviewTaskDetailPageProps) {
   const [detail, setDetail] = useState<ExpertReviewTaskDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ExpertReviewTaskDetailError | null>(null);
   const [loading, setLoading] = useState(true);
   const [materials, setMaterials] = useState<ExpertMaterial[]>([]);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
@@ -86,7 +99,12 @@ export function ExpertReviewTaskDetailPage({
       setDetail(detailResult.value);
     } else {
       setDetail(null);
-      setError(`任务详情加载失败。${formatExpertErrorMessage(detailResult.reason)}`);
+      setError(
+        createExpertReviewTaskDetailError(
+          '任务详情加载失败',
+          detailResult.reason,
+        ),
+      );
     }
 
     if (materialsResult.status === 'fulfilled') {
@@ -94,14 +112,16 @@ export function ExpertReviewTaskDetailPage({
     } else {
       setMaterials([]);
       setMaterialsError(
-        `项目材料加载失败。${formatExpertErrorMessage(materialsResult.reason)}`,
+        `项目材料加载失败。${formatExpertReviewTaskError(
+          materialsResult.reason,
+        )}`,
       );
     }
 
     if (referenceResult.status === 'fulfilled') {
       setReferenceData(referenceResult.value);
     } else {
-      setReferenceDataError(formatExpertErrorMessage(referenceResult.reason));
+      setReferenceDataError(formatExpertReviewTaskError(referenceResult.reason));
     }
 
     setLoading(false);
@@ -118,7 +138,12 @@ export function ExpertReviewTaskDetailPage({
       setDetail(detailResult.value);
       setError(null);
     } else {
-      setError(`任务详情刷新失败。${formatExpertErrorMessage(detailResult.reason)}`);
+      setError(
+        createExpertReviewTaskDetailError(
+          '任务详情刷新失败',
+          detailResult.reason,
+        ),
+      );
     }
 
     if (materialsResult.status === 'fulfilled') {
@@ -126,7 +151,9 @@ export function ExpertReviewTaskDetailPage({
       setMaterialsError(null);
     } else {
       setMaterialsError(
-        `项目材料刷新失败。${formatExpertErrorMessage(materialsResult.reason)}`,
+        `项目材料刷新失败。${formatExpertReviewTaskError(
+          materialsResult.reason,
+        )}`,
       );
     }
   }
@@ -141,7 +168,7 @@ export function ExpertReviewTaskDetailPage({
       setNotice('评分草稿已保存');
       await refreshDetailAndMaterials();
     } catch (error) {
-      setOperationError(formatExpertErrorMessage(error));
+      setOperationError(formatExpertReviewTaskError(error));
     } finally {
       setSaving(false);
     }
@@ -157,7 +184,7 @@ export function ExpertReviewTaskDetailPage({
       setNotice('评分已提交');
       await refreshDetailAndMaterials();
     } catch (error) {
-      setOperationError(formatExpertErrorMessage(error));
+      setOperationError(formatExpertReviewTaskError(error));
     } finally {
       setSubmitting(false);
     }
@@ -173,7 +200,7 @@ export function ExpertReviewTaskDetailPage({
       setNotice('评分草稿已删除。');
       await refreshDetailAndMaterials();
     } catch (error) {
-      setOperationError(formatExpertErrorMessage(error));
+      setOperationError(formatExpertReviewTaskError(error));
       throw error;
     } finally {
       setDeletingDraft(false);
@@ -209,7 +236,7 @@ export function ExpertReviewTaskDetailPage({
         </div>
       </div>
 
-      <ErrorAlert message={error} />
+      <ExpertReviewTaskDetailErrorAlert error={error} />
 
       {loading ? (
         <section className="panel">
@@ -257,5 +284,81 @@ export function ExpertReviewTaskDetailPage({
         </div>
       ) : null}
     </ExpertShell>
+  );
+}
+
+function ExpertReviewTaskDetailErrorAlert({
+  error,
+}: {
+  error?: ExpertReviewTaskDetailError | null;
+}) {
+  if (!error) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 shadow-sm">
+      <div className="font-bold">{error.title}</div>
+      <div className="mt-1">{error.message}</div>
+      {error.hint ? (
+        <div className="mt-1 text-red-600">{error.hint}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function createExpertReviewTaskDetailError(
+  title: string,
+  error: unknown,
+): ExpertReviewTaskDetailError {
+  return {
+    title,
+    message: formatExpertReviewTaskError(error),
+    hint: isProjectReviewSchemeMissingError(error)
+      ? REVIEW_SCHEME_MISSING_HINT
+      : undefined,
+  };
+}
+
+function formatExpertReviewTaskError(error: unknown): string {
+  if (isApiError(error)) {
+    if (isProjectReviewSchemeMissingError(error)) {
+      return REVIEW_SCHEME_MISSING_MESSAGE;
+    }
+
+    if (error.status === 409) {
+      if (
+        error.code === 'REVIEW_NOT_STARTED' ||
+        error.message.includes('评审尚未开始')
+      ) {
+        return '评审尚未开始，暂不能提交评分。';
+      }
+
+      if (
+        error.code === 'EXPERT_REVIEW_DRAFT_NOT_DELETABLE' ||
+        error.message.includes('只有未提交的评分草稿可以删除')
+      ) {
+        return '只有未提交的评分草稿可以删除。';
+      }
+
+      if (
+        error.message.includes('Submitted expert review cannot be modified') ||
+        error.message.includes('Expert review has already been submitted')
+      ) {
+        return '评分已提交，不能修改。';
+      }
+
+      return getErrorMessage(error);
+    }
+  }
+
+  return formatExpertErrorMessage(error);
+}
+
+function isProjectReviewSchemeMissingError(error: unknown): boolean {
+  return (
+    isApiError(error) &&
+    (error.code === PROJECT_REVIEW_SCHEME_MISSING ||
+      error.message.includes(REVIEW_SCHEME_MISSING_MESSAGE))
   );
 }
