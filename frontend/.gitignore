@@ -6,5 +6,8 @@ out
 build
 *.log
 *.tsbuildinfo
-.env.local
-.env.*.local
+.env
+.env.*
+!.env.development.example
+!.env.test.example
+!.env.production.example
