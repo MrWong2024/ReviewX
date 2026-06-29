@@ -94,7 +94,7 @@ export const envValidationSchema = Joi.object({
   MAX_ACTIVE_SESSIONS_PER_USER: Joi.number().integer().min(1).default(5),
   SESSION_COOKIE_SECURE: Joi.when('NODE_ENV', {
     is: 'production',
-    then: booleanSchema.valid(true).default(true),
+    then: booleanSchema.default(true),
     otherwise: booleanSchema.default(false),
   }),
   SESSION_COOKIE_SAME_SITE: Joi.string()
@@ -110,10 +110,7 @@ export const envValidationSchema = Joi.object({
   BAILIAN_MODEL: Joi.string().trim().allow('').default(''),
   BAILIAN_TIMEOUT_MS: Joi.number().integer().min(1).default(90000),
   BAILIAN_MAX_RETRIES: Joi.number().integer().min(0).default(1),
-  CONSENSUS_DRAFT_COOLDOWN_SECONDS: Joi.number()
-    .integer()
-    .min(0)
-    .default(60),
+  CONSENSUS_DRAFT_COOLDOWN_SECONDS: Joi.number().integer().min(0).default(60),
   SMS_AUTH_PROVIDER: smsAuthProviderSchema,
   ALIYUN_SMS_ACCESS_KEY_ID: Joi.string().trim().allow('').default(''),
   ALIYUN_SMS_ACCESS_KEY_SECRET: Joi.string().trim().allow('').default(''),
@@ -123,10 +120,7 @@ export const envValidationSchema = Joi.object({
     .min(1)
     .default('dypnsapi.aliyuncs.com'),
   ALIYUN_SMS_COUNTRY_CODE: Joi.string().trim().valid('86').default('86'),
-  ALIYUN_SMS_SIGN_NAME: Joi.string()
-    .trim()
-    .min(1)
-    .default('速通互联验证码'),
+  ALIYUN_SMS_SIGN_NAME: Joi.string().trim().min(1).default('速通互联验证码'),
   ALIYUN_SMS_TEMPLATE_CODE: Joi.string().trim().min(1).default('100001'),
   ALIYUN_SMS_TEMPLATE_PARAM: Joi.string()
     .trim()
