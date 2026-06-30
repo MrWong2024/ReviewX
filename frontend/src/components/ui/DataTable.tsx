@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 import { EmptyState } from '../feedback/EmptyState';
+import { cx } from '@/src/lib/styles';
 
 export type DataColumn<T> = {
+  cellClassName?: string;
+  headerClassName?: string;
   key: string;
   render?: (item: T) => ReactNode;
   title: string;
@@ -31,7 +34,10 @@ export function DataTable<T>({
           <tr className="bg-slate-50/90">
             {columns.map((column) => (
               <th
-                className="border-b border-slate-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500 first:rounded-tl-xl last:rounded-tr-xl"
+                className={cx(
+                  'border-b border-slate-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-slate-500 first:rounded-tl-xl last:rounded-tr-xl',
+                  column.headerClassName,
+                )}
                 key={column.key}
               >
                 {column.title}
@@ -47,7 +53,10 @@ export function DataTable<T>({
             >
               {columns.map((column) => (
                 <td
-                  className="border-b border-slate-100 px-4 py-3 align-top text-slate-700 group-last:border-b-0"
+                  className={cx(
+                    'border-b border-slate-100 px-4 py-3 align-top text-slate-700 group-last:border-b-0',
+                    column.cellClassName,
+                  )}
                   key={column.key}
                 >
                   {column.render ? column.render(item) : null}

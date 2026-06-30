@@ -66,6 +66,15 @@ const EMPTY_FILTERS: ProjectFilters = {
   statusId: '',
 };
 
+const PROJECT_ORGANIZATION_STATUS_HEADER_CLASS =
+  'sticky right-[200px] z-30 w-[160px] min-w-[160px] bg-slate-50/95 shadow-[-1px_0_0_rgba(203,213,225,0.9)]';
+const PROJECT_ORGANIZATION_STATUS_CELL_CLASS =
+  'sticky right-[200px] z-20 w-[160px] min-w-[160px] whitespace-nowrap bg-white shadow-[-1px_0_0_rgba(203,213,225,0.9)] group-hover:bg-cyan-50/80';
+const PROJECT_ACTIONS_HEADER_CLASS =
+  'sticky right-0 z-40 w-[200px] min-w-[200px] bg-slate-50/95 shadow-[-8px_0_12px_rgba(15,23,42,0.06)]';
+const PROJECT_ACTIONS_CELL_CLASS =
+  'sticky right-0 z-30 w-[200px] min-w-[200px] bg-white shadow-[-8px_0_12px_rgba(15,23,42,0.06)] group-hover:bg-cyan-50/80';
+
 export function ProjectsPage() {
   const [assignmentTarget, setAssignmentTarget] = useState<Project | null>(null);
   const [batchAssignmentProjects, setBatchAssignmentProjects] = useState<
@@ -367,6 +376,8 @@ export function ProjectsPage() {
       title: '会议链接',
     },
     {
+      cellClassName: PROJECT_ORGANIZATION_STATUS_CELL_CLASS,
+      headerClassName: PROJECT_ORGANIZATION_STATUS_HEADER_CLASS,
       key: 'organizationStatus',
       render: (item) => {
         const status = getProjectOrganizationStatus(item);
@@ -376,6 +387,8 @@ export function ProjectsPage() {
       title: '组织状态',
     },
     {
+      cellClassName: PROJECT_ACTIONS_CELL_CLASS,
+      headerClassName: PROJECT_ACTIONS_HEADER_CLASS,
       key: 'actions',
       render: (item) => (
         <div className="table-actions">
