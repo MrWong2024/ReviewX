@@ -43,6 +43,22 @@ export type ListProjectsParams = {
   statusId?: string;
 };
 
+export type ProjectFormInput = {
+  allocatedFunding?: number | null;
+  batchId: string;
+  cooperationOrganizationIds?: string[];
+  departmentId?: string | null;
+  disciplineIds?: string[];
+  isActive?: boolean;
+  leadOrganizationId?: string | null;
+  name: string;
+  ownerUserId?: string | null;
+  projectNo: string;
+  projectTypeId?: string | null;
+  statusId?: string | null;
+  totalFunding?: number | null;
+};
+
 export type UpdateReviewAssignmentInput = {
   reviewManagerId?: string;
   reviewSchemeId?: string;

@@ -21,6 +21,7 @@ import {
 import { BatchExpertsModal } from '../components/project-review-organization/BatchExpertsModal';
 import { BatchReviewAssignmentModal } from '../components/project-review-organization/BatchReviewAssignmentModal';
 import { ReviewAssignmentModal } from '../components/project-review-organization/ReviewAssignmentModal';
+import { ProjectEditModal } from '../components/ProjectEditModal';
 import {
   listBatches,
   listDictionaries,
@@ -92,6 +93,8 @@ export function ProjectsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [page, setPage] = useState(1);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectOwners, setProjectOwners] = useState<AdminUser[]>([]);
   const [reviewManagers, setReviewManagers] = useState<AdminUser[]>([]);
   const [reviewSchemes, setReviewSchemes] = useState<ReviewScheme[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -148,6 +151,12 @@ export function ProjectsPage() {
     () => flattenTree(projectTypes),
     [projectTypes],
   );
+  const disciplines = treeDictionaries.filter(
+    (item) => item.treeType === 'discipline',
+  );
+  const departments = treeDictionaries.filter(
+    (item) => item.treeType === 'department',
+  );
   const projectStatuses = dictionaries.filter(
     (item) => item.dictType === 'project_status',
   );
@@ -167,6 +176,7 @@ export function ProjectsPage() {
         disciplineResponse,
         departmentResponse,
         managerResponse,
+        projectOwnerResponse,
         userResponse,
         schemeResponse,
       ] = await Promise.all([
@@ -182,6 +192,12 @@ export function ProjectsPage() {
           pageSize: 1000,
           role: 'review_manager',
         }),
+        listUsers({
+          isActive: true,
+          page: 1,
+          pageSize: 1000,
+          role: 'project_owner',
+        }),
         listUsers({ page: 1, pageSize: 1000 }),
         listReviewSchemes(),
       ]);
@@ -195,6 +211,7 @@ export function ProjectsPage() {
         ...departmentResponse,
       ]);
       setReviewManagers(managerResponse.items);
+      setProjectOwners(projectOwnerResponse.items);
       setUsers(userResponse.items);
       setReviewSchemes(schemeResponse);
     } catch {
@@ -203,6 +220,7 @@ export function ProjectsPage() {
       setOrganizations([]);
       setTreeDictionaries([]);
       setReviewManagers([]);
+      setProjectOwners([]);
       setUsers([]);
       setReviewSchemes([]);
     }
@@ -280,6 +298,12 @@ export function ProjectsPage() {
   function handleAssignmentSaved() {
     setAssignmentTarget(null);
     setNotice('已保存分配。');
+    loadData(page, filters);
+  }
+
+  function handleProjectEditSaved() {
+    setEditingProject(null);
+    setNotice('项目信息已更新。');
     loadData(page, filters);
   }
 
@@ -392,6 +416,17 @@ export function ProjectsPage() {
       key: 'actions',
       render: (item) => (
         <div className="flex flex-col items-stretch gap-1">
+          <Button
+            className="w-full whitespace-normal break-words !px-2 text-center leading-4"
+            onClick={() => {
+              setNotice(null);
+              setEditingProject(item);
+            }}
+            size="sm"
+            variant="secondary"
+          >
+            编辑
+          </Button>
           <Button
             className="w-full whitespace-normal break-words !px-2 text-center leading-4"
             onClick={() => {
@@ -628,6 +663,19 @@ export function ProjectsPage() {
         project={assignmentTarget}
         reviewManagers={reviewManagers}
         reviewSchemes={reviewSchemes}
+      />
+      <ProjectEditModal
+        batches={batches}
+        departments={departments}
+        disciplines={disciplines}
+        onClose={() => setEditingProject(null)}
+        onSaved={handleProjectEditSaved}
+        open={Boolean(editingProject)}
+        organizations={organizations}
+        project={editingProject}
+        projectOwners={projectOwners}
+        projectStatuses={projectStatuses}
+        projectTypes={projectTypes}
       />
       <BatchReviewAssignmentModal
         onClose={() => setBatchAssignmentProjects([])}

@@ -56,9 +56,10 @@
 | `TreeDictionariesPage` | `frontend/src/features/admin/pages/TreeDictionariesPage.tsx` | 树形字典管理，顶部树类型筛选控制维护范围，默认仅展示第一层，维护展开状态并支持逐层展开 / 收起；新增 / 编辑弹窗父节点下拉默认仅列一级节点，可勾选显示全部层级，空父节点文案明确为作为一级节点，父节点 option 使用统一 `treeOptionLabel` 缩进；列表行内展示编码、排序和全称，不重复显示树类型 |
 | `OrganizationsPage` | `frontend/src/features/admin/pages/OrganizationsPage.tsx` | 单位管理，行政区划筛选和新增 / 编辑弹窗行政区划 select 使用统一 `treeOptionLabel` 缩进 |
 | `ReviewSchemesPage` | `frontend/src/features/admin/pages/ReviewSchemesPage.tsx` | 评审方案管理 |
-| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、单项目分配、批量分配、批量设置专家和详情入口；项目类型 select 使用统一 `treeOptionLabel` 缩进 |
+| `ProjectsPage` | `frontend/src/features/admin/pages/ProjectsPage.tsx` | 管理员项目评审组织列表，支持筛选、选择、项目基础信息编辑、单项目分配、批量分配、批量设置专家和详情入口；项目类型 select 使用统一 `treeOptionLabel` 缩进 |
 | `UsersPage` | `frontend/src/features/admin/pages/UsersPage.tsx` | 管理员用户管理，支持列表、筛选、分页、新增、编辑、启停和重置密码 |
 | `ProjectReviewOrganizationPage` | `frontend/src/features/admin/pages/ProjectReviewOrganizationPage.tsx` | 单项目评审组织详情，展示基础信息、评审分配、评审安排、项目材料、已分配专家和专家候选 |
+| `ProjectEditModal` | `frontend/src/features/admin/components/ProjectEditModal.tsx` | 管理员项目基础信息编辑弹窗，调用 `PATCH /admin/projects/:id` 保存项目编号、名称、批次、类型、状态、项目负责人、承担单位、合作单位、资金、学科、受理处室和启用状态；不编辑评审负责人、评审方案、评审安排、最终等级、导入来源或评审方案快照 |
 | `ReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/ReviewAssignmentModal.tsx` | 单项目设置评审负责人和评审方案 |
 | `BatchReviewAssignmentModal` | `frontend/src/features/admin/components/project-review-organization/BatchReviewAssignmentModal.tsx` | 多项目批量设置评审负责人和评审方案，并展示成功 / 失败明细 |
 | `ProjectSchedulePanel` | `frontend/src/features/admin/components/project-review-organization/ProjectSchedulePanel.tsx` | 设置单项目评审时间、地点和会议链接；明确仅保存会议链接字段 |

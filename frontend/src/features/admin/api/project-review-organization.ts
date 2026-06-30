@@ -16,6 +16,7 @@ import type {
   ListProjectExpertCandidatesParams,
   ListProjectsParams,
   Project,
+  ProjectFormInput,
   RemoveExpertResult,
   ReplaceExpertsResult,
   UpdateProjectExpertsInput,
@@ -26,6 +27,13 @@ import type {
 export function getProject(id: string) {
   return apiRequest<Project>(`/admin/projects/${id}`, {
     method: 'GET',
+  });
+}
+
+export function updateProject(id: string, input: ProjectFormInput) {
+  return apiRequest<Project>(`/admin/projects/${id}`, {
+    body: input,
+    method: 'PATCH',
   });
 }
 

@@ -57,6 +57,7 @@
 | `deleteReviewScheme` | `DELETE /admin/review-schemes/:id` | 单对象，后端停用语义 | `/admin/review-schemes` |
 | `listProjects` | `GET /admin/projects` | 分页对象；支持 `page/pageSize/batchId/projectTypeId/statusId/departmentId/disciplineId/reviewManagerId/reviewSchemeId/hasReviewManager/hasReviewScheme/keyword/isActive` | `/admin/projects` |
 | `getProject` | `GET /admin/projects/:id` | `Project` | `/admin/projects/[projectId]/review-organization` |
+| `updateProject` | `PATCH /admin/projects/:id` | `Project`；管理员项目基础信息编辑，只提交项目编号、名称、批次、类型、状态、项目负责人、承担单位、合作单位、资金、学科、受理处室和启用状态；不提交评审负责人、评审方案、评审时间地点、会议链接、最终等级、导入来源或评审方案快照 | `/admin/projects` |
 | `listAdminProjectMaterials` | `GET /admin/projects/:id/materials` | `AdminProjectMaterial[]`；管理员可见 `draft/submitted/legacy active`，`deleted` 仅作 legacy 兜底；不传臆造查询参数 | `/admin/projects/[projectId]/review-organization` |
 | `getAdminProjectMaterialDownloadUrl` | `GET /admin/projects/:id/materials/:materialId/download-url` | 兼容后端返回 `string`、`{ url }`、`{ downloadUrl }`；只打开后端返回 URL，不在前端拼接 OSS objectKey | `/admin/projects/[projectId]/review-organization` |
 | `deleteAdminProjectMaterial` | `DELETE /admin/projects/:id/materials/:materialId` | 请求体 `{ reason: string }` 必填，trim 后不能为空且最长 1000；成功返回 `{ deleted, deletionLogId }`；前端不展示删除日志，不乐观移除 | `/admin/projects/[projectId]/review-organization` |
@@ -275,6 +276,8 @@
 - 字段映射配置页只使用 JSON 请求，不使用 FormData；`isActive=''` 和空 keyword 不提交 query
 - 字段映射标准字段由后端标准字段清单 / 配置视图返回，前端不允许新增、删除或重命名标准字段
 - 字段映射停用和删除自定义配置均不是禁用标准字段，而是回退系统默认别名；reset-defaults 是创建或覆盖配置，使自定义别名等于默认别名
+- `/admin/projects` 提供项目基础信息编辑弹窗，保存调用 `PATCH /admin/projects/:id`；编辑范围为项目编号、名称、批次、项目类型、项目状态、项目负责人、承担单位、合作单位、拨款总额、已拨款、学科、受理处室和启用状态。
+- `/admin/projects` 基础信息编辑不编辑评审负责人、评审方案、评审时间地点、会议链接、最终等级、导入来源和评审方案快照；评审负责人 / 评审方案继续由分配弹窗维护，评审安排继续由评审组织页维护。
 - 项目评审组织页面读取 `review_manager` active 用户作为负责人选项，读取 active expert 用户作为批量专家设置通用选择源；真实专家候选优先使用 `/admin/projects/:id/expert-candidates`
 - 管理员专家分配操作使用 `/admin/projects*` 系列接口；评审负责人专家分配操作使用 `/review-manager/projects*` 系列接口；两者共用后端专家名单锁定规则，前端不跨角色混用接口
 - 专家候选和分配不在前端自行实现学科匹配、单位回避或已评分专家替换判断；页面只展示后端返回候选、assigned 标记、`hasReviewRecord/reviewStatus` 和失败原因
