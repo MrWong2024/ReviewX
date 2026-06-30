@@ -437,19 +437,28 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
         <div className="grid gap-1 text-sm leading-5">
           <div>
             负责人：
-            {labelById(item.resolved.ownerUserId, ownerNameById) ||
+            {labelByIdSafe(
+              item.resolved.ownerUserId,
+              ownerNameById,
+              '未知项目负责人',
+            ) ||
               displayValue(item.normalized.ownerName)}
           </div>
           <div>
             承担单位：
-            {labelById(
+            {labelByIdSafe(
               item.resolved.leadOrganizationId,
               organizationNameById,
+              '未知单位',
             ) || displayValue(item.normalized.leadOrganizationName)}
           </div>
           <div>
             项目类型：
-            {labelById(item.resolved.projectTypeId, treeNameById) ||
+            {labelByIdSafe(
+              item.resolved.projectTypeId,
+              treeNameById,
+              '未知项目类型',
+            ) ||
               displayValue(item.normalized.projectTypeName)}
           </div>
         </div>
@@ -557,7 +566,10 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
                   {job.originalFilename}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                  <span>批次：{batchNameById.get(job.batchId) ?? job.batchId}</span>
+                  <span>
+                    批次：
+                    {labelByIdSafe(job.batchId, batchNameById, '未知批次')}
+                  </span>
                   <Badge tone={getProjectImportJobStatusTone(job.status)}>
                     {getProjectImportJobStatusLabel(job.status)}
                   </Badge>
@@ -715,15 +727,32 @@ function toTreeSelectOptions(
   }));
 }
 
-function labelById(
-  id: string | undefined,
+function shortId(id?: string | null): string {
+  if (!id) {
+    return '';
+  }
+
+  if (id.length <= 8) {
+    return id;
+  }
+
+  return `${id.slice(0, 4)}...${id.slice(-4)}`;
+}
+
+function labelByIdSafe(
+  id: string | undefined | null,
   labels: Map<string, string>,
+  unknownPrefix: string,
 ): string {
   if (!id) {
     return '';
   }
 
-  return labels.get(id) ?? id;
+  const label = labels.get(id);
+
+  return label && label.trim()
+    ? label
+    : `${unknownPrefix}（${shortId(id)}）`;
 }
 
 function canSkipRow(status: ProjectImportRowStatus): boolean {

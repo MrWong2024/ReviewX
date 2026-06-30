@@ -212,6 +212,8 @@ export function ProjectImportRowModal({
     return null;
   }
 
+  const matchedProjectLabel = formatMatchedProjectLabel(row);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -311,7 +313,7 @@ export function ProjectImportRowModal({
           </Badge>
           {row.projectId ? (
             <span className="text-sm text-slate-500">
-              已关联项目：{row.projectId}
+              已关联项目：{formatLinkedProjectLabel(row)}
             </span>
           ) : null}
           {row.resolved.matchedExistingProject ? (
@@ -383,47 +385,66 @@ export function ProjectImportRowModal({
             entries={[
               [
                 '已有项目',
-                row.resolved.projectId
-                  ? `${displayValue(row.resolved.projectId)}${
-                      row.resolved.matchedExistingProject
-                        ? '（确认后更新已有项目）'
-                        : ''
-                    }`
-                  : '-',
+                row.resolved.matchedExistingProject &&
+                matchedProjectLabel !== '-'
+                  ? `${matchedProjectLabel}（确认后更新已有项目）`
+                  : matchedProjectLabel,
               ],
               [
                 '项目类型',
-                labelById(row.resolved.projectTypeId, names.treeNameById),
+                labelByIdSafe(
+                  row.resolved.projectTypeId,
+                  names.treeNameById,
+                  '未知项目类型',
+                ),
               ],
               [
                 '项目状态',
-                labelById(row.resolved.statusId, names.dictionaryNameById),
+                labelByIdSafe(
+                  row.resolved.statusId,
+                  names.dictionaryNameById,
+                  '未知项目状态',
+                ),
               ],
               [
                 '项目负责人',
-                labelById(row.resolved.ownerUserId, names.ownerNameById),
+                labelByIdSafe(
+                  row.resolved.ownerUserId,
+                  names.ownerNameById,
+                  '未知项目负责人',
+                ),
               ],
               [
                 '承担单位',
-                labelById(
+                labelByIdSafe(
                   row.resolved.leadOrganizationId,
                   names.organizationNameById,
+                  '未知单位',
                 ),
               ],
               [
                 '合作单位',
-                idsToLabels(
+                idsToLabelsSafe(
                   row.resolved.cooperationOrganizationIds,
                   names.organizationNameById,
+                  '未知单位',
                 ),
               ],
               [
                 '学科',
-                idsToLabels(row.resolved.disciplineIds, names.treeNameById),
+                idsToLabelsSafe(
+                  row.resolved.disciplineIds,
+                  names.treeNameById,
+                  '未知学科',
+                ),
               ],
               [
                 '受理处室',
-                labelById(row.resolved.departmentId, names.departmentNameById),
+                labelByIdSafe(
+                  row.resolved.departmentId,
+                  names.departmentNameById,
+                  '未知受理处室',
+                ),
               ],
             ]}
           />
@@ -1078,26 +1099,71 @@ function appendUnique(items: string[], next: string): string[] {
   return items.includes(next) ? items : [...items, next];
 }
 
-function labelById(
-  id: string | undefined,
+function shortId(id?: string | null): string {
+  if (!id) {
+    return '';
+  }
+
+  if (id.length <= 8) {
+    return id;
+  }
+
+  return `${id.slice(0, 4)}...${id.slice(-4)}`;
+}
+
+function labelByIdSafe(
+  id: string | undefined | null,
   labels: Map<string, string>,
+  unknownPrefix: string,
 ): string {
   if (!id) {
     return '-';
   }
 
-  return labels.get(id) ?? id;
+  const label = labels.get(id);
+
+  return label && label.trim()
+    ? label
+    : `${unknownPrefix}（${shortId(id)}）`;
 }
 
-function idsToLabels(
-  ids: string[] | undefined,
+function idsToLabelsSafe(
+  ids: string[] | undefined | null,
   labels: Map<string, string>,
+  unknownPrefix: string,
 ): string {
   if (!ids || ids.length === 0) {
     return '-';
   }
 
-  return ids.map((id) => labels.get(id) ?? id).join('、');
+  return ids.map((id) => labelByIdSafe(id, labels, unknownPrefix)).join('、');
+}
+
+function formatMatchedProjectLabel(row: ProjectImportRow): string {
+  return formatProjectLabel(row, row.resolved.projectId ?? row.projectId);
+}
+
+function formatLinkedProjectLabel(row: ProjectImportRow): string {
+  return formatProjectLabel(row, row.projectId);
+}
+
+function formatProjectLabel(
+  row: ProjectImportRow,
+  projectId?: string | null,
+): string {
+  if (!projectId) {
+    return '-';
+  }
+
+  const projectNo = row.normalized.projectNo?.trim();
+  const name = row.normalized.name?.trim();
+  const labelParts = [projectNo, name].filter(Boolean);
+
+  if (labelParts.length > 0) {
+    return `${labelParts.join('｜')}（${shortId(projectId)}）`;
+  }
+
+  return `已匹配已有项目（${shortId(projectId)}）`;
 }
 
 function formatUnknown(value: unknown): string {
