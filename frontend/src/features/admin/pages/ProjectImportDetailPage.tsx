@@ -454,12 +454,7 @@ export function ProjectImportDetailPage({ jobId }: ProjectImportDetailPageProps)
           </div>
           <div>
             项目类型：
-            {labelByIdSafe(
-              item.resolved.projectTypeId,
-              treeNameById,
-              '未知项目类型',
-            ) ||
-              displayValue(item.normalized.projectTypeName)}
+            {formatProjectTypeLabel(item, treeNameById)}
           </div>
         </div>
       ),
@@ -753,6 +748,91 @@ function labelByIdSafe(
   return label && label.trim()
     ? label
     : `${unknownPrefix}（${shortId(id)}）`;
+}
+
+function formatProjectTypeLabel(
+  row: ProjectImportRow,
+  labels: Map<string, string>,
+): string {
+  const id = row.resolved.projectTypeId;
+  const label = id ? labels.get(id) : undefined;
+  const safeLabel = normalizeDisplayText(label, id);
+
+  if (safeLabel) {
+    return safeLabel;
+  }
+
+  const normalizedName = normalizeDisplayText(
+    row.normalized.projectTypeName,
+    id,
+  );
+
+  if (normalizedName) {
+    return normalizedName;
+  }
+
+  const rawName = getRawProjectTypeText(row.raw, id);
+
+  return rawName ?? '未知项目类型';
+}
+
+function getRawProjectTypeText(
+  raw: Record<string, unknown>,
+  projectTypeId?: string,
+): string | undefined {
+  const rawKeys = [
+    'projectTypeName',
+    'projectType',
+    '项目类型',
+    '类型',
+    '项目类别',
+    '类别',
+  ];
+
+  for (const key of rawKeys) {
+    const value = normalizeDisplayText(
+      formatRawDisplayValue(raw[key]),
+      projectTypeId,
+    );
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function formatRawDisplayValue(value: unknown): string | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value);
+  }
+
+  return undefined;
+}
+
+function normalizeDisplayText(
+  value?: string | null,
+  sourceId?: string,
+): string | undefined {
+  const trimmed = value?.trim();
+
+  if (!trimmed || trimmed === sourceId || isObjectIdText(trimmed)) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
+function isObjectIdText(value: string): boolean {
+  return (
+    /^[a-f\d]{24}$/i.test(value) ||
+    /^[a-z\d]{4}\.\.\.[a-z\d]{4}$/i.test(value)
+  );
 }
 
 function canSkipRow(status: ProjectImportRowStatus): boolean {
