@@ -55,12 +55,21 @@ type ProjectEditModalProps = {
   projectTypes: TreeDictionary[];
 };
 
+type SelectedMultiSelectItem = {
+  id: string;
+  label: string;
+};
+
 type NativeMultiSelectProps = {
   children: ReactNode;
   description?: string;
+  emptySelectedText?: string;
   id: string;
   label: string;
   onChange: (value: string[]) => void;
+  onRemoveSelected?: (id: string) => void;
+  selectedItems?: SelectedMultiSelectItem[];
+  selectedLabel?: string;
   value: string[];
 };
 
@@ -118,6 +127,44 @@ export function ProjectEditModal({
   const departmentOptions = useMemo(
     () => flattenTree(departments),
     [departments],
+  );
+  const organizationNameById = useMemo(() => {
+    const names = new Map<string, string>();
+
+    organizations.forEach((organization) => {
+      names.set(organization.id, organization.name);
+    });
+
+    return names;
+  }, [organizations]);
+  const disciplineNameById = useMemo(() => {
+    const names = new Map<string, string>();
+
+    disciplineOptions.forEach(({ depth, hasChildren, item }) => {
+      names.set(item.id, treeOptionLabel(item.name, depth, hasChildren));
+    });
+
+    return names;
+  }, [disciplineOptions]);
+  const selectedCooperationOrganizations = useMemo(
+    () =>
+      buildSelectedItems(
+        withoutLeadOrganization(
+          form.cooperationOrganizationIds,
+          form.leadOrganizationId,
+        ),
+        organizationNameById,
+        '未知单位',
+      ),
+    [
+      form.cooperationOrganizationIds,
+      form.leadOrganizationId,
+      organizationNameById,
+    ],
+  );
+  const selectedDisciplines = useMemo(
+    () => buildSelectedItems(form.disciplineIds, disciplineNameById, '未知学科'),
+    [form.disciplineIds, disciplineNameById],
   );
   const fundingWarning = useMemo(
     () => getFundingWarning(form.totalFunding, form.allocatedFunding),
@@ -392,9 +439,21 @@ export function ProjectEditModal({
         <div className="grid-2">
           <NativeMultiSelect
             description="按住 Ctrl / Command 可多选。"
+            emptySelectedText="尚未选择合作单位"
             id="project-edit-cooperation-organizations"
             label="合作单位"
             onChange={updateCooperationOrganizations}
+            onRemoveSelected={(id) =>
+              setForm((current) => ({
+                ...current,
+                cooperationOrganizationIds: withoutLeadOrganization(
+                  removeSelectedId(current.cooperationOrganizationIds, id),
+                  current.leadOrganizationId,
+                ),
+              }))
+            }
+            selectedItems={selectedCooperationOrganizations}
+            selectedLabel={`已选择 ${selectedCooperationOrganizations.length} 个合作单位`}
             value={form.cooperationOrganizationIds}
           >
             {organizations.map((organization) => (
@@ -409,11 +468,20 @@ export function ProjectEditModal({
           </NativeMultiSelect>
           <NativeMultiSelect
             description="按住 Ctrl / Command 可多选。"
+            emptySelectedText="尚未选择学科"
             id="project-edit-disciplines"
             label="学科"
             onChange={(disciplineIds) =>
               setForm({ ...form, disciplineIds })
             }
+            onRemoveSelected={(id) =>
+              setForm((current) => ({
+                ...current,
+                disciplineIds: removeSelectedId(current.disciplineIds, id),
+              }))
+            }
+            selectedItems={selectedDisciplines}
+            selectedLabel={`已选择 ${selectedDisciplines.length} 个学科`}
             value={form.disciplineIds}
           >
             {disciplineOptions.map(({ depth, hasChildren, item }) => (
@@ -463,9 +531,13 @@ export function ProjectEditModal({
 function NativeMultiSelect({
   children,
   description,
+  emptySelectedText,
   id,
   label,
   onChange,
+  onRemoveSelected,
+  selectedItems,
+  selectedLabel,
   value,
 }: NativeMultiSelectProps) {
   return (
@@ -479,6 +551,39 @@ function NativeMultiSelect({
       >
         {children}
       </select>
+      {selectedItems ? (
+        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
+          <div className="text-xs font-medium text-slate-600">
+            {selectedLabel ?? `已选择 ${selectedItems.length} 项`}
+          </div>
+          {selectedItems.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedItems.map((item) => (
+                <span
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                  key={item.id}
+                >
+                  <span className="min-w-0 truncate">{item.label}</span>
+                  {onRemoveSelected ? (
+                    <button
+                      aria-label={`移除${item.label}`}
+                      className="shrink-0 text-slate-400 transition hover:text-red-600"
+                      onClick={() => onRemoveSelected(item.id)}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-1 text-xs text-slate-400">
+              {emptySelectedText ?? '尚未选择'}
+            </div>
+          )}
+        </div>
+      ) : null}
     </FormField>
   );
 }
@@ -519,6 +624,36 @@ function emptyToNull(value: string): string | null {
 
 function selectedValues(select: HTMLSelectElement): string[] {
   return Array.from(select.selectedOptions, (option) => option.value);
+}
+
+function buildSelectedItems(
+  ids: string[],
+  nameById: ReadonlyMap<string, string>,
+  unknownPrefix: string,
+): SelectedMultiSelectItem[] {
+  return ids
+    .filter(
+      (id, index, currentIds) =>
+        id !== '' && currentIds.indexOf(id) === index,
+    )
+    .map((id) => ({
+      id,
+      label: nameById.get(id) ?? `${unknownPrefix}（${shortId(id)}）`,
+    }));
+}
+
+function shortId(id: string): string {
+  const trimmed = id.trim();
+
+  if (trimmed.length <= 8) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, 4)}...${trimmed.slice(-4)}`;
+}
+
+function removeSelectedId(ids: string[], id: string): string[] {
+  return ids.filter((currentId) => currentId !== id);
 }
 
 function withoutLeadOrganization(
