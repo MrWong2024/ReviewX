@@ -27,6 +27,7 @@ import { UsersService } from '../../users/users.service';
 import { QueryProjectImportJobsDto } from '../dto/query-project-import-jobs.dto';
 import { QueryProjectImportRowsDto } from '../dto/query-project-import-rows.dto';
 import { UpdateProjectImportRowDto } from '../dto/update-project-import-row.dto';
+import { BATCH_INACTIVE_FOR_PROJECT_IMPORT } from '../constants/project-import-error-codes';
 import { ProjectImportIssueCode } from '../constants/project-import-issue-codes';
 import {
   ProjectImportJobStatus,
@@ -218,8 +219,13 @@ export class ProjectImportsService {
   }): Promise<ProjectImportJobResponse> {
     this.assertExcelFile(input.file);
 
-    if (!(await this.batchesService.existsById(input.batchId))) {
-      throw new NotFoundException('Batch not found');
+    const batch = await this.batchesService.findById(input.batchId);
+
+    if (batch.isActive === false) {
+      throw new ConflictException({
+        code: BATCH_INACTIVE_FOR_PROJECT_IMPORT,
+        message: '批次已停用，不能导入项目。',
+      });
     }
 
     const effectiveAliasMap =

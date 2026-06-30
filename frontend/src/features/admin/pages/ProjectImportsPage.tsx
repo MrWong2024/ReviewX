@@ -43,10 +43,17 @@ const EMPTY_FILTERS: ProjectImportFilters = {
   keyword: '',
   status: '',
 };
+const BATCH_INACTIVE_FOR_PROJECT_IMPORT =
+  'BATCH_INACTIVE_FOR_PROJECT_IMPORT';
+const BATCH_INACTIVE_PROJECT_IMPORT_MESSAGE = '批次已停用，不能导入项目。';
+const NO_ACTIVE_BATCH_MESSAGE =
+  '暂无启用批次，请先启用或创建批次后再导入项目。';
+const SELECT_ACTIVE_BATCH_MESSAGE = '请选择启用状态的批次后再上传。';
 
 export function ProjectImportsPage() {
   const router = useRouter();
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [batchesLoaded, setBatchesLoaded] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ProjectImportJob | null>(
     null,
   );
@@ -69,6 +76,12 @@ export function ProjectImportsPage() {
     () => new Map(batches.map((item) => [item.id, item.name])),
     [batches],
   );
+  const activeBatches = useMemo(
+    () => batches.filter((batch) => batch.isActive !== false),
+    [batches],
+  );
+  const hasActiveBatches = activeBatches.length > 0;
+  const noActiveBatches = batchesLoaded && !hasActiveBatches;
 
   async function loadOptions() {
     try {
@@ -76,6 +89,8 @@ export function ProjectImportsPage() {
       setBatches(response.items);
     } catch {
       setBatches([]);
+    } finally {
+      setBatchesLoaded(true);
     }
   }
 
@@ -109,6 +124,22 @@ export function ProjectImportsPage() {
     loadJobs(1, EMPTY_FILTERS);
   }, []);
 
+  useEffect(() => {
+    const firstActiveBatch = activeBatches[0];
+
+    if (!firstActiveBatch) {
+      if (uploadBatchId) {
+        setUploadBatchId('');
+      }
+
+      return;
+    }
+
+    if (!activeBatches.some((batch) => batch.id === uploadBatchId)) {
+      setUploadBatchId(firstActiveBatch.id);
+    }
+  }, [activeBatches, uploadBatchId]);
+
   function updateFilters(nextFilters: ProjectImportFilters) {
     setFilters(nextFilters);
     void loadJobs(1, nextFilters);
@@ -124,7 +155,11 @@ export function ProjectImportsPage() {
     setUploadError(null);
     setNotice(null);
 
-    const validationMessage = validateUpload(uploadBatchId, file);
+    const validationMessage = validateUpload(
+      uploadBatchId,
+      file,
+      activeBatches,
+    );
 
     if (validationMessage) {
       setUploadError(validationMessage);
@@ -277,14 +312,14 @@ export function ProjectImportsPage() {
           <form className="toolbar mb-0" onSubmit={handleUpload}>
             <div className="toolbar-left">
               <Select
-                disabled={uploading}
+                disabled={uploading || !hasActiveBatches}
                 id="project-import-upload-batch"
                 label="批次"
                 onChange={(event) => setUploadBatchId(event.target.value)}
                 value={uploadBatchId}
               >
                 <option value="">请选择批次</option>
-                {batches.map((batch) => (
+                {activeBatches.map((batch) => (
                   <option key={batch.id} value={batch.id}>
                     {batch.name}
                   </option>
@@ -292,7 +327,7 @@ export function ProjectImportsPage() {
               </Select>
               <Input
                 accept=".xlsx,.xls"
-                disabled={uploading}
+                disabled={uploading || !hasActiveBatches}
                 id="project-import-upload-file"
                 key={fileInputKey}
                 label="Excel 文件"
@@ -301,7 +336,11 @@ export function ProjectImportsPage() {
                 }}
                 type="file"
               />
-              <Button disabled={uploading} type="submit" variant="primary">
+              <Button
+                disabled={uploading || !hasActiveBatches}
+                type="submit"
+                variant="primary"
+              >
                 {uploading ? '上传中...' : '上传并解析'}
               </Button>
             </div>
@@ -309,6 +348,11 @@ export function ProjectImportsPage() {
           <div className="mt-3 text-xs leading-5 text-slate-500">
             支持 .xlsx / .xls，单个文件不超过 10MB；后端仅解析第一个工作表，不保存原始 Excel 文件。
           </div>
+          {noActiveBatches ? (
+            <div className="mt-2 text-sm font-medium text-amber-700">
+              {NO_ACTIVE_BATCH_MESSAGE}
+            </div>
+          ) : null}
           <ErrorAlert message={uploadError} />
         </div>
       </section>
@@ -407,9 +451,21 @@ export function ProjectImportsPage() {
   );
 }
 
-function validateUpload(batchId: string, file: File | null): string | null {
+function validateUpload(
+  batchId: string,
+  file: File | null,
+  activeBatches: Batch[],
+): string | null {
+  if (activeBatches.length === 0) {
+    return NO_ACTIVE_BATCH_MESSAGE;
+  }
+
   if (!batchId) {
     return '请先选择批次。';
+  }
+
+  if (!activeBatches.some((batch) => batch.id === batchId)) {
+    return SELECT_ACTIVE_BATCH_MESSAGE;
   }
 
   if (!file) {
@@ -431,6 +487,13 @@ function validateUpload(batchId: string, file: File | null): string | null {
 
 function getProjectImportErrorMessage(error: unknown, fallback: string): string {
   if (isApiError(error)) {
+    if (
+      error.code === BATCH_INACTIVE_FOR_PROJECT_IMPORT ||
+      error.message.includes(BATCH_INACTIVE_PROJECT_IMPORT_MESSAGE)
+    ) {
+      return error.message || BATCH_INACTIVE_PROJECT_IMPORT_MESSAGE;
+    }
+
     if (error.status === 409) {
       return `${fallback}：当前导入数据状态冲突，请刷新页面后重试。`;
     }

@@ -11,6 +11,7 @@ import { configureApp } from '../src/app.setup';
 import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import { Dictionary } from '../src/modules/dictionaries/schemas/dictionary.schema';
 import { Organization } from '../src/modules/organizations/schemas/organization.schema';
+import { BATCH_INACTIVE_FOR_PROJECT_IMPORT } from '../src/modules/project-imports/constants/project-import-error-codes';
 import { ProjectImportFieldMapping } from '../src/modules/project-imports/schemas/project-import-field-mapping.schema';
 import { ProjectImportJob } from '../src/modules/project-imports/schemas/project-import-job.schema';
 import { ProjectImportRow } from '../src/modules/project-imports/schemas/project-import-row.schema';
@@ -139,6 +140,10 @@ describe('Project import admin APIs (e2e)', () => {
       .expect(403);
     await request(httpServer)
       .delete(`/admin/project-imports/${deleteTargetId}`)
+      .set('Cookie', nonAdminCookie)
+      .expect(403);
+    await request(httpServer)
+      .post('/admin/project-imports/upload')
       .set('Cookie', nonAdminCookie)
       .expect(403);
 
@@ -283,6 +288,74 @@ describe('Project import admin APIs (e2e)', () => {
       [['项目编号', '项目名称', '项目承担单位']],
       400,
     );
+  });
+
+  it('rejects inactive batch uploads and keeps disabled batch import history readable', async () => {
+    await createUser({
+      phone: '+8613810000015',
+      name: 'Admin User',
+      roles: ['admin'],
+    });
+    const adminCookie = await login('+8613810000015');
+    const activeBatchId = await createBatch('2026');
+
+    const activeUpload = await uploadWorkbook(adminCookie, activeBatchId, [
+      ['项目编号', '项目名称', '项目承担单位'],
+      ['P-ACTIVE-BATCH-001', '启用批次导入', '不存在单位'],
+    ]);
+    const jobId = getString(activeUpload, 'id');
+
+    expect(activeUpload).toMatchObject({
+      batchId: activeBatchId,
+      totalRows: 1,
+    });
+
+    await batchModel
+      .findByIdAndUpdate(activeBatchId, { $set: { isActive: false } })
+      .exec();
+
+    const historyResponse = await request(httpServer)
+      .get('/admin/project-imports')
+      .query({ batchId: activeBatchId, page: 1, pageSize: 1000 })
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    expect(getJsonBody(historyResponse)).toMatchObject({
+      page: 1,
+      pageSize: 1000,
+      total: 1,
+    });
+    await request(httpServer)
+      .get(`/admin/project-imports/${jobId}`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+    await request(httpServer)
+      .get(`/admin/project-imports/${jobId}/rows`)
+      .set('Cookie', adminCookie)
+      .expect(200);
+
+    const inactiveBatchId = await createBatch('2027', false);
+    const inactiveResponse = await request(httpServer)
+      .post('/admin/project-imports/upload')
+      .set('Cookie', adminCookie)
+      .field('batchId', inactiveBatchId)
+      .attach(
+        'file',
+        createWorkbookBuffer([
+          ['项目编号', '项目名称', '项目承担单位'],
+          ['P-INACTIVE-BATCH-001', '停用批次导入', '不存在单位'],
+        ]),
+        'projects.xlsx',
+      )
+      .expect(409);
+
+    expect(getJsonBody(inactiveResponse)).toMatchObject({
+      code: BATCH_INACTIVE_FOR_PROJECT_IMPORT,
+      message: '批次已停用，不能导入项目。',
+    });
+    await expect(
+      importJobModel.countDocuments({ batchId: inactiveBatchId }).exec(),
+    ).resolves.toBe(0);
   });
 
   it('parses aliases, auto-matches master data, confirms rows, and keeps list contracts', async () => {
@@ -772,11 +845,11 @@ describe('Project import admin APIs (e2e)', () => {
     return toRequestCookie(getSessionCookie(response));
   }
 
-  async function createBatch(name: string): Promise<string> {
+  async function createBatch(name: string, isActive = true): Promise<string> {
     const batch = await batchModel.create({
       name,
       year: Number(name),
-      isActive: true,
+      isActive,
     });
 
     return batch._id.toString();

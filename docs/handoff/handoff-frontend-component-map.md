@@ -67,7 +67,7 @@
 | `AssignedExpertsPanel` | `frontend/src/features/admin/components/project-review-organization/AssignedExpertsPanel.tsx` | 查看已分配专家，展示评分状态；专家名单锁定时显示锁定原因并禁用移除 |
 | `ExpertCandidatesPanel` | `frontend/src/features/admin/components/project-review-organization/ExpertCandidatesPanel.tsx` | 查看后端候选专家，按 keyword 搜索分页，从候选追加或替换专家；专家名单锁定时显示锁定原因并禁用追加 / 替换 |
 | `BatchExpertsModal` | `frontend/src/features/admin/components/project-review-organization/BatchExpertsModal.tsx` | 多项目批量追加或替换专家，提交后展示逐项目结果 |
-| `ProjectImportsPage` | `frontend/src/features/admin/pages/ProjectImportsPage.tsx` | 管理员 Excel 项目导入上传、任务筛选、任务列表、分页和未确认导入任务删除 |
+| `ProjectImportsPage` | `frontend/src/features/admin/pages/ProjectImportsPage.tsx` | 管理员 Excel 项目导入上传、任务筛选、任务列表、分页和未确认导入任务删除；上传批次下拉只显示启用批次，无启用批次时禁用上传并提示，历史任务筛选仍使用全部批次以查看停用批次下的历史记录 |
 | `ProjectImportDetailPage` | `frontend/src/features/admin/pages/ProjectImportDetailPage.tsx` | 项目导入任务详情、行筛选、Excel 行号列表、人工修正、单行确认/跳过和批量确认 |
 | `ProjectImportJobStats` | `frontend/src/features/admin/components/project-imports/ProjectImportJobStats.tsx` | 导入任务统计卡片 |
 | `ProjectImportIssueList` | `frontend/src/features/admin/components/project-imports/ProjectImportIssueList.tsx` | 导入行 issue 中文展示和候选项采用按钮 |
