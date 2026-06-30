@@ -44,10 +44,15 @@ type ExpertReviewTaskDetailError = {
 };
 
 const PROJECT_REVIEW_SCHEME_MISSING = 'PROJECT_REVIEW_SCHEME_MISSING';
+const PROJECT_REVIEW_TIME_MISSING = 'PROJECT_REVIEW_TIME_MISSING';
 const REVIEW_SCHEME_MISSING_MESSAGE =
   '项目尚未分配评审方案，暂不能评分。';
 const REVIEW_SCHEME_MISSING_HINT =
   '请等待评审负责人或管理员完成评审方案配置。';
+const REVIEW_TIME_MISSING_MESSAGE =
+  '项目尚未设置评审时间，暂不能评分。';
+const REVIEW_TIME_MISSING_HINT =
+  '请等待评审负责人设置评审时间后再进行评分。';
 
 export function ExpertReviewTaskDetailPage({
   projectId,
@@ -314,9 +319,7 @@ function createExpertReviewTaskDetailError(
   return {
     title,
     message: formatExpertReviewTaskError(error),
-    hint: isProjectReviewSchemeMissingError(error)
-      ? REVIEW_SCHEME_MISSING_HINT
-      : undefined,
+    hint: getExpertReviewTaskDetailErrorHint(error),
   };
 }
 
@@ -324,6 +327,10 @@ function formatExpertReviewTaskError(error: unknown): string {
   if (isApiError(error)) {
     if (isProjectReviewSchemeMissingError(error)) {
       return REVIEW_SCHEME_MISSING_MESSAGE;
+    }
+
+    if (isProjectReviewTimeMissingError(error)) {
+      return REVIEW_TIME_MISSING_MESSAGE;
     }
 
     if (error.status === 409) {
@@ -355,10 +362,30 @@ function formatExpertReviewTaskError(error: unknown): string {
   return formatExpertErrorMessage(error);
 }
 
+function getExpertReviewTaskDetailErrorHint(error: unknown): string | undefined {
+  if (isProjectReviewSchemeMissingError(error)) {
+    return REVIEW_SCHEME_MISSING_HINT;
+  }
+
+  if (isProjectReviewTimeMissingError(error)) {
+    return REVIEW_TIME_MISSING_HINT;
+  }
+
+  return undefined;
+}
+
 function isProjectReviewSchemeMissingError(error: unknown): boolean {
   return (
     isApiError(error) &&
     (error.code === PROJECT_REVIEW_SCHEME_MISSING ||
       error.message.includes(REVIEW_SCHEME_MISSING_MESSAGE))
+  );
+}
+
+function isProjectReviewTimeMissingError(error: unknown): boolean {
+  return (
+    isApiError(error) &&
+    (error.code === PROJECT_REVIEW_TIME_MISSING ||
+      error.message.includes(REVIEW_TIME_MISSING_MESSAGE))
   );
 }

@@ -50,9 +50,13 @@ const EMPTY_FILTERS: ExpertTaskFilters = {
 
 const PAGE_SIZE = 20;
 const PROJECT_REVIEW_SCHEME_MISSING = 'PROJECT_REVIEW_SCHEME_MISSING';
+const PROJECT_REVIEW_TIME_MISSING = 'PROJECT_REVIEW_TIME_MISSING';
 const REVIEW_SCHEME_MISSING_HINT = '项目尚未分配评审方案';
 const REVIEW_SCHEME_MISSING_MESSAGE =
   '项目尚未分配评审方案，暂不能评分。';
+const REVIEW_TIME_MISSING_HINT = '项目尚未设置评审时间';
+const REVIEW_TIME_MISSING_MESSAGE =
+  '项目尚未设置评审时间，暂不能评分。';
 
 export function ExpertReviewTasksPage() {
   const [error, setError] = useState<string | null>(null);
@@ -369,15 +373,17 @@ function formatReviewManagerOption(manager: { name: string; phone?: string }) {
 }
 
 function ExpertReviewTaskAction({ item }: { item: ExpertReviewTask }) {
-  if (!item.project.reviewSchemeId) {
+  const unavailableReason = getExpertReviewTaskUnavailableReason(item);
+
+  if (unavailableReason) {
     return (
       <div className="table-actions">
         <div className="flex max-w-40 flex-col items-start gap-1">
-          <Button disabled size="sm" title={REVIEW_SCHEME_MISSING_HINT}>
+          <Button disabled size="sm" title={unavailableReason}>
             暂不能评分
           </Button>
           <span className="text-xs font-medium leading-5 text-slate-500">
-            {REVIEW_SCHEME_MISSING_HINT}
+            {unavailableReason}
           </span>
         </div>
       </div>
@@ -396,10 +402,28 @@ function ExpertReviewTaskAction({ item }: { item: ExpertReviewTask }) {
   );
 }
 
+function getExpertReviewTaskUnavailableReason(
+  item: ExpertReviewTask,
+): string | null {
+  if (!item.project.reviewSchemeId) {
+    return REVIEW_SCHEME_MISSING_HINT;
+  }
+
+  if (!item.project.reviewTime) {
+    return REVIEW_TIME_MISSING_HINT;
+  }
+
+  return null;
+}
+
 function formatExpertTaskPageError(error: unknown): string {
   if (isApiError(error)) {
     if (error.code === PROJECT_REVIEW_SCHEME_MISSING) {
       return REVIEW_SCHEME_MISSING_MESSAGE;
+    }
+
+    if (error.code === PROJECT_REVIEW_TIME_MISSING) {
+      return REVIEW_TIME_MISSING_MESSAGE;
     }
 
     if (error.status === 409) {

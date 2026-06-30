@@ -26,6 +26,7 @@ import {
   ExpertReviewViewStatus,
   PROJECT_REVIEW_SCHEME_INVALID,
   PROJECT_REVIEW_SCHEME_MISSING,
+  PROJECT_REVIEW_TIME_MISSING,
 } from '../constants/expert-review.constants';
 import { QueryExpertReviewTasksDto } from '../dto/query-expert-review-tasks.dto';
 import { ReturnExpertReviewDto } from '../dto/return-expert-review.dto';
@@ -356,6 +357,7 @@ export class ExpertReviewsService {
       currentUser.user.id,
     );
     const snapshot = this.getProjectSnapshot(project);
+    this.assertProjectReviewTimeConfigured(project);
     const [review, materials, reviewManager] = await Promise.all([
       this.findExpertReview(project._id, currentUser.user.id),
       this.listMaterialSummaries(project._id),
@@ -391,6 +393,7 @@ export class ExpertReviewsService {
       currentUser.user.id,
     );
     const snapshot = this.getProjectSnapshot(project);
+    this.assertProjectReviewTimeConfigured(project);
     const existing = await this.findExpertReview(
       project._id,
       currentUser.user.id,
@@ -432,6 +435,7 @@ export class ExpertReviewsService {
       currentUser.user.id,
     );
     const snapshot = this.getProjectSnapshot(project);
+    this.assertProjectReviewTimeConfigured(project);
     const existing = await this.findExpertReview(
       project._id,
       currentUser.user.id,
@@ -762,6 +766,17 @@ export class ExpertReviewsService {
     }
 
     return this.normalizeSnapshot(project.reviewSchemeSnapshot);
+  }
+
+  private assertProjectReviewTimeConfigured(project: ProjectLean): void {
+    if (project.reviewTime) {
+      return;
+    }
+
+    throw new ConflictException({
+      message: '项目尚未设置评审时间，暂不能评分。',
+      code: PROJECT_REVIEW_TIME_MISSING,
+    });
   }
 
   private assertReviewSubmissionStarted(reviewTime?: Date | null): void {

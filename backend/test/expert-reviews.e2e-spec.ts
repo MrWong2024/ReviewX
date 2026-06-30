@@ -11,6 +11,7 @@ import { Batch } from '../src/modules/batches/schemas/batch.schema';
 import { ConsensusReview } from '../src/modules/consensus-reviews/schemas/consensus-review.schema';
 import {
   PROJECT_REVIEW_SCHEME_MISSING,
+  PROJECT_REVIEW_TIME_MISSING,
   type ExpertReviewStatus,
 } from '../src/modules/expert-reviews/constants/expert-review.constants';
 import { ExpertReview } from '../src/modules/expert-reviews/schemas/expert-review.schema';
@@ -247,6 +248,54 @@ describe('Expert review APIs (e2e)', () => {
     expectMissingReviewSchemeResponse(submitResponse);
   });
 
+  it('returns a clear business error when review time is missing', async () => {
+    const data = await seedData();
+    const expertCookie = await login(data.expert.phone);
+
+    const listResponse = await request(httpServer)
+      .get('/expert/review-tasks')
+      .query({
+        pageSize: 1000,
+        batchId: data.batchId,
+      })
+      .set('Cookie', expertCookie)
+      .expect(200);
+    const missingReviewTimeListItem = getRecordArray(
+      getJsonBody(listResponse),
+      'items',
+    ).find(
+      (item) =>
+        getRecordValue(item, 'project').id === data.noReviewTimeProject.id,
+    );
+    expect(missingReviewTimeListItem).toMatchObject({
+      status: 'not_started',
+      project: {
+        id: data.noReviewTimeProject.id,
+        reviewTime: null,
+      },
+    });
+
+    const detailResponse = await request(httpServer)
+      .get(`/expert/review-tasks/${data.noReviewTimeProject.id}`)
+      .set('Cookie', expertCookie)
+      .expect(409);
+    expectMissingReviewTimeResponse(detailResponse);
+
+    const draftResponse = await request(httpServer)
+      .put(`/expert/review-tasks/${data.noReviewTimeProject.id}`)
+      .set('Cookie', expertCookie)
+      .send({ items: [] })
+      .expect(409);
+    expectMissingReviewTimeResponse(draftResponse);
+
+    const submitResponse = await request(httpServer)
+      .post(`/expert/review-tasks/${data.noReviewTimeProject.id}/submit`)
+      .set('Cookie', expertCookie)
+      .send({ items: [] })
+      .expect(409);
+    expectMissingReviewTimeResponse(submitResponse);
+  });
+
   it('saves drafts, validates submission, blocks submitted edits, returns and resubmits', async () => {
     const data = await seedData();
     const expertCookie = await login(data.expert.phone);
@@ -335,6 +384,9 @@ describe('Expert review APIs (e2e)', () => {
     expect(getJsonBody(submittedDraftResponse).code).not.toBe(
       PROJECT_REVIEW_SCHEME_MISSING,
     );
+    expect(getJsonBody(submittedDraftResponse).code).not.toBe(
+      PROJECT_REVIEW_TIME_MISSING,
+    );
 
     const submittedAgainResponse = await request(httpServer)
       .post(`/expert/review-tasks/${data.project.id}/submit`)
@@ -346,6 +398,9 @@ describe('Expert review APIs (e2e)', () => {
     });
     expect(getJsonBody(submittedAgainResponse).code).not.toBe(
       PROJECT_REVIEW_SCHEME_MISSING,
+    );
+    expect(getJsonBody(submittedAgainResponse).code).not.toBe(
+      PROJECT_REVIEW_TIME_MISSING,
     );
 
     await request(httpServer)
@@ -727,7 +782,7 @@ describe('Expert review APIs (e2e)', () => {
     expect(persistedReview?.submittedAt).toBeInstanceOf(Date);
   });
 
-  it('allows submit when review time is not set', async () => {
+  it('blocks scoring when review time is cleared', async () => {
     const data = await seedData();
     const expertCookie = await login(data.expert.phone);
 
@@ -737,20 +792,25 @@ describe('Expert review APIs (e2e)', () => {
       })
       .exec();
 
-    await request(httpServer)
+    const detailResponse = await request(httpServer)
+      .get(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .expect(409);
+    expectMissingReviewTimeResponse(detailResponse);
+
+    const draftResponse = await request(httpServer)
+      .put(`/expert/review-tasks/${data.project.id}`)
+      .set('Cookie', expertCookie)
+      .send({ items: [] })
+      .expect(409);
+    expectMissingReviewTimeResponse(draftResponse);
+
+    const submitResponse = await request(httpServer)
       .post(`/expert/review-tasks/${data.project.id}/submit`)
       .set('Cookie', expertCookie)
       .send(createValidSubmitPayload())
-      .expect(201)
-      .expect((response) => {
-        const body = getJsonBody(response);
-
-        expect(body).toMatchObject({
-          status: 'submitted',
-          totalScore: 85,
-        });
-        expect(body.submittedAt).toBeTruthy();
-      });
+      .expect(409);
+    expectMissingReviewTimeResponse(submitResponse);
   });
 
   it('allows review managers and admins to inspect reviews and summaries', async () => {
@@ -860,12 +920,14 @@ describe('Expert review APIs (e2e)', () => {
         },
       ],
     };
+    const reviewTime = new Date(Date.now() - 60 * 1000);
     const project = await projectModel.create({
       batchId: batch._id,
       projectNo: 'P-REVIEW-001',
       name: '专家评分项目',
       reviewManagerId: new Types.ObjectId(reviewManager.id),
       reviewSchemeId: new Types.ObjectId(reviewSchemeSnapshot.id),
+      reviewTime,
       reviewSchemeSnapshot,
       isActive: true,
     });
@@ -876,6 +938,20 @@ describe('Expert review APIs (e2e)', () => {
       reviewManagerId: new Types.ObjectId(reviewManager.id),
       isActive: true,
     });
+    const noReviewTimeSchemeId = new Types.ObjectId();
+    const noReviewTimeProject = await projectModel.create({
+      batchId: batch._id,
+      projectNo: 'P-REVIEW-004',
+      name: '未设置评审时间项目',
+      reviewManagerId: new Types.ObjectId(reviewManager.id),
+      reviewSchemeId: noReviewTimeSchemeId,
+      reviewSchemeSnapshot: {
+        ...reviewSchemeSnapshot,
+        id: noReviewTimeSchemeId.toString(),
+      },
+      reviewTime: null,
+      isActive: true,
+    });
     const missingReviewManagerId = new Types.ObjectId();
     const missingManagerProject = await projectModel.create({
       batchId: missingManagerBatch._id,
@@ -884,6 +960,7 @@ describe('Expert review APIs (e2e)', () => {
       reviewManagerId: missingReviewManagerId,
       reviewSchemeId: new Types.ObjectId(reviewSchemeSnapshot.id),
       reviewSchemeSnapshot,
+      reviewTime,
       isActive: true,
     });
 
@@ -913,6 +990,12 @@ describe('Expert review APIs (e2e)', () => {
         status: 'assigned',
       },
       {
+        projectId: noReviewTimeProject._id,
+        expertUserId: new Types.ObjectId(expert.id),
+        assignedByUserId: new Types.ObjectId(reviewManager.id),
+        status: 'assigned',
+      },
+      {
         projectId: missingManagerProject._id,
         expertUserId: new Types.ObjectId(expert.id),
         assignedByUserId: new Types.ObjectId(reviewManager.id),
@@ -936,6 +1019,7 @@ describe('Expert review APIs (e2e)', () => {
       project: { id: project._id.toString() },
       missingManagerProject: { id: missingManagerProject._id.toString() },
       noSnapshotProject: { id: noSnapshotProject._id.toString() },
+      noReviewTimeProject: { id: noReviewTimeProject._id.toString() },
     };
   }
 
@@ -1084,6 +1168,13 @@ function expectMissingReviewSchemeResponse(response: Response): void {
   expect(getJsonBody(response)).toMatchObject({
     code: PROJECT_REVIEW_SCHEME_MISSING,
     message: '项目尚未分配评审方案，暂不能评分。',
+  });
+}
+
+function expectMissingReviewTimeResponse(response: Response): void {
+  expect(getJsonBody(response)).toMatchObject({
+    code: PROJECT_REVIEW_TIME_MISSING,
+    message: '项目尚未设置评审时间，暂不能评分。',
   });
 }
 
