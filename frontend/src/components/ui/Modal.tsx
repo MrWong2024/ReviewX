@@ -11,6 +11,7 @@ type ModalProps = {
   onClose: () => void;
   open: boolean;
   panelClassName?: string;
+  showCloseButton?: boolean;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   title: string;
 };
@@ -29,6 +30,7 @@ export function Modal({
   onClose,
   open,
   panelClassName,
+  showCloseButton = true,
   size = 'lg',
   title,
 }: ModalProps) {
@@ -59,9 +61,11 @@ export function Modal({
       >
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 px-5 py-4">
           <h2 className="m-0 text-lg font-bold text-slate-950">{title}</h2>
-          <Button onClick={onClose} size="sm" variant="ghost">
-            关闭
-          </Button>
+          {showCloseButton ? (
+            <Button onClick={onClose} size="sm" variant="ghost">
+              关闭
+            </Button>
+          ) : null}
         </header>
         <div
           className={joinClassNames(

@@ -12,6 +12,7 @@ import type {
 
 type ProjectImportIssueListProps = {
   disabled?: boolean;
+  formatIssueMessage?: (issue: ProjectImportIssue) => string;
   issues: ProjectImportIssue[];
   onApplyCandidate?: (
     issue: ProjectImportIssue,
@@ -21,6 +22,7 @@ type ProjectImportIssueListProps = {
 
 export function ProjectImportIssueList({
   disabled = false,
+  formatIssueMessage,
   issues,
   onApplyCandidate,
 }: ProjectImportIssueListProps) {
@@ -37,6 +39,12 @@ export function ProjectImportIssueList({
       {issues.map((issue, index) => {
         const canApply =
           Boolean(onApplyCandidate) && isCandidateApplicable(issue.code);
+        const issueLabel = getProjectImportIssueLabel(issue.code);
+        const issueMessage = formatIssueMessage
+          ? formatIssueMessage(issue)
+          : issue.message;
+        const shouldShowMessage =
+          Boolean(issueMessage) && issueMessage !== issueLabel;
 
         return (
           <div
@@ -48,15 +56,15 @@ export function ProjectImportIssueList({
                 {getProjectImportFieldLabel(issue.field)}
               </Badge>
               <span className="text-sm font-bold text-slate-800">
-                {getProjectImportIssueLabel(issue.code)}
+                {issueLabel}
               </span>
               <span className="text-xs font-semibold text-slate-400">
                 {issue.code}
               </span>
             </div>
-            {issue.message ? (
+            {shouldShowMessage ? (
               <div className="mt-2 text-xs leading-5 text-slate-500">
-                后端原始提示：{issue.message}
+                处理建议：{issueMessage}
               </div>
             ) : null}
             {issue.candidates && issue.candidates.length > 0 ? (

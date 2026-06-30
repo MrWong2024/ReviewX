@@ -300,6 +300,7 @@ export function ProjectImportRowModal({
       }
       onClose={onClose}
       open={open}
+      showCloseButton={false}
       title={`Excel 第 ${row.rowNumber} 行导入确认`}
     >
       <form
@@ -449,6 +450,7 @@ export function ProjectImportRowModal({
         <Section title="问题列表">
           <ProjectImportIssueList
             disabled={!canSubmit || saving}
+            formatIssueMessage={formatImportIssueMessage}
             issues={row.issues}
             onApplyCandidate={canSubmit ? applyCandidate : undefined}
           />
@@ -487,7 +489,7 @@ export function ProjectImportRowModal({
               disabled={!canSubmit || options.projectTypeOptions.length === 0}
               hint={
                 options.projectTypeOptions.length === 0
-                  ? '暂无项目类型，请先到树形字典维护。'
+                  ? '暂无项目类型可选；如果系统中确实没有该类型，请到树形字典维护。'
                   : undefined
               }
               id="import-row-project-type-id"
@@ -527,7 +529,7 @@ export function ProjectImportRowModal({
               disabled={!canSubmit || options.projectStatusOptions.length === 0}
               hint={
                 options.projectStatusOptions.length === 0
-                  ? '暂无项目状态，请先到普通字典维护。'
+                  ? '暂无项目状态可选；如果系统中确实没有该状态，请到普通字典维护。'
                   : undefined
               }
               id="import-row-status-id"
@@ -683,7 +685,7 @@ export function ProjectImportRowModal({
               disabled={!canSubmit || options.departmentOptions.length === 0}
               hint={
                 options.departmentOptions.length === 0
-                  ? '暂无受理处室，请先到树形字典维护。'
+                  ? '暂无受理处室可选；如果系统中确实没有该处室，请到树形字典维护。'
                   : undefined
               }
               id="import-row-department-id"
@@ -799,7 +801,7 @@ export function ProjectImportRowModal({
                 }
                 hint={
                   options.regionOptions.length === 0
-                    ? '暂无行政区划，请先到树形字典维护。'
+                    ? '暂无行政区划可选；如需维护，请到树形字典维护。'
                     : undefined
                 }
                 id="import-create-organization-region"
@@ -1133,6 +1135,77 @@ function idsToLabelsSafe(
   }
 
   return ids.map((id) => labelByIdSafe(id, labels, unknownPrefix)).join('、');
+}
+
+const IMPORT_ISSUE_GUIDANCE_BY_CODE: Record<string, string> = {
+  cooperation_organization_not_found:
+    '未能自动匹配合作单位。请先在当前弹窗选择正确合作单位；如果系统中确实没有该单位，再到单位管理中维护。',
+  department_not_found:
+    '未能自动匹配受理处室。通常是 Excel 中的处室写法不规范，请先在当前弹窗选择正确受理处室；如果系统中确实没有该处室，再到树形字典维护。',
+  discipline_not_found:
+    '未能自动匹配学科。通常是 Excel 中的学科写法不规范，请先在当前弹窗选择正确学科；如果系统中确实没有该学科，再到树形字典维护。',
+  lead_organization_not_found:
+    '未能自动匹配承担单位。请先在当前弹窗选择正确承担单位；如果系统中确实没有该单位，再到单位管理中维护。',
+  owner_not_found:
+    '未能自动匹配项目负责人。请先在当前弹窗选择正确项目负责人；如果系统中确实没有该人员，再到用户管理中维护。',
+  project_type_not_found:
+    '未能自动匹配项目类型。通常是 Excel 中的项目类型写法不规范，请先在当前弹窗选择正确项目类型；如果系统中确实没有该类型，再到树形字典维护。',
+  status_not_found:
+    '未能自动匹配项目状态。通常是 Excel 中的状态写法不规范，请先在当前弹窗选择正确状态；如果系统中确实没有该状态，再到普通字典维护。',
+};
+
+const IMPORT_ISSUE_GUIDANCE_BY_OLD_MESSAGE: Array<{
+  markers: string[];
+  message: string;
+}> = [
+  {
+    markers: ['学科未找到', 'Discipline not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.discipline_not_found,
+  },
+  {
+    markers: ['项目状态未找到', 'Project status not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.status_not_found,
+  },
+  {
+    markers: ['项目类型未找到', 'Project type not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.project_type_not_found,
+  },
+  {
+    markers: ['受理处室未找到', 'Department not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.department_not_found,
+  },
+  {
+    markers: ['项目负责人未找到', 'Project owner not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.owner_not_found,
+  },
+  {
+    markers: ['承担单位未找到', 'Lead organization not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.lead_organization_not_found,
+  },
+  {
+    markers: ['合作单位未找到', 'Cooperation organization not found'],
+    message: IMPORT_ISSUE_GUIDANCE_BY_CODE.cooperation_organization_not_found,
+  },
+];
+
+function formatImportIssueMessage(issue: ProjectImportIssue): string {
+  const codeMessage = IMPORT_ISSUE_GUIDANCE_BY_CODE[issue.code];
+
+  if (codeMessage) {
+    return codeMessage;
+  }
+
+  const rawMessage = issue.message?.trim();
+
+  if (!rawMessage) {
+    return '';
+  }
+
+  const oldMessageMatch = IMPORT_ISSUE_GUIDANCE_BY_OLD_MESSAGE.find((item) =>
+    item.markers.some((marker) => rawMessage.includes(marker)),
+  );
+
+  return oldMessageMatch?.message ?? rawMessage;
 }
 
 function formatMatchedProjectLabel(row: ProjectImportRow): string {

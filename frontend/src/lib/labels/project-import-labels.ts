@@ -39,11 +39,14 @@ const ROW_STATUS_TONES: Record<string, ProjectImportBadgeTone> = {
 
 const ISSUE_CODE_LABELS: Record<string, string> = {
   cooperation_organization_ambiguous: '合作单位存在多个候选，请选择正确单位。',
-  cooperation_organization_not_found: '合作单位未找到，可选择已有单位或先维护单位。',
+  cooperation_organization_not_found:
+    '未能自动匹配合作单位。请先在当前弹窗选择正确合作单位；如果系统中确实没有该单位，再到单位管理中维护。',
   department_ambiguous: '受理处室存在多个候选，请选择正确处室。',
-  department_not_found: '受理处室未找到，请先到树形字典维护。',
+  department_not_found:
+    '未能自动匹配受理处室。通常是 Excel 中的处室写法不规范，请先在当前弹窗选择正确受理处室；如果系统中确实没有该处室，再到树形字典维护。',
   discipline_ambiguous: '学科存在多个候选，请选择正确学科。',
-  discipline_not_found: '学科未找到，请先到树形字典维护。',
+  discipline_not_found:
+    '未能自动匹配学科。通常是 Excel 中的学科写法不规范，请先在当前弹窗选择正确学科；如果系统中确实没有该学科，再到树形字典维护。',
   duplicate_project_no_in_file: '项目编号在本次导入中重复，请修正后再确认。',
   existing_project_matched: '已匹配到同批次已有项目，确认后将更新已有项目。',
   funding_inconsistent: '已拨款金额不能大于拨款总额。',
@@ -51,14 +54,18 @@ const ISSUE_CODE_LABELS: Record<string, string> = {
   lead_organization_ambiguous: '承担单位存在多个候选，请选择正确单位。',
   lead_organization_duplicated_in_cooperation:
     '承担单位同时出现在合作单位中，确认时会跳过重复合作单位。',
-  lead_organization_not_found: '承担单位未找到，可选择已有单位或创建新单位。',
+  lead_organization_not_found:
+    '未能自动匹配承担单位。请先在当前弹窗选择正确承担单位；如果系统中确实没有该单位，再到单位管理中维护。',
   owner_ambiguous: '项目负责人存在多个候选，请选择正确负责人。',
-  owner_not_found: '项目负责人未找到，可选择已有负责人或创建新项目负责人。',
+  owner_not_found:
+    '未能自动匹配项目负责人。请先在当前弹窗选择正确项目负责人；如果系统中确实没有该人员，再到用户管理中维护。',
   project_type_ambiguous: '项目类型存在多个候选，请选择正确类型。',
-  project_type_not_found: '项目类型未找到，请先到树形字典维护。',
+  project_type_not_found:
+    '未能自动匹配项目类型。通常是 Excel 中的项目类型写法不规范，请先在当前弹窗选择正确项目类型；如果系统中确实没有该类型，再到树形字典维护。',
   required_field_missing: '必填字段缺失，请补充后再确认。',
   status_ambiguous: '项目状态存在多个候选，请选择正确状态。',
-  status_not_found: '项目状态未找到，请先到普通字典维护。',
+  status_not_found:
+    '未能自动匹配项目状态。通常是 Excel 中的状态写法不规范，请先在当前弹窗选择正确状态；如果系统中确实没有该状态，再到普通字典维护。',
   unknown_error: '导入行处理异常，请检查数据后重试。',
 };
 
