@@ -101,10 +101,15 @@ type RowCorrectionForm = {
   totalFunding: string;
 };
 
+type RawValuePickOptions = {
+  fuzzy?: boolean;
+};
+
 type NormalizedFieldDefinition = {
   getNormalizedValue: (normalized: ProjectImportNormalizedRecord) => unknown;
   label: string;
   rawKeys: string[];
+  rawValueOptions?: RawValuePickOptions;
 };
 
 type NormalizedResultRow = {
@@ -248,7 +253,27 @@ const NORMALIZED_RESULT_FIELDS: NormalizedFieldDefinition[] = [
   },
   {
     label: '学科',
-    rawKeys: ['学科', '所属学科', 'disciplineNames', 'discipline'],
+    rawKeys: [
+      '学科',
+      '所属学科',
+      '学科名称',
+      '学科分类',
+      '学科门类',
+      '一级学科',
+      '二级学科',
+      '三级学科',
+      '技术领域',
+      '所属技术领域',
+      '领域',
+      '专业领域',
+      '研究领域',
+      '所属领域',
+      '项目学科',
+      '学科专业',
+      'disciplineNames',
+      'discipline',
+    ],
+    rawValueOptions: { fuzzy: true },
     getNormalizedValue: (normalized) => normalized.disciplineNames,
   },
   {
@@ -1141,7 +1166,7 @@ function buildNormalizedResultRows(
   const resultRows: NormalizedResultRow[] = [];
 
   for (const field of NORMALIZED_RESULT_FIELDS) {
-    const raw = pickRawValue(row, field.rawKeys);
+    const raw = pickRawValue(row, field.rawKeys, field.rawValueOptions);
     const normalizedValue = field.getNormalizedValue(row.normalized);
 
     if (!raw.exists && !hasDisplayValue(normalizedValue)) {
@@ -1164,6 +1189,7 @@ function buildNormalizedResultRows(
 function pickRawValue(
   row: ProjectImportRow,
   possibleKeys: string[],
+  options?: RawValuePickOptions,
 ): { exists: boolean; value: unknown } {
   for (const key of possibleKeys) {
     if (Object.prototype.hasOwnProperty.call(row.raw, key)) {
@@ -1180,11 +1206,33 @@ function pickRawValue(
     return { exists: true, value: row.raw[matchedKey] };
   }
 
+  if (options?.fuzzy) {
+    const fuzzyMatchedKey = Object.keys(row.raw).find((key) => {
+      const normalizedKey = normalizeRawKey(key);
+
+      return Array.from(normalizedKeys).some((possibleKey) =>
+        isFuzzyRawKeyMatch(normalizedKey, possibleKey),
+      );
+    });
+
+    if (fuzzyMatchedKey) {
+      return { exists: true, value: row.raw[fuzzyMatchedKey] };
+    }
+  }
+
   return { exists: false, value: undefined };
 }
 
 function normalizeRawKey(key: string): string {
   return key.trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function isFuzzyRawKeyMatch(rawKey: string, possibleKey: string): boolean {
+  if (rawKey.length < 2 || possibleKey.length < 2) {
+    return false;
+  }
+
+  return rawKey.includes(possibleKey) || possibleKey.includes(rawKey);
 }
 
 function hasDisplayValue(value: unknown): boolean {
