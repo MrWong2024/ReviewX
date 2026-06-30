@@ -24,7 +24,7 @@ npm run build
 
 ## 3. 通用验证原则
 
-- 权限以 `/auth/me` 和后端接口权限为准，不用 `localStorage.reviewx_selected_role` 作为权限依据。
+- 权限以 `/auth/me` 和后端接口权限为准，不用 `localStorage.reviewx_selected_role` 或 `localStorage.reviewx_sidebar_collapsed` 作为权限依据。
 - 业务错误优先展示后端 `message`，不要吞错或用前端假成功覆盖服务端结果。
 - 空态、错误态、加载态必须可理解，页面不应白屏。
 - 不向业务用户展示 ObjectId、短 ID、`passwordHash`、token、secret、credential、Cookie 或密钥。
@@ -59,6 +59,9 @@ npm run build
 - 单角色用户只进入对应工作台，多角色用户可切换进入多个工作台。
 - admin、project-owner、expert、review-manager、client 入口均可用。
 - `/workspace` 和 admin / project-owner / expert / review-manager / client Shell 顶部均可进入“修改密码”。
+- admin / project-owner / expert / review-manager / client Shell 左侧栏默认展开，可收起 / 展开；折叠状态使用统一 `reviewx_sidebar_collapsed` 保存为 UI 偏好，刷新后保持，跨角色工作台继承。
+- Shell 侧栏折叠后右侧内容区应变宽，窄导航仍可点击，当前激活态仍可见，导航 title 应提供完整名称；折叠不改变权限、角色导航 href 或后端接口命名空间。
+- Shell 侧栏折叠 / 恢复后，“修改密码”“返回工作台”“退出登录”入口仍可用。
 - 非对应角色访问对应工作台显示无权限态，不应加载业务数据。
 
 ## 4.1 自助修改密码

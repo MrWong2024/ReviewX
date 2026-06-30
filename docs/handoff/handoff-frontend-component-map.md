@@ -4,11 +4,12 @@
 
 | 组件 | 文件 | 用途 |
 | --- | --- | --- |
-| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、侧边栏、前端守卫、修改密码、返回工作台和退出登录 |
-| `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、侧边栏、project_owner 前端守卫、修改密码、返回工作台和退出登录 |
-| `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、侧边栏、expert 前端守卫、修改密码、返回工作台和退出登录 |
-| `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、侧边栏、review_manager 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留评审负责人首页/负责项目，返回工作台仅保留在顶部右侧 |
-| `ClientShell` | `frontend/src/components/layout/ClientShell.tsx` | 甲方监管看板壳、顶部栏、侧边栏、client 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留 `/client` 监管看板 |
+| `AdminShell` | `frontend/src/components/layout/AdminShell.tsx` | 管理员后台壳、顶部栏、可折叠侧边栏、前端守卫、修改密码、返回工作台和退出登录 |
+| `ProjectOwnerShell` | `frontend/src/components/layout/ProjectOwnerShell.tsx` | 项目负责人工作台壳、顶部栏、可折叠侧边栏、project_owner 前端守卫、修改密码、返回工作台和退出登录 |
+| `ExpertShell` | `frontend/src/components/layout/ExpertShell.tsx` | 专家工作台壳、顶部栏、可折叠侧边栏、expert 前端守卫、修改密码、返回工作台和退出登录 |
+| `ReviewManagerShell` | `frontend/src/components/layout/ReviewManagerShell.tsx` | 评审负责人工作台壳、顶部栏、可折叠侧边栏、review_manager 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留评审负责人首页/负责项目，返回工作台仅保留在顶部右侧 |
+| `ClientShell` | `frontend/src/components/layout/ClientShell.tsx` | 甲方监管看板壳、顶部栏、可折叠侧边栏、client 前端守卫、修改密码、返回工作台和退出登录；侧边栏只保留 `/client` 监管看板 |
+| `SidebarCollapseButton` | `frontend/src/components/layout/SidebarCollapseButton.tsx` | 五类 Shell 共用的侧边栏收起 / 展开按钮，提供 `aria-label` 和 title |
 
 ## 2. UI 组件
 
@@ -125,6 +126,7 @@
 | --- | --- | --- |
 | `apiRequest` | `frontend/src/lib/api/client.ts` | 统一 fetch 封装 |
 | `ApiError` | `frontend/src/lib/api/errors.ts` | 结构化 API 错误 |
+| `useSidebarCollapse` | `frontend/src/components/layout/useSidebarCollapse.ts` | 五类 Shell 共用侧边栏折叠偏好，默认展开，使用 `reviewx_sidebar_collapsed` 存储 UI 偏好，不参与权限判断 |
 | `formatDateTime` | `frontend/src/lib/format/date.ts` | 日期时间展示 |
 | `displayValue` / `statusText` | `frontend/src/lib/format/value.ts` | 空值和状态展示 |
 | form utils | `frontend/src/features/admin/form-utils.ts` | trim、空值、数值转换 |
@@ -162,6 +164,7 @@
 - Input / Select 基础高度统一为 `h-10`，Textarea 统一字号、圆角、边框和 focus ring
 - 表格、分页、空状态、错误提示、加载态、Modal、ConfirmDialog 已同步现代化样式
 - `AdminShell` 已升级为深海军蓝 / 墨蓝 / 靛蓝渐变侧栏、胶囊选中态、顶部用户与角色 Badge、返回工作台入口、退出登录和浅灰蓝内容背景
+- Admin、Review Manager、Project Owner、Expert、Client 五类 Shell 支持左侧栏收起 / 展开；折叠状态使用统一 localStorage key `reviewx_sidebar_collapsed` 作为全站 UI 偏好，默认展开，不影响权限和导航路由，折叠后导航仍可点击
 - 页面仍保留少量语义 class（如 `page-title`、`toolbar`、`panel`、`form-stack`），由全局 CSS 通过 Tailwind `@apply` 统一承载
 - `.grid-2` / `.grid-3` 使用 `items-start` 保持同行字段顶部对齐；字典和树形字典表单通过说明区预留避免“名称 / 编码”高度错位
 - 单位行政区划选择只使用 `treeType=administrative_division` 的缩进树选项；无数据时提示先在树形字典中维护行政区划
