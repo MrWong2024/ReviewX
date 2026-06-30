@@ -67,13 +67,13 @@ const EMPTY_FILTERS: ProjectFilters = {
 };
 
 const PROJECT_ORGANIZATION_STATUS_HEADER_CLASS =
-  'sticky right-[200px] z-30 w-[160px] min-w-[160px] bg-slate-50/95 shadow-[-1px_0_0_rgba(203,213,225,0.9)]';
+  'sticky right-[96px] z-30 w-[80px] min-w-[80px] max-w-[80px] whitespace-normal break-words border-l border-slate-200 bg-slate-50/95 !px-2 text-center leading-5';
 const PROJECT_ORGANIZATION_STATUS_CELL_CLASS =
-  'sticky right-[200px] z-20 w-[160px] min-w-[160px] whitespace-nowrap bg-white shadow-[-1px_0_0_rgba(203,213,225,0.9)] group-hover:bg-cyan-50/80';
+  'sticky right-[96px] z-20 w-[80px] min-w-[80px] max-w-[80px] whitespace-normal break-words border-l border-slate-200 bg-white !px-2 text-center leading-5 group-hover:bg-cyan-50/80';
 const PROJECT_ACTIONS_HEADER_CLASS =
-  'sticky right-0 z-40 w-[200px] min-w-[200px] bg-slate-50/95 shadow-[-8px_0_12px_rgba(15,23,42,0.06)]';
+  'sticky right-0 z-40 w-[96px] min-w-[96px] max-w-[96px] whitespace-normal break-words border-l border-slate-200 bg-slate-50/95 !px-2 text-center leading-5';
 const PROJECT_ACTIONS_CELL_CLASS =
-  'sticky right-0 z-30 w-[200px] min-w-[200px] bg-white shadow-[-8px_0_12px_rgba(15,23,42,0.06)] group-hover:bg-cyan-50/80';
+  'sticky right-0 z-30 w-[96px] min-w-[96px] max-w-[96px] whitespace-normal break-words border-l border-slate-200 bg-white !px-2 text-center leading-5 group-hover:bg-cyan-50/80';
 
 export function ProjectsPage() {
   const [assignmentTarget, setAssignmentTarget] = useState<Project | null>(null);
@@ -391,8 +391,9 @@ export function ProjectsPage() {
       headerClassName: PROJECT_ACTIONS_HEADER_CLASS,
       key: 'actions',
       render: (item) => (
-        <div className="table-actions">
+        <div className="flex flex-col items-stretch gap-1">
           <Button
+            className="w-full whitespace-normal break-words !px-2 text-center leading-4"
             onClick={() => {
               setNotice(null);
               setAssignmentTarget(item);
@@ -403,7 +404,7 @@ export function ProjectsPage() {
             分配
           </Button>
           <Link
-            className="inline-flex min-h-7 items-center rounded-md border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-semibold text-cyan-700 transition hover:bg-cyan-100"
+            className="flex min-h-7 w-full items-center justify-center rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-center text-xs leading-4 font-semibold break-words whitespace-normal text-cyan-700 transition hover:bg-cyan-100"
             href={`/admin/projects/${item.id}/review-organization`}
           >
             评审组织
