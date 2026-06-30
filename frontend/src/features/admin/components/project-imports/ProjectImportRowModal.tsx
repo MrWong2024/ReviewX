@@ -13,7 +13,6 @@ import {
   TreeMultiSelect,
   type TreeMultiSelectOption,
 } from '@/src/components/ui/TreeMultiSelect';
-import { displayValue } from '@/src/lib/format/value';
 import {
   getProjectImportFieldLabel,
   getProjectImportRowStatusLabel,
@@ -23,6 +22,7 @@ import { treeOptionLabel } from '@/src/lib/tree/build-tree';
 import type {
   ProjectImportIssue,
   ProjectImportIssueCandidate,
+  ProjectImportNormalizedRecord,
   ProjectImportRow,
   UpdateProjectImportRowInput,
 } from '../../types/project-imports';
@@ -101,6 +101,19 @@ type RowCorrectionForm = {
   totalFunding: string;
 };
 
+type NormalizedFieldDefinition = {
+  getNormalizedValue: (normalized: ProjectImportNormalizedRecord) => unknown;
+  label: string;
+  rawKeys: string[];
+};
+
+type NormalizedResultRow = {
+  changed: boolean;
+  label: string;
+  normalizedValue: string;
+  rawValue: string;
+};
+
 const EMPTY_FORM: RowCorrectionForm = {
   allocatedFunding: '',
   cooperationOrganizationIds: [],
@@ -134,6 +147,116 @@ const EMPTY_FORM: RowCorrectionForm = {
   statusName: '',
   totalFunding: '',
 };
+
+const NORMALIZED_RESULT_FIELDS: NormalizedFieldDefinition[] = [
+  {
+    label: '项目编号',
+    rawKeys: ['项目编号', '项目代码', '编号', 'projectNo'],
+    getNormalizedValue: (normalized) => normalized.projectNo,
+  },
+  {
+    label: '项目名称',
+    rawKeys: ['项目名称', '名称', 'name'],
+    getNormalizedValue: (normalized) => normalized.name,
+  },
+  {
+    label: '项目类型',
+    rawKeys: [
+      '项目类型',
+      '类型',
+      '项目类别',
+      '类别',
+      'projectTypeName',
+      'projectType',
+    ],
+    getNormalizedValue: (normalized) => normalized.projectTypeName,
+  },
+  {
+    label: '项目状态',
+    rawKeys: ['项目状态', '状态', 'statusName', 'status'],
+    getNormalizedValue: (normalized) => normalized.statusName,
+  },
+  {
+    label: '项目负责人',
+    rawKeys: ['项目负责人', '负责人', 'ownerName', 'owner'],
+    getNormalizedValue: (normalized) => normalized.ownerName,
+  },
+  {
+    label: '项目负责人手机',
+    rawKeys: [
+      '项目负责人手机',
+      '负责人手机',
+      '负责人手机号',
+      '负责人联系电话',
+      'ownerPhone',
+    ],
+    getNormalizedValue: (normalized) => normalized.ownerPhone,
+  },
+  {
+    label: '承担单位',
+    rawKeys: [
+      '项目承担单位',
+      '承担单位',
+      '单位名称',
+      'leadOrganizationName',
+      'leadOrganization',
+    ],
+    getNormalizedValue: (normalized) => normalized.leadOrganizationName,
+  },
+  {
+    label: '单位联系人',
+    rawKeys: [
+      '单位联系人',
+      '联系人',
+      'organizationContactName',
+      'contactName',
+    ],
+    getNormalizedValue: (normalized) => normalized.organizationContactName,
+  },
+  {
+    label: '单位联系人手机',
+    rawKeys: [
+      '单位联系人手机',
+      '单位联系人电话',
+      '联系人手机',
+      '联系电话',
+      '联系人电话',
+      'organizationContactPhone',
+      'contactPhone',
+    ],
+    getNormalizedValue: (normalized) => normalized.organizationContactPhone,
+  },
+  {
+    label: '合作单位',
+    rawKeys: [
+      '合作单位',
+      '合作单位名称',
+      'cooperationOrganizationNames',
+      'cooperationOrganizations',
+    ],
+    getNormalizedValue: (normalized) => normalized.cooperationOrganizationNames,
+  },
+  {
+    label: '拨款总额',
+    rawKeys: ['拨款总额', '总拨款', '项目经费', 'totalFunding'],
+    getNormalizedValue: (normalized) => normalized.totalFunding,
+  },
+  {
+    label: '已拨款',
+    rawKeys: ['已拨款', '已拨付', 'allocatedFunding'],
+    getNormalizedValue: (normalized) => normalized.allocatedFunding,
+  },
+  {
+    label: '学科',
+    rawKeys: ['学科', '所属学科', 'disciplineNames', 'discipline'],
+    getNormalizedValue: (normalized) => normalized.disciplineNames,
+  },
+  {
+    label: '受理处室',
+    rawKeys: ['受理处室', '处室', 'departmentName', 'department'],
+    getNormalizedValue: (normalized) => normalized.departmentName,
+  },
+];
 
 export function ProjectImportRowModal({
   error,
@@ -206,6 +329,13 @@ export function ProjectImportRowModal({
   const rawEntries = useMemo(
     () => (row ? Object.entries(row.raw) : []),
     [row],
+  );
+  const normalizedResultRows = useMemo(
+    () => (row ? buildNormalizedResultRows(row) : []),
+    [row],
+  );
+  const hasNormalizedChanges = normalizedResultRows.some(
+    (entry) => entry.changed,
   );
 
   if (!row) {
@@ -351,34 +481,28 @@ export function ProjectImportRowModal({
           )}
         </Section>
 
-        <Section title="标准化数据">
-          <KeyValueGrid
-            entries={[
-              ['项目编号', displayValue(row.normalized.projectNo)],
-              ['项目名称', displayValue(row.normalized.name)],
-              ['项目类型', displayValue(row.normalized.projectTypeName)],
-              ['项目负责人', displayValue(row.normalized.ownerName)],
-              ['负责人手机号', displayValue(row.normalized.ownerPhone)],
-              ['承担单位', displayValue(row.normalized.leadOrganizationName)],
-              ['拨款总额', displayValue(row.normalized.totalFunding)],
-              ['已拨款', displayValue(row.normalized.allocatedFunding)],
-              ['学科', listToDisplay(row.normalized.disciplineNames)],
-              ['受理处室', displayValue(row.normalized.departmentName)],
-              [
-                '合作单位',
-                listToDisplay(row.normalized.cooperationOrganizationNames),
-              ],
-              ['项目状态', displayValue(row.normalized.statusName)],
-              [
-                '单位联系人',
-                displayValue(row.normalized.organizationContactName),
-              ],
-              [
-                '单位联系人电话',
-                displayValue(row.normalized.organizationContactPhone),
-              ],
-            ]}
-          />
+        <Section title="标准化结果">
+          <div className="space-y-3">
+            <div className="space-y-1 text-sm leading-6 text-slate-500">
+              <p>系统根据字段映射和清洗规则识别出的标准字段值。</p>
+              <p>
+                标准化结果用于后续自动匹配和入库。若 Excel
+                写法不规范，可在下方修正区域选择正确的字典、单位或人员。
+              </p>
+            </div>
+            {normalizedResultRows.length === 0 ? (
+              <div className="text-sm text-slate-400">暂无标准化结果</div>
+            ) : (
+              <>
+                {!hasNormalizedChanges ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    本行主要字段未发生明显标准化变化。
+                  </div>
+                ) : null}
+                <NormalizedResultTable rows={normalizedResultRows} />
+              </>
+            )}
+          </div>
         </Section>
 
         <Section title="当前匹配结果">
@@ -964,6 +1088,127 @@ function KeyValueGrid({ entries }: { entries: Array<[string, string]> }) {
   );
 }
 
+function NormalizedResultTable({ rows }: { rows: NormalizedResultRow[] }) {
+  return (
+    <div className="overflow-x-auto rounded-lg ring-1 ring-slate-200">
+      <table className="w-full min-w-[640px] border-collapse text-sm">
+        <thead className="bg-slate-50 text-left text-xs font-black text-slate-500">
+          <tr>
+            <th className="w-48 px-3 py-2">标准字段</th>
+            <th className="px-3 py-2">Excel 原值</th>
+            <th className="px-3 py-2">标准化结果</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((row) => (
+            <tr
+              className={row.changed ? 'bg-amber-50/70' : 'bg-white'}
+              key={row.label}
+            >
+              <td className="px-3 py-3 align-top">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-800">
+                    {row.label}
+                  </span>
+                  <span
+                    className={
+                      row.changed
+                        ? 'rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 ring-1 ring-amber-200'
+                        : 'rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200'
+                    }
+                  >
+                    {row.changed ? '已标准化' : '未变化'}
+                  </span>
+                </div>
+              </td>
+              <td className="max-w-[260px] break-words px-3 py-3 align-top leading-6 text-slate-600">
+                {row.rawValue}
+              </td>
+              <td className="max-w-[260px] break-words px-3 py-3 align-top font-medium leading-6 text-slate-800">
+                {row.normalizedValue}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function buildNormalizedResultRows(
+  row: ProjectImportRow,
+): NormalizedResultRow[] {
+  const resultRows: NormalizedResultRow[] = [];
+
+  for (const field of NORMALIZED_RESULT_FIELDS) {
+    const raw = pickRawValue(row, field.rawKeys);
+    const normalizedValue = field.getNormalizedValue(row.normalized);
+
+    if (!raw.exists && !hasDisplayValue(normalizedValue)) {
+      continue;
+    }
+
+    resultRows.push({
+      changed:
+        normalizeDisplayText(raw.value) !==
+        normalizeDisplayText(normalizedValue),
+      label: field.label,
+      normalizedValue: formatNormalizedCellValue(normalizedValue),
+      rawValue: formatNormalizedCellValue(raw.value),
+    });
+  }
+
+  return resultRows;
+}
+
+function pickRawValue(
+  row: ProjectImportRow,
+  possibleKeys: string[],
+): { exists: boolean; value: unknown } {
+  for (const key of possibleKeys) {
+    if (Object.prototype.hasOwnProperty.call(row.raw, key)) {
+      return { exists: true, value: row.raw[key] };
+    }
+  }
+
+  const normalizedKeys = new Set(possibleKeys.map(normalizeRawKey));
+  const matchedKey = Object.keys(row.raw).find((key) =>
+    normalizedKeys.has(normalizeRawKey(key)),
+  );
+
+  if (matchedKey) {
+    return { exists: true, value: row.raw[matchedKey] };
+  }
+
+  return { exists: false, value: undefined };
+}
+
+function normalizeRawKey(key: string): string {
+  return key.trim().replace(/\s+/g, '').toLowerCase();
+}
+
+function hasDisplayValue(value: unknown): boolean {
+  return normalizeDisplayText(value) !== '';
+}
+
+function formatNormalizedCellValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    const items = value
+      .map((item) => formatNormalizedCellValue(item))
+      .filter((item) => item !== '-');
+
+    return items.length > 0 ? items.join(', ') : '-';
+  }
+
+  const text = normalizeDisplayText(value);
+
+  if (!text) {
+    return '-';
+  }
+
+  return isObjectIdText(text) ? '未知项' : text;
+}
+
 function buildPayload(
   form: RowCorrectionForm,
 ): { error: string } | { input: UpdateProjectImportRowInput } {
@@ -1085,28 +1330,12 @@ function listToText(value?: string[]): string {
   return value?.join('\n') ?? '';
 }
 
-function listToDisplay(value?: string[]): string {
-  return value && value.length > 0 ? value.join('、') : '-';
-}
-
 function numberToInput(value?: number | null): string {
   return value === undefined || value === null ? '' : String(value);
 }
 
 function appendUnique(items: string[], next: string): string[] {
   return items.includes(next) ? items : [...items, next];
-}
-
-function shortId(id?: string | null): string {
-  if (!id) {
-    return '';
-  }
-
-  if (id.length <= 8) {
-    return id;
-  }
-
-  return `${id.slice(0, 4)}...${id.slice(-4)}`;
 }
 
 function labelByIdSafe(
@@ -1120,9 +1349,7 @@ function labelByIdSafe(
 
   const label = labels.get(id);
 
-  return label && label.trim()
-    ? label
-    : `${unknownPrefix}（${shortId(id)}）`;
+  return label && label.trim() ? label : unknownPrefix;
 }
 
 function idsToLabelsSafe(
@@ -1246,13 +1473,13 @@ function formatProjectTypeLabel(
 ): string {
   const id = row.resolved.projectTypeId;
   const label = id ? labels.get(id) : undefined;
-  const safeLabel = normalizeDisplayText(label, id);
+  const safeLabel = normalizeReadableText(label, id);
 
   if (safeLabel) {
     return safeLabel;
   }
 
-  const normalizedName = normalizeDisplayText(
+  const normalizedName = normalizeReadableText(
     row.normalized.projectTypeName,
     id,
   );
@@ -1280,7 +1507,7 @@ function getRawProjectTypeText(
   ];
 
   for (const key of rawKeys) {
-    const value = normalizeDisplayText(
+    const value = normalizeReadableText(
       formatRawDisplayValue(raw[key]),
       projectTypeId,
     );
@@ -1305,17 +1532,48 @@ function formatRawDisplayValue(value: unknown): string | undefined {
   return undefined;
 }
 
-function normalizeDisplayText(
+function normalizeReadableText(
   value?: string | null,
   sourceId?: string,
 ): string | undefined {
-  const trimmed = value?.trim();
+  const trimmed = normalizeDisplayText(value);
 
   if (!trimmed || trimmed === sourceId || isObjectIdText(trimmed)) {
     return undefined;
   }
 
   return trimmed;
+}
+
+function normalizeDisplayText(value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeDisplayText(item))
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (typeof value === 'number') {
+    return String(value);
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? '是' : '否';
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 function isObjectIdText(value: string): boolean {
